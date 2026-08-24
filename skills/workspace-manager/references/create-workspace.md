@@ -5,24 +5,24 @@ Create a new workspace with specified repositories.
 ## Instructions
 
 1. If the user hasn't specified which repos they want, help them discover repos:
-   - Run `grove cache search <query>` to search by name or description.
-   - Run `grove cache list` to browse all available repos.
-   - Run `grove suite list` to see pre-defined repo collections.
+   - Run `nemus cache search <query>` to search by name or description.
+   - Run `nemus cache list` to browse all available repos.
+   - Run `nemus suite list` to see pre-defined repo collections.
 
 2. Run the command with flags (non-interactive):
    ```bash
-   grove create --workspace <name> --repos <r1,r2,...> --yes
+   nemus create --workspace <name> --repos <r1,r2,...> --yes
    ```
 
    Or interactively (no flags needed — CLI will prompt):
    ```bash
-   grove create
+   nemus create
    ```
 
 3. After creation, suggest next steps:
-   - `gvgo <name>` to navigate to the workspace (requires shell integration)
-   - Run `grove status <name>` to check the initial state
-   - Run `grove sync <name>` to pull latest changes
+   - `nemgo <name>` to navigate to the workspace (requires shell integration)
+   - Run `nemus status <name>` to check the initial state
+   - Run `nemus sync <name>` to pull latest changes
 
 ## Flags
 
@@ -35,8 +35,8 @@ Create a new workspace with specified repositories.
 ## Examples
 
 ```bash
-grove create --workspace payments --repos partnerships-api,payments-db --yes
-grove suite use --suite platform --workspace platform-ws --yes
+nemus create --workspace payments --repos partnerships-api,payments-db --yes
+nemus suite use --suite platform --workspace platform-ws --yes
 ```
 
 ## Success Criteria

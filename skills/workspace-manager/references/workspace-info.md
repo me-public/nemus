@@ -4,26 +4,26 @@ Get detailed metadata for a workspace including all repository info and status.
 
 ## Instructions
 
-There is no dedicated `grove info` CLI command. To get workspace information, combine:
+There is no dedicated `nemus info` CLI command. To get workspace information, combine:
 
 1. **List workspaces** to see all available:
    ```bash
-   grove list
+   nemus list
    ```
 
 2. **Check status** for repo-level detail:
    ```bash
-   grove status <name>
+   nemus status <name>
    ```
 
 3. **Run doctor** for health assessment:
    ```bash
-   grove doctor <name>
+   nemus doctor <name>
    ```
 
 4. **Generate docs** for a comprehensive workspace overview:
    ```bash
-   grove generate-docs <name>
+   nemus generate-docs <name>
    ```
 
 The MCP tool `workspace-info` provides detailed metadata programmatically.

@@ -6,12 +6,12 @@ Create a new workspace from a saved suite.
 
 1. In interactive mode:
    ```bash
-   grove suite use
+   nemus suite use
    ```
 
 2. In non-interactive mode (for agents):
    ```bash
-   grove suite use --suite <suite-name> --workspace <workspace-name> --yes
+   nemus suite use --suite <suite-name> --workspace <workspace-name> --yes
    ```
 
 3. This will:
@@ -19,7 +19,7 @@ Create a new workspace from a saved suite.
    - Run any post-clone hooks configured in the suite
    - Set up Claude Code integration
 
-4. After creation, suggest `grove status <workspace>` to verify.
+4. After creation, suggest `nemus status <workspace>` to verify.
 
 ## Success Criteria
 

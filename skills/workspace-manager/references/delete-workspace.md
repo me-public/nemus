@@ -6,19 +6,19 @@ Permanently delete one or more workspaces and all their cloned repositories.
 
 1. **Confirm with the user before deleting.** This is a destructive, irreversible operation.
 
-2. Warn the user about any uncommitted changes — run `grove status <name>` to check first.
+2. Warn the user about any uncommitted changes — run `nemus status <name>` to check first.
 
 3. Run the command:
    ```bash
-   grove delete --workspace <name> --yes
+   nemus delete --workspace <name> --yes
    ```
 
    For multiple workspaces (comma-separated):
    ```bash
-   grove delete --workspace <name1>,<name2> --yes
+   nemus delete --workspace <name1>,<name2> --yes
    ```
 
-4. Consider suggesting `grove archive --workspace <name> --yes` as an alternative.
+4. Consider suggesting `nemus archive --workspace <name> --yes` as an alternative.
 
 ## Flags
 

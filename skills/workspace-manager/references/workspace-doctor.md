@@ -4,11 +4,11 @@ Run comprehensive health checks on a workspace and return a health score (0-100)
 
 ## Instructions
 
-1. If no workspace is specified, run `grove list` and ask which one.
+1. If no workspace is specified, run `nemus list` and ask which one.
 
 2. Run:
    ```bash
-   grove doctor <name>
+   nemus doctor <name>
    ```
 
 3. Present the health report:
@@ -17,9 +17,9 @@ Run comprehensive health checks on a workspace and return a health score (0-100)
    - Specific recommendations for any issues found
 
 4. For low scores, suggest fixes:
-   - `grove sync` for outdated repos
-   - `grove cleanup` for disk space issues
-   - `grove branch create` or `grove branch switch` for branch inconsistencies
+   - `nemus sync` for outdated repos
+   - `nemus cleanup` for disk space issues
+   - `nemus branch create` or `nemus branch switch` for branch inconsistencies
 
 ## Success Criteria
 

@@ -5,14 +5,14 @@ Remove node_modules and build artifacts from all repos in a workspace to free di
 ## Instructions
 
 ```bash
-grove cleanup <workspace> --all --yes
+nemus cleanup <workspace> --all --yes
 ```
 
 Or specify what to clean:
 ```bash
-grove cleanup <workspace> --node-modules --yes
-grove cleanup <workspace> --build --yes
-grove cleanup <workspace> --git-clean --yes
+nemus cleanup <workspace> --node-modules --yes
+nemus cleanup <workspace> --build --yes
+nemus cleanup <workspace> --git-clean --yes
 ```
 
 ## Flags

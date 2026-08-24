@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Grove - Shell Integration Installer
+# Nemus - Shell Integration Installer
 # This script installs a shell function that allows automatic CD after workspace creation
 
 set -e
@@ -30,8 +30,8 @@ fi
 # Shell function to wrap workspace command
 read -r -d '' SHELL_FUNCTION << 'EOF' || true
 
-# Grove - Shell Integration (v49)
-# Wraps both 'grove' and 'gv' commands so the shell can CD after
+# Nemus - Shell Integration (v49)
+# Wraps both 'nemus' and 'nem' commands so the shell can CD after
 # create / list / go commands. A child process cannot change the parent
 # shell's directory, so we need shell functions that read a temp file
 # written by the Node CLI and call `cd` in the current shell.
@@ -189,7 +189,7 @@ __workspace_set_tab_title() {
 }
 
 # ── helper: detect configured AI agent ───────────────────────────────
-# Reads primaryAgent from Grove config and returns the CLI command.
+# Reads primaryAgent from Nemus config and returns the CLI command.
 # Falls back to 'claude' if config is missing or unreadable.
 # Caches result for the shell session to avoid repeated node invocations.
 __ws_cached_agent=""
@@ -231,7 +231,7 @@ __workspace_detect_agent() {
 
 # ── helper: run the real binary then handle CD ──────────────────────
 __workspace_run() {
-  local bin="$1"  # "grove" or "gv"
+  local bin="$1"  # "nemus" or "nem"
   shift
   if [ $# -eq 0 ]; then
     command "$bin"
@@ -257,7 +257,7 @@ __workspace_run() {
     --) is_create=true; is_ai=true ;;
     list|l|go|sessions|ses) is_go=true ;;
   esac
-  # Grouped commands: "grove suite use" / "grove template use" — check second arg
+  # Grouped commands: "nemus suite use" / "nemus template use" — check second arg
   if [ "$is_create" = false ]; then
     case "$cmd" in
       suite|template)
@@ -272,7 +272,7 @@ __workspace_run() {
   # Detect --yes/-y (non-interactive mode): skip auto-launching the agent
   # after workspace creation so one-shot/scripted invocations don't hang
   # waiting on an interactive claude/pi/opencode session. Does not apply
-  # to the AI-prompt path ("grove -- <prompt>"), which is interactive-only.
+  # to the AI-prompt path ("nemus -- <prompt>"), which is interactive-only.
   local skip_agent_launch=false
   if [ "$is_create" = true ] && [ "$is_ai" = false ]; then
     local arg
@@ -425,15 +425,15 @@ __workspace_run() {
 }
 
 # ── public wrappers ─────────────────────────────────────────────────
-grove() { __workspace_run grove "$@"; }
-gv()    { __workspace_run gv "$@"; }
+nemus() { __workspace_run nemus "$@"; }
+nem()    { __workspace_run nem "$@"; }
 
 # Quick navigation to workspace with fuzzy search
-gvgo() {
+nemgo() {
   local temp_file="$HOME/.workspace-last-go"
   [ -f "$temp_file" ] && rm -f "$temp_file"
 
-  command grove go "$@"
+  command nemus go "$@"
   local exit_code=$?
 
   if [ -f "$temp_file" ]; then
@@ -478,7 +478,7 @@ fi
 # Check if already installed (version marker is in the grep below)
 if grep -q "Shell Integration (v49)" "$RC_FILE" 2>/dev/null; then
   echo "✅ Shell integration already up to date in $RC_FILE"
-elif grep -q "# Grove - Shell Integration" "$RC_FILE" 2>/dev/null; then
+elif grep -q "# Nemus - Shell Integration" "$RC_FILE" 2>/dev/null; then
   # Old version installed — remove it and install new version
   echo "🔄 Upgrading shell integration in $RC_FILE..."
   TMPFILE=$(mktemp)
@@ -512,5 +512,5 @@ fi
 
 echo ""
 echo "After activation:"
-echo "  • 'grove create' / 'grove list' will automatically CD to the workspace! 🚀"
-echo "  • 'gvgo' command for quick navigation with fuzzy search! 🔍"
+echo "  • 'nemus create' / 'nemus list' will automatically CD to the workspace! 🚀"
+echo "  • 'nemgo' command for quick navigation with fuzzy search! 🔍"

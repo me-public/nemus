@@ -33,7 +33,7 @@ export const fetchOrgRepos = async (options: { forceRefresh?: boolean } = {}): P
     logInfo(
       githubOrg
         ? `Fetching ${githubOrg} repositories from GitHub...`
-        : 'Fetching your GitHub repositories... (set an org with `grove configure` to list an organization)'
+        : 'Fetching your GitHub repositories... (set an org with `nemus configure` to list an organization)'
     );
 
     // With no configured org, `gh repo list` (no positional) lists the

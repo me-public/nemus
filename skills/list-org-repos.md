@@ -10,17 +10,17 @@ List all repositories in the GitHub organization.
 ## Running
 
 ```bash
-grove cache list
+nemus cache list
 ```
 
 If the cache is empty or stale:
 ```bash
-grove cache refresh
+nemus cache refresh
 ```
 
 ## Presenting Results
 
 Show repo names. Can be filtered by searching:
 ```bash
-grove cache search <keyword>
+nemus cache search <keyword>
 ```

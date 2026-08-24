@@ -10,12 +10,12 @@ Run a shell command across all repos in a workspace.
 ## Running
 
 ```bash
-grove run <workspace-name> "<command>"
+nemus run <workspace-name> "<command>"
 ```
 
 Example:
 ```bash
-grove run my-workspace "git log --oneline -5"
+nemus run my-workspace "git log --oneline -5"
 ```
 
 ## Presenting Results

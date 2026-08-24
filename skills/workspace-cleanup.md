@@ -10,7 +10,7 @@ Remove node_modules and build artifacts to free disk space.
 ## Running
 
 ```bash
-grove cleanup <workspace-name>
+nemus cleanup <workspace-name>
 ```
 
 ## Presenting Results

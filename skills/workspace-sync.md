@@ -10,12 +10,12 @@ Pull latest changes for all repos in a workspace.
 ## Running
 
 ```bash
-grove sync <workspace-name>
+nemus sync <workspace-name>
 ```
 
 Or for the current workspace:
 ```bash
-grove sync
+nemus sync
 ```
 
 ## Presenting Results

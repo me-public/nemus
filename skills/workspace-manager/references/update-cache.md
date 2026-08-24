@@ -6,16 +6,16 @@ Force refresh the GitHub repository cache so newly added repos become searchable
 
 1. Run:
    ```bash
-   grove cache refresh
+   nemus cache refresh
    ```
    Or use the short flag on any command:
    ```bash
-   grove cache list --force-refresh
+   nemus cache list --force-refresh
    ```
 
 2. Report the result (number of repos cached, etc.).
 
-3. Suggest using `grove cache search <query>` or `grove cache list` to browse the updated list.
+3. Suggest using `nemus cache search <query>` or `nemus cache list` to browse the updated list.
 
 ## Success Criteria
 

@@ -44,7 +44,7 @@ export function registerDeprecatedAliases(program: Command) {
       .action(async () => {
         const [group, sub] = alias.target;
         process.stderr.write(
-          `[grove] "w ${alias.name}" is deprecated, use "w ${group} ${sub}" instead\n`
+          `[nemus] "w ${alias.name}" is deprecated, use "w ${group} ${sub}" instead\n`
         );
         // Re-parse with the correct group + subcommand
         await program.parseAsync(

@@ -12,14 +12,14 @@ const b = colors.bright;
 const r = colors.reset;
 
 const INNER = 38;
-const titleLine = `>_  Grove`;
+const titleLine = `>_  Nemus`;
 const titlePad = ' '.repeat(Math.max(0, INNER - 2 - titleLine.length));
 const versionLine = `v${pkg.version} · multi-repo workspaces`;
 const versionPad = ' '.repeat(Math.max(0, INNER - 7 - versionLine.length));
 const bar = '─'.repeat(INNER);
 const bannerText = `
 ${d}    ╭${bar}╮${r}
-${d}    │${r}  ${g}>_${r}  ${b}Grove${r}${titlePad}${d}│${r}
+${d}    │${r}  ${g}>_${r}  ${b}Nemus${r}${titlePad}${d}│${r}
 ${d}    │${r}       ${d}${versionLine}${r}${versionPad}${d}│${r}
 ${d}    ╰${bar}╯${r}
 `;

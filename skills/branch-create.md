@@ -10,7 +10,7 @@ Create a new branch across all repos in a workspace.
 ## Running
 
 ```bash
-grove branch create <workspace-name> <branch-name>
+nemus branch create <workspace-name> <branch-name>
 ```
 
 ## Presenting Results

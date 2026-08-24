@@ -5,28 +5,28 @@ context they need to work productively in this repository. If you are an agent,
 read this before making changes. If you are a human, this doubles as a quick
 orientation to the codebase.
 
-## What Grove is
+## What Nemus is
 
-Grove is a **TypeScript CLI for managing multi-repo development workspaces**. It
+Nemus is a **TypeScript CLI for managing multi-repo development workspaces**. It
 clones a set of Git repositories into a single workspace directory, then lets you
 operate across all of them at once — check status, sync, switch branches, run
 commands, analyze cross-repo dependencies, and more — with one command instead of
 looping over each repo by hand.
 
-Grove also integrates with AI coding agents. It can generate per-workspace
+Nemus also integrates with AI coding agents. It can generate per-workspace
 context, register an MCP server, and hand a freshly created workspace off to your
 agent of choice. Supported agents include **Claude Code, pi, OpenCode, Codex, and
 Gemini**.
 
-The CLI is invoked as **`grove`** (with **`gv`** as a short alias). A shell
-integration adds `grove`/`gv` functions plus a `gvgo` helper so the shell can
+The CLI is invoked as **`nemus`** (with **`nem`** as a short alias). A shell
+integration adds `nemus`/`nem` functions plus a `nemgo` helper so the shell can
 auto-`cd` into a workspace after create/list/go commands (a child process cannot
 change its parent shell's directory, so this is done via shell functions).
 
 ## Repository layout
 
 ```
-bin/            # CLI entry point (bin/workspace.js) — mapped to `grove` and `gv`
+bin/            # CLI entry point (bin/workspace.js) — mapped to `nemus` and `nem`
 src/
   program.ts    # Commander program: wires up all commands and flags
   commands/     # One module per command (create, list, sync, status, branch/, suite/, cache/, …)
@@ -59,7 +59,7 @@ There is also a shell-level test for the shell integration:
 bash shell-integration.test.sh
 ```
 
-Requirements: **Node.js >= 22** and **npm >= 9**. Grove shells out to `git` and
+Requirements: **Node.js >= 22** and **npm >= 9**. Nemus shells out to `git` and
 the GitHub CLI (`gh`) at runtime, and optionally uses `ghq` for faster clones.
 
 ## Coding conventions
@@ -74,14 +74,14 @@ the GitHub CLI (`gh`) at runtime, and optionally uses `ghq` for faster clones.
   command and registers it via `program.ts`. Put shared logic in `src/utils/`.
 - **Add tests for behavior changes.** Co-locate a `*.test.ts` next to the code and
   make sure `npm test` passes before opening a PR.
-- **Keep it vendor-neutral and local-first.** Grove is an open-source,
+- **Keep it vendor-neutral and local-first.** Nemus is an open-source,
   general-purpose tool that runs entirely on the developer's machine:
   - No remote-execution or hosted-infrastructure code — everything runs locally.
   - No references to any specific company, internal service, or private tooling.
   - Use generic, illustrative names in docs and examples (e.g. `your-org`,
     `payments`, `api`), never real internal org or repo names.
-- **User-facing text says "Grove".** The npm package is `grove-cli`; the commands
-  are `grove` and `gv`; the repo is `grove-cli/grove`.
+- **User-facing text says "Nemus".** The npm package is `nemus`; the commands
+  are `nemus` and `nem`; the repo is `nemus-cli/nemus`.
 
 ## How agents should work here
 

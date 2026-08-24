@@ -5,7 +5,7 @@ Generate workspace documentation including a README, dependency graph, and repos
 ## Instructions
 
 ```bash
-grove generate-docs <workspace>
+nemus generate-docs <workspace>
 ```
 
 Alias:
@@ -15,7 +15,7 @@ w gd <workspace>
 
 Without a workspace name, prompts interactively:
 ```bash
-grove generate-docs
+nemus generate-docs
 ```
 
 ## Generated Files

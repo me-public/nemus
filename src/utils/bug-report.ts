@@ -17,10 +17,10 @@ import { createHash } from 'crypto';
 import { CACHE_DIR } from './config';
 
 /**
- * Repo that bug issues are filed against. Overridable via GROVE_BUG_REPORT_REPO
+ * Repo that bug issues are filed against. Overridable via NEMUS_BUG_REPORT_REPO
  * so forks/downstreams route reports to their own tracker.
  */
-export const BUG_REPORT_REPO = process.env.GROVE_BUG_REPORT_REPO || 'grove-cli/grove';
+export const BUG_REPORT_REPO = process.env.NEMUS_BUG_REPORT_REPO || 'nemus-cli/nemus';
 
 /** Where the most recent error is captured for `w report-bug`. */
 export const LAST_ERROR_FILE = path.join(CACHE_DIR, 'last-error.json');

@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a problem with Grove
+description: Report a problem with Nemus
 labels: [bug]
 body:
   - type: markdown
@@ -10,7 +10,7 @@ body:
     attributes:
       label: What happened?
       description: A clear description of the bug, including the exact command you ran.
-      placeholder: I ran `grove sync my-workspace` and …
+      placeholder: I ran `nemus sync my-workspace` and …
     validations:
       required: true
   - type: textarea
@@ -24,16 +24,16 @@ body:
     attributes:
       label: Steps to reproduce
       placeholder: |
-        1. grove create …
-        2. grove …
+        1. nemus create …
+        2. nemus …
         3. See error
     validations:
       required: true
   - type: input
-    id: grove-version
+    id: nemus-version
     attributes:
-      label: Grove version
-      description: Output of `grove --version`
+      label: Nemus version
+      description: Output of `nemus --version`
     validations:
       required: true
   - type: input

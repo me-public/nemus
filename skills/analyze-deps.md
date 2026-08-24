@@ -10,12 +10,12 @@ Analyze inter-repository dependencies in a workspace.
 ## Running
 
 ```bash
-grove analyze-deps <workspace-name>
+nemus analyze-deps <workspace-name>
 ```
 
 Or for the current workspace:
 ```bash
-grove analyze-deps
+nemus analyze-deps
 ```
 
 ## Presenting Results

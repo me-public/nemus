@@ -10,12 +10,12 @@ Show git status across all repos in a workspace.
 ## Running
 
 ```bash
-grove status <workspace-name>
+nemus status <workspace-name>
 ```
 
 Or for the current workspace:
 ```bash
-grove status
+nemus status
 ```
 
 ## Presenting Results

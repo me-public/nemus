@@ -1,17 +1,17 @@
 # Architecture
 
-Grove is a TypeScript CLI compiled to CommonJS and run on Node 22+. This doc is a
+Nemus is a TypeScript CLI compiled to CommonJS and run on Node 22+. This doc is a
 map of the codebase for contributors.
 
 ## Entry points
 
-- **`bin/workspace.js`** — the launcher behind the `grove` and `gv` binaries. It
+- **`bin/workspace.js`** — the launcher behind the `nemus` and `nem` binaries. It
   handles `--version`/`--help` without a build, does best-effort update &
-  hook-repair checks, intercepts the `grove -- "<prompt>"` natural-language path,
+  hook-repair checks, intercepts the `nemus -- "<prompt>"` natural-language path,
   and otherwise delegates to Commander.
 - **`src/program.ts`** — builds the Commander program and registers every command.
-- **`src/mcp/server.ts`** — the `grove-mcp` Model Context Protocol server, exposing
-  Grove's operations as MCP tools for agents that support them.
+- **`src/mcp/server.ts`** — the `nemus-mcp` Model Context Protocol server, exposing
+  Nemus's operations as MCP tools for agents that support them.
 
 ## Commands (`src/commands/`)
 
@@ -60,7 +60,7 @@ shims, …).
 ## Skills (`skills/`)
 
 Markdown skill definitions installed into each active agent's skills directory so
-agents can drive Grove with high-level intents.
+agents can drive Nemus with high-level intents.
 
 ## Build
 

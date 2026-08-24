@@ -56,10 +56,10 @@ jobs:
       - name: Validate package.json
         run: |
           node -e "const p=require('./package.json');
-            if (p.name !== 'grove-cli') throw new Error('package name must be grove-cli');
+            if (p.name !== 'nemus') throw new Error('package name must be nemus');
             if (/melio/i.test(JSON.stringify(p))) throw new Error('package.json must not reference Melio');
             if (!p.version) throw new Error('missing version');
-            if (!p.bin || !p.bin.grove) throw new Error('missing grove bin');
+            if (!p.bin || !p.bin.nemus) throw new Error('missing nemus bin');
             console.log('package.json OK');"
 
       - name: Check required files

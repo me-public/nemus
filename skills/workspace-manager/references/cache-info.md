@@ -6,7 +6,7 @@ View cache statistics including repo count, age, and size.
 
 1. Run:
    ```bash
-   grove cache info
+   nemus cache info
    ```
 
 2. Report:
@@ -15,7 +15,7 @@ View cache statistics including repo count, age, and size.
    - Last updated time
    - Cache size
 
-3. If cache is stale or missing, suggest `grove cache refresh`.
+3. If cache is stale or missing, suggest `nemus cache refresh`.
 
 ## Success Criteria
 

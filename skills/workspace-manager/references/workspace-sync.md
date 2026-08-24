@@ -5,12 +5,12 @@ Pull latest changes for all repositories in a workspace. Skips repos with uncomm
 ## Instructions
 
 ```bash
-grove sync <workspace>
+nemus sync <workspace>
 ```
 
 Or with flag:
 ```bash
-grove sync --workspace <name>
+nemus sync --workspace <name>
 ```
 
 Report results per repo:
@@ -18,7 +18,7 @@ Report results per repo:
 - Which repos were skipped (uncommitted changes)
 - Any repos that failed
 
-If some repos were skipped, suggest committing or stashing changes first, then re-run `grove sync <name>`.
+If some repos were skipped, suggest committing or stashing changes first, then re-run `nemus sync <name>`.
 
 ## Success Criteria
 

@@ -1,7 +1,7 @@
-# Grove brand assets
+# Nemus brand assets
 
-Original artwork for **Grove**. The mark is a **branch/tree node graph** — a git-style
-DAG of nodes that reads at once as a *tree* (the name Grove), a *commit/branch graph*,
+Original artwork for **Nemus**. The mark is a **branch/tree node graph** — a git-style
+DAG of nodes that reads at once as a *tree* (the name Nemus), a *commit/branch graph*,
 and a set of *repositories* joined into one workspace. The hero imagery uses a
 terminal-window motif in a GitHub-dark palette for a developer-native feel.
 
@@ -10,7 +10,7 @@ terminal-window motif in a GitHub-dark palette for a developer-native feel.
 | File | Use |
 |------|-----|
 | `logo.svg` / `logo-256.png` / `logo-512.png` | The logo mark. Transparent background — use on light or dark surfaces. |
-| `logo-wordmark.svg` | Mark + "Grove" wordmark. Use in README headers and docs. |
+| `logo-wordmark.svg` | Mark + "Nemus" wordmark. Use in README headers and docs. |
 | `icon.svg` / `icon-256.png` | Square app icon (rounded-rect green background). Use for avatars/app icons. |
 | `favicon-32.png` / `favicon-64.png` | Favicons derived from the icon. |
 | `banner.svg` / `banner.png` | 1280×640 social/repo banner (GitHub "social preview"). |

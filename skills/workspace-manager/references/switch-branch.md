@@ -5,7 +5,7 @@ Switch all repositories in a workspace to a specified branch.
 ## Instructions
 
 ```bash
-grove branch switch --workspace <name> --branch <branch-name>
+nemus branch switch --workspace <name> --branch <branch-name>
 ```
 
 ## Flags
@@ -17,7 +17,7 @@ grove branch switch --workspace <name> --branch <branch-name>
 
 If some repos fail to switch (due to uncommitted changes), suggest:
 - Committing or stashing changes first
-- Using `grove status <name>` to check the state
+- Using `nemus status <name>` to check the state
 
 ## Success Criteria
 

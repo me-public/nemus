@@ -7,14 +7,14 @@ const r = colors.reset;
 
 export const BANNER = `
 ${d}    ╭──────────────────────────────────────╮${r}
-${d}    │${r}  ${g}>_${r}  ${b}Grove${r}                           ${d}│${r}
+${d}    │${r}  ${g}>_${r}  ${b}Nemus${r}                           ${d}│${r}
 ${d}    │${r}       ${d}multi-repo workspaces${r}          ${d}│${r}
 ${d}    ╰──────────────────────────────────────╯${r}
 `;
 
 export const BANNER_PLAIN = `
     ╭──────────────────────────────────────╮
-    │  >_  Grove                           │
+    │  >_  Nemus                           │
     │       multi-repo workspaces          │
     ╰──────────────────────────────────────╯
 `;

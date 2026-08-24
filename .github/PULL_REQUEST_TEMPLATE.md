@@ -1,4 +1,4 @@
-<!-- Thanks for contributing to Grove! -->
+<!-- Thanks for contributing to Nemus! -->
 
 ## What & why
 

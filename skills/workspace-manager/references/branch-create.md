@@ -5,14 +5,14 @@ Create a new branch across all repositories in a workspace.
 ## Instructions
 
 ```bash
-grove branch create --workspace <name> --branch <branch-name>
-grove branch create --workspace <name> --branch <branch-name> --base <base-branch>
+nemus branch create --workspace <name> --branch <branch-name>
+nemus branch create --workspace <name> --branch <branch-name> --base <base-branch>
 ```
 
 Or with positional args (legacy):
 ```bash
-grove branch create <workspace> <branch-name>
-grove branch create <workspace> <branch-name> --base <base-branch> --force
+nemus branch create <workspace> <branch-name>
+nemus branch create <workspace> <branch-name> --base <base-branch> --force
 ```
 
 ## Flags
@@ -24,7 +24,7 @@ grove branch create <workspace> <branch-name> --base <base-branch> --force
 | `--base <branch>` | | Base branch to create from (default: current branch) |
 | `--force` | | Force create even if branch exists |
 
-After creation, run `grove status <name>` to verify all repos are on the new branch.
+After creation, run `nemus status <name>` to verify all repos are on the new branch.
 
 ## Success Criteria
 

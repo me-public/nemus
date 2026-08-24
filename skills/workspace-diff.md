@@ -10,12 +10,12 @@ Show diff summary across all repos in a workspace.
 ## Running
 
 ```bash
-grove diff <workspace-name>
+nemus diff <workspace-name>
 ```
 
 Or for the current workspace:
 ```bash
-grove diff
+nemus diff
 ```
 
 ## Presenting Results

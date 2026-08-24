@@ -8,7 +8,7 @@ Remove a repository instance from a workspace.
 
 2. Run the command:
    ```bash
-   grove remove-repo --workspace <name> --repos <dir-name> --yes
+   nemus remove-repo --workspace <name> --repos <dir-name> --yes
    ```
 
    Note: `--repos` takes the **directory name** inside the workspace (not the GitHub repo name — these differ when using suffixes).

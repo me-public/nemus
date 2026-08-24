@@ -5,7 +5,7 @@ Show git status (branch, clean/dirty, ahead/behind) for all repositories in a wo
 ## Instructions
 
 ```bash
-grove status <workspace>
+nemus status <workspace>
 ```
 
 Alias:
@@ -15,7 +15,7 @@ w st <workspace>
 
 Without a workspace name, prompts interactively:
 ```bash
-grove status
+nemus status
 ```
 
 ## Output
@@ -32,9 +32,9 @@ Plus a summary: clean repos, dirty repos, needs push, needs pull.
 ## Suggested Follow-ups
 
 Based on the results:
-- Uncommitted changes → suggest `grove diff <name>` to see details
-- Behind remote → suggest `grove sync <name>` to pull latest
-- Mixed branches → suggest `grove branch switch` to align
+- Uncommitted changes → suggest `nemus diff <name>` to see details
+- Behind remote → suggest `nemus sync <name>` to pull latest
+- Mixed branches → suggest `nemus branch switch` to align
 - Repos ahead of remote → suggest pushing changes
 
 ## Success Criteria

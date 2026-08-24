@@ -11,7 +11,7 @@ Get detailed metadata for a workspace including all repository info, tags, and d
 
 If the user hasn't specified a workspace name, list them:
 ```bash
-grove list 2>&1 | cat
+nemus list 2>&1 | cat
 ```
 
 ## Getting Info
@@ -23,7 +23,7 @@ cat <workspace-path>/.workspace-meta.json
 
 The workspace path can be found by checking the current directory or using:
 ```bash
-grove status <workspace-name>
+nemus status <workspace-name>
 ```
 
 ## Presenting Results
@@ -40,6 +40,6 @@ The JSON contains workspace metadata. Present clearly:
 
 ## Suggested Follow-ups
 
-- `grove status <workspace>` to see current git status of each repo
-- `grove update --workspace <name> --repos <repos>` to add more repos
-- `grove doctor <workspace>` to check workspace health
+- `nemus status <workspace>` to see current git status of each repo
+- `nemus update --workspace <name> --repos <repos>` to add more repos
+- `nemus doctor <workspace>` to check workspace health

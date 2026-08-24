@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Grove - Installation Script
-# This script installs Grove and optionally installs ghq
+# Nemus - Installation Script
+# This script installs Nemus and optionally installs ghq
 
 set -e
 
@@ -26,7 +26,7 @@ ARCH="$(uname -m)"
 if [ "$NPM_INSTALL_MODE" = false ]; then
     echo ""
     echo "============================================================"
-    echo -e "${CYAN}Grove - Installation${NC}"
+    echo -e "${CYAN}Nemus - Installation${NC}"
     echo "============================================================"
     echo ""
 fi
@@ -91,7 +91,7 @@ print_success "Git $(git --version | cut -d' ' -f3) found"
 if ! command -v gh &> /dev/null; then
     print_warning "GitHub CLI (gh) is not installed"
     echo ""
-    echo "Grove requires GitHub CLI to fetch repositories."
+    echo "Nemus requires GitHub CLI to fetch repositories."
     echo ""
     read -p "Install GitHub CLI now? (y/n) " -n 1 -r
     echo ""
@@ -121,7 +121,7 @@ if ! command -v gh &> /dev/null; then
         fi
     else
         print_warning "Skipping GitHub CLI installation"
-        echo "You'll need to install it manually before using Grove."
+        echo "You'll need to install it manually before using Nemus."
     fi
 else
     print_success "GitHub CLI $(gh --version | head -1 | cut -d' ' -f3) found"
@@ -129,7 +129,7 @@ fi
 
 echo ""
 echo "============================================================"
-echo "Installing Grove"
+echo "Installing Nemus"
 echo "============================================================"
 echo ""
 
@@ -151,7 +151,7 @@ if [ "$NPM_INSTALL_MODE" = false ]; then
     print_info "Creating global command..."
     npm link
 
-    print_success "Grove installed!"
+    print_success "Nemus installed!"
 else
     print_info "Installing via npm - dependencies already handled"
     cd "$SCRIPT_DIR"
@@ -256,7 +256,7 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         if [ -n "$SHELL_RC" ]; then
             if ! grep -q "WORKSPACE_MANAGER_DIR" "$SHELL_RC" 2>/dev/null; then
                 echo "" >> "$SHELL_RC"
-                echo "# Grove configuration" >> "$SHELL_RC"
+                echo "# Nemus configuration" >> "$SHELL_RC"
                 echo "export WORKSPACE_MANAGER_DIR=\"$CURRENT_WORKSPACE_DIR\"" >> "$SHELL_RC"
                 print_success "Added WORKSPACE_MANAGER_DIR to $SHELL_RC"
             else
@@ -317,13 +317,13 @@ if [ "$HAS_CLAUDE" = true ] || [ "$HAS_PI" = true ]; then
         print_info "Registering MCP server, hooks, skills, and extensions..."
         node "$MCP_INSTALL_JS" install 2>/dev/null && \
             print_success "MCP server, hooks, skills, extensions, and .mcp.json backfill installed" || \
-            print_warning "Install had issues (run 'grove mcp install' manually)"
+            print_warning "Install had issues (run 'nemus mcp install' manually)"
     else
-        print_warning "Build not found — run 'npm run build' then 'grove mcp install'"
+        print_warning "Build not found — run 'npm run build' then 'nemus mcp install'"
     fi
 else
     print_info "No AI agent CLI found — skipping integration"
-    echo "  Install Claude Code or Pi and run: grove mcp install"
+    echo "  Install Claude Code or Pi and run: nemus mcp install"
     # Still backfill .mcp.json for existing workspaces (doesn't require agent CLI)
     BACKFILL_JS="$SCRIPT_DIR/dist/mcp/install.js"
     if [ -f "$BACKFILL_JS" ]; then
@@ -350,7 +350,7 @@ echo ""
 # Summary
 echo "Summary:"
 echo ""
-print_success "Grove installed"
+print_success "Nemus installed"
 if command -v gh &> /dev/null; then
     print_success "GitHub CLI available"
 else
@@ -369,28 +369,28 @@ fi
 
 echo ""
 echo "Available Commands:"
-echo "  ${CYAN}grove create${NC}              Create a new workspace"
-echo "  ${CYAN}grove list${NC}                List existing workspaces"
-echo "  ${CYAN}grove update${NC}              Add repos to workspace"
-echo "  ${CYAN}grove delete${NC}              Delete a workspace"
-echo "  ${CYAN}grove sync${NC}                Git pull all repos"
-echo "  ${CYAN}grove switch-branch${NC}       Bulk branch switching"
-echo "  ${CYAN}grove save-template${NC}       Save workspace as template"
-echo "  ${CYAN}grove from-template${NC}       Create from template"
-echo "  ${CYAN}grove cache${NC}               Manage cache"
-echo "  ${CYAN}grove configure-claude${NC}    Configure Claude integration"
-echo "  ${CYAN}grove ghq-status${NC}          Check ghq status"
-echo "  ${CYAN}grove help${NC}                Show help"
+echo "  ${CYAN}nemus create${NC}              Create a new workspace"
+echo "  ${CYAN}nemus list${NC}                List existing workspaces"
+echo "  ${CYAN}nemus update${NC}              Add repos to workspace"
+echo "  ${CYAN}nemus delete${NC}              Delete a workspace"
+echo "  ${CYAN}nemus sync${NC}                Git pull all repos"
+echo "  ${CYAN}nemus switch-branch${NC}       Bulk branch switching"
+echo "  ${CYAN}nemus save-template${NC}       Save workspace as template"
+echo "  ${CYAN}nemus from-template${NC}       Create from template"
+echo "  ${CYAN}nemus cache${NC}               Manage cache"
+echo "  ${CYAN}nemus configure-claude${NC}    Configure Claude integration"
+echo "  ${CYAN}nemus ghq-status${NC}          Check ghq status"
+echo "  ${CYAN}nemus help${NC}                Show help"
 echo ""
 
 if [ "$SHELL_INTEGRATION" = true ]; then
     echo -e "${YELLOW}Next Steps:${NC}"
     echo "  1. Restart your terminal (or run: source ~/.zshrc)"
-    echo "  2. Run: ${CYAN}grove create${NC}"
+    echo "  2. Run: ${CYAN}nemus create${NC}"
     echo "  3. Select repositories and create your first workspace!"
 else
     echo -e "${YELLOW}Next Steps:${NC}"
-    echo "  1. Run: ${CYAN}grove create${NC}"
+    echo "  1. Run: ${CYAN}nemus create${NC}"
     echo "  2. Select repositories and create your first workspace!"
 fi
 

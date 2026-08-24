@@ -1,11 +1,11 @@
 # remove-shell-block.awk
-# Strips the "Grove - Shell Integration" block from an RC
+# Strips the "Nemus - Shell Integration" block from an RC
 # file, preserving all surrounding user content (including comments placed
 # directly after the block).
 #
 # Usage:  awk -f remove-shell-block.awk "$RC_FILE" > "$TMPFILE"
 
-/^# Grove - Shell Integration/ { skip=1; depth=0; saw_func=0; buf="" }
+/^# Nemus - Shell Integration/ { skip=1; depth=0; saw_func=0; buf="" }
 skip {
   # Inside a function body — track brace depth
   if (depth > 0) {

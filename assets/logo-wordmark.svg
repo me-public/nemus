@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 200" width="620" height="200" role="img" aria-label="Grove">
-  <title>Grove</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 200" width="620" height="200" role="img" aria-label="Nemus">
+  <title>Nemus</title>
   <defs>
     <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#3FB950"/>
@@ -34,5 +34,5 @@
   </g>
 
   <!-- wordmark: mid-green works on light AND dark READMEs -->
-  <text x="212" y="130" font-family="'SF Mono','JetBrains Mono','Fira Code',ui-monospace,Menlo,Consolas,monospace" font-size="104" font-weight="700" letter-spacing="-3" fill="#2EA043">Grove</text>
+  <text x="212" y="130" font-family="'SF Mono','JetBrains Mono','Fira Code',ui-monospace,Menlo,Consolas,monospace" font-size="104" font-weight="700" letter-spacing="-3" fill="#2EA043">Nemus</text>
 </svg>

@@ -10,12 +10,12 @@ Force refresh the GitHub repository cache.
 ## Running
 
 ```bash
-grove cache refresh
+nemus cache refresh
 ```
 
 This fetches the latest list of repositories from the GitHub org and updates the local cache.
 
 ## When to Use
 
-- When `grove cache search` doesn't find a recently created repo
+- When `nemus cache search` doesn't find a recently created repo
 - Periodically to keep the cache fresh (auto-refreshes daily)
