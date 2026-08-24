@@ -1,0 +1,117 @@
+name: Release
+
+# Publishes grove-cli to npm and creates a GitHub Release.
+#
+# Trigger: a push to main that changes package.json's version, OR a manual
+# workflow_dispatch. The actual publish runs in the `release` GitHub Environment,
+# which is configured with REQUIRED REVIEWERS — so publishing always waits for a
+# maintainer to click "Approve" before any package is pushed to npm.
+
+on:
+  push:
+    branches: [main]
+    paths: ['package.json']
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Why are you cutting this release?'
+        required: false
+        default: 'manual release'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # 1) Decide whether there is a new version to publish.
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: check
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          git show HEAD~1:package.json > /tmp/prev.json 2>/dev/null || echo '{}' > /tmp/prev.json
+          PREV=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/prev.json','utf8')).version || 'none'")
+          echo "previous=$PREV current=$VERSION"
+          if [ "$VERSION" != "$PREV" ]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # 2) Build + test as a gate before we ever ask for approval.
+  verify:
+    needs: detect
+    if: needs.detect.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm pack --dry-run
+
+  # 3) Publish — runs ONLY after a maintainer approves the `release` environment.
+  publish:
+    needs: [detect, verify]
+    if: needs.detect.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://www.npmjs.com/package/grove-cli
+    permissions:
+      contents: write   # create tag + GitHub Release
+      id-token: write   # npm provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Publish to npm (with provenance)
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create tag & GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.detect.outputs.version }}
+          name: Grove v${{ needs.detect.outputs.version }}
+          generate_release_notes: true
+          body: |
+            ## Grove v${{ needs.detect.outputs.version }}
+
+            ```bash
+            npm install -g grove-cli@${{ needs.detect.outputs.version }}
+            ```
+
+            See the [CHANGELOG](https://github.com/grove-cli/grove/blob/main/CHANGELOG.md) for details.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

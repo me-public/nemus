@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node-version: [22]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Verify package contents
+        run: npm pack --dry-run
+
+  validate-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate package.json
+        run: |
+          node -e "const p=require('./package.json');
+            if (p.name !== 'grove-cli') throw new Error('package name must be grove-cli');
+            if (/melio/i.test(JSON.stringify(p))) throw new Error('package.json must not reference Melio');
+            if (!p.version) throw new Error('missing version');
+            if (!p.bin || !p.bin.grove) throw new Error('missing grove bin');
+            console.log('package.json OK');"
+
+      - name: Check required files
+        run: |
+          for f in README.md LICENSE CONTRIBUTING.md CHANGELOG.md install.sh bin/workspace.js; do
+            [ -f "$f" ] || { echo "::error::missing required file: $f"; exit 1; }
+          done
+          echo "required files present"
+
+      - name: Guard against Melio references in shipped code
+        run: |
+          if grep -rniE 'melio' src bin scripts skills 2>/dev/null; then
+            echo "::error::Found 'melio' reference in shipped sources"; exit 1;
+          fi
+          echo "no vendor references found"
+
+  check-version-bump:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine if a version bump is needed
+        id: check
+        run: |
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          CODE_CHANGED=$(git diff --name-only "$BASE_SHA"...HEAD -- \
+            'src/**' 'bin/**' 'skills/**' 'install.sh' 'install-shell-integration.sh' 'uninstall.sh' | head -1)
+          if [ -z "$CODE_CHANGED" ]; then
+            echo "needs_bump=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          CURRENT=$(node -p "require('./package.json').version")
+          BASE=$(git show "$BASE_SHA":package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")
+          echo "base=$BASE current=$CURRENT"
+          [ "$CURRENT" = "$BASE" ] && echo "needs_bump=true" >> "$GITHUB_OUTPUT" || echo "needs_bump=false" >> "$GITHUB_OUTPUT"
+
+      - name: Comment reminder if version not bumped
+        if: steps.check.outputs.needs_bump == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- version-bump-check -->';
+            const body = `${marker}\n⚠️ **Version bump reminder**: this PR changes shipped code but \`package.json\` version was not bumped. Please bump it (semver) before merging.`;
+            const { data: comments } = await github.rest.issues.listComments({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body });
+            else await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body });
+
+      - name: Clear reminder if version was bumped
+        if: steps.check.outputs.needs_bump == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- version-bump-check -->';
+            const { data: comments } = await github.rest.issues.listComments({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) await github.rest.issues.deleteComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id });
