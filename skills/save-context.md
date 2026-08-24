@@ -25,16 +25,16 @@ Call `mcp__workspace-manager__save-context` with:
 
 ```bash
 # Replace existing context
-grove save-context -m "Completed auth refactor. Next: update payment service endpoints."
+nemus save-context -m "Completed auth refactor. Next: update payment service endpoints."
 
 # Append to existing context
-grove save-context --append -m "Fixed CI failures. All tests passing."
+nemus save-context --append -m "Fixed CI failures. All tests passing."
 
 # From a file
-grove save-context -f progress-notes.md
+nemus save-context -f progress-notes.md
 
 # Pipe content
-echo "summary here" | grove save-context
+echo "summary here" | nemus save-context
 ```
 
 ## What to Save

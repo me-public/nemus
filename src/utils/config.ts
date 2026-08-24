@@ -7,7 +7,7 @@ const HOME_DIR = os.homedir();
 // Config file lives outside CACHE_DIR so we can read it to determine CACHE_DIR
 const CONFIG_FILE = path.join(HOME_DIR, '.workspace-manager-cache', 'config.json');
 
-/** Coding-agent CLIs Grove can integrate with. */
+/** Coding-agent CLIs Nemus can integrate with. */
 export type ConcreteAgentType = 'claude' | 'pi' | 'opencode' | 'codex' | 'gemini';
 export type AgentType = ConcreteAgentType | 'both' | 'auto';
 export type PrimaryAgentType = ConcreteAgentType | 'auto';

@@ -70,12 +70,12 @@ mkdir -p "$FAKE_WS"
 export HOME="$TEMP_DIR"
 
 # ── fake binaries ───────────────────────────────────────────────────
-# Create fake 'grove' and 'gv' commands that simulate the real CLI.
+# Create fake 'nemus' and 'nem' commands that simulate the real CLI.
 # They read env vars to decide: which go file to write, and what exit code.
 FAKE_BIN="$TEMP_DIR/bin"
 mkdir -p "$FAKE_BIN"
 
-cat > "$FAKE_BIN/grove" << 'BINEOF'
+cat > "$FAKE_BIN/nemus" << 'BINEOF'
 #!/bin/bash
 # Simulate: write go/created/ai-prompt files as the real CLI would, then exit
 if [ -n "${FAKE_GO_FILE:-}" ] && [ -n "${FAKE_GO_PATH:-}" ]; then
@@ -89,8 +89,8 @@ if [ -n "${FAKE_AI_PROMPT:-}" ]; then
 fi
 exit "${FAKE_EXIT_CODE:-0}"
 BINEOF
-chmod +x "$FAKE_BIN/grove"
-cp "$FAKE_BIN/grove" "$FAKE_BIN/gv"
+chmod +x "$FAKE_BIN/nemus"
+cp "$FAKE_BIN/nemus" "$FAKE_BIN/nem"
 
 # Fake claude binary — logs invocation args so tests can inspect them
 cat > "$FAKE_BIN/claude" << 'BINEOF'
@@ -107,68 +107,68 @@ echo ""
 echo "Shell Integration Tests"
 echo "======================="
 
-# ── Test 1: grove l → CD happens after exit 0 ──────────────────────
+# ── Test 1: nemus l → CD happens after exit 0 ──────────────────────
 echo ""
-echo "Test 1: 'grove l' with exit 0 → should CD to workspace"
+echo "Test 1: 'nemus l' with exit 0 → should CD to workspace"
 (
   export FAKE_GO_FILE="$HOME/.workspace-last-go"
   export FAKE_GO_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=0
   cd "$TEMP_DIR"
-  grove l
+  nemus l
   assert_eq "pwd is workspace" "$FAKE_WS" "$(pwd)"
   assert_file_absent "go file cleaned up" "$HOME/.workspace-last-go"
 )
 
-# ── Test 2: grove l → CD happens even after non-zero exit (Ctrl+C) ──
+# ── Test 2: nemus l → CD happens even after non-zero exit (Ctrl+C) ──
 echo ""
-echo "Test 2: 'grove l' with exit 130 (SIGINT) → should still CD"
+echo "Test 2: 'nemus l' with exit 130 (SIGINT) → should still CD"
 (
   export FAKE_GO_FILE="$HOME/.workspace-last-go"
   export FAKE_GO_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=130
   cd "$TEMP_DIR"
-  # 'grove l' will return 130, but we still want CD
-  grove l || true
+  # 'nemus l' will return 130, but we still want CD
+  nemus l || true
   assert_eq "pwd is workspace" "$FAKE_WS" "$(pwd)"
   assert_file_absent "go file cleaned up" "$HOME/.workspace-last-go"
 )
 
-# ── Test 3: gv list → same behavior via gv command ─────────────────
+# ── Test 3: nem list → same behavior via nem command ─────────────────
 echo ""
-echo "Test 3: 'gv list' with exit 0 → should CD"
+echo "Test 3: 'nem list' with exit 0 → should CD"
 (
   export FAKE_GO_FILE="$HOME/.workspace-last-go"
   export FAKE_GO_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=0
   cd "$TEMP_DIR"
-  gv list
+  nem list
   assert_eq "pwd is workspace" "$FAKE_WS" "$(pwd)"
   assert_file_absent "go file cleaned up" "$HOME/.workspace-last-go"
 )
 
-# ── Test 4: grove c → CD only on exit 0 ───────────────────────────
+# ── Test 4: nemus c → CD only on exit 0 ───────────────────────────
 echo ""
-echo "Test 4: 'grove c' (create) with exit 0 → should CD"
+echo "Test 4: 'nemus c' (create) with exit 0 → should CD"
 (
   export FAKE_CREATED_FILE="$HOME/.workspace-last-created"
   export FAKE_CREATED_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=0
   cd "$TEMP_DIR"
-  grove c
+  nemus c
   assert_eq "pwd is workspace" "$FAKE_WS" "$(pwd)"
   assert_file_absent "created file cleaned up" "$HOME/.workspace-last-created"
 )
 
-# ── Test 5: grove c → no CD on non-zero exit ──────────────────────
+# ── Test 5: nemus c → no CD on non-zero exit ──────────────────────
 echo ""
-echo "Test 5: 'grove c' (create) with exit 1 → should NOT CD"
+echo "Test 5: 'nemus c' (create) with exit 1 → should NOT CD"
 (
   export FAKE_CREATED_FILE="$HOME/.workspace-last-created"
   export FAKE_CREATED_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=1
   cd "$TEMP_DIR"
-  grove c || true
+  nemus c || true
   assert_eq "pwd unchanged" "$TEMP_DIR" "$(pwd)"
 )
 
@@ -181,121 +181,121 @@ echo "Test 5a: deprecated create aliases (from-template, ft, from-suite, fs) →
     export FAKE_CREATED_PATH="$FAKE_WS"
     export FAKE_EXIT_CODE=0
     cd "$TEMP_DIR"
-    grove $alias
-    assert_eq "'grove $alias' CDs to workspace" "$FAKE_WS" "$(pwd)"
+    nemus $alias
+    assert_eq "'nemus $alias' CDs to workspace" "$FAKE_WS" "$(pwd)"
   done
 )
 
 # ── Test 5b: grouped create commands → CD on exit 0 ─────────────
 echo ""
-echo "Test 5b: 'grove suite use' and 'grove template use' → should CD"
+echo "Test 5b: 'nemus suite use' and 'nemus template use' → should CD"
 (
   for group in suite template; do
     export FAKE_CREATED_FILE="$HOME/.workspace-last-created"
     export FAKE_CREATED_PATH="$FAKE_WS"
     export FAKE_EXIT_CODE=0
     cd "$TEMP_DIR"
-    grove $group use
-    assert_eq "'grove $group use' CDs to workspace" "$FAKE_WS" "$(pwd)"
+    nemus $group use
+    assert_eq "'nemus $group use' CDs to workspace" "$FAKE_WS" "$(pwd)"
   done
 )
 
 # ── Test 5c: grouped non-create subcommands → no CD ─────────────
 echo ""
-echo "Test 5c: 'grove suite list' → should NOT CD"
+echo "Test 5c: 'nemus suite list' → should NOT CD"
 (
   export FAKE_CREATED_FILE="$HOME/.workspace-last-created"
   export FAKE_CREATED_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=0
   cd "$TEMP_DIR"
-  grove suite list
+  nemus suite list
   assert_eq "pwd unchanged" "$TEMP_DIR" "$(pwd)"
 )
 
-# ── Test 6: grove go → CD even after non-zero exit ────────────────
+# ── Test 6: nemus go → CD even after non-zero exit ────────────────
 echo ""
-echo "Test 6: 'grove go' with exit 130 → should CD"
+echo "Test 6: 'nemus go' with exit 130 → should CD"
 (
   export FAKE_GO_FILE="$HOME/.workspace-last-go"
   export FAKE_GO_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=130
   cd "$TEMP_DIR"
-  grove go || true
+  nemus go || true
   assert_eq "pwd is workspace" "$FAKE_WS" "$(pwd)"
   assert_file_absent "go file cleaned up" "$HOME/.workspace-last-go"
 )
 
-# ── Test 7: gvgo → CD after exit 0 ────────────────────────────────
+# ── Test 7: nemgo → CD after exit 0 ────────────────────────────────
 echo ""
-echo "Test 7: 'gvgo' with exit 0 → should CD"
+echo "Test 7: 'nemgo' with exit 0 → should CD"
 (
   export FAKE_GO_FILE="$HOME/.workspace-last-go"
   export FAKE_GO_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=0
   cd "$TEMP_DIR"
-  gvgo
+  nemgo
   assert_eq "pwd is workspace" "$FAKE_WS" "$(pwd)"
   assert_file_absent "go file cleaned up" "$HOME/.workspace-last-go"
 )
 
-# ── Test 8: gvgo → CD even after non-zero exit ────────────────────
+# ── Test 8: nemgo → CD even after non-zero exit ────────────────────
 echo ""
-echo "Test 8: 'gvgo' with exit 130 → should CD"
+echo "Test 8: 'nemgo' with exit 130 → should CD"
 (
   export FAKE_GO_FILE="$HOME/.workspace-last-go"
   export FAKE_GO_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=130
   cd "$TEMP_DIR"
-  gvgo || true
+  nemgo || true
   assert_eq "pwd is workspace" "$FAKE_WS" "$(pwd)"
   assert_file_absent "go file cleaned up" "$HOME/.workspace-last-go"
 )
 
 # ── Test 9: no go file → no CD ────────────────────────────────────
 echo ""
-echo "Test 9: 'grove l' without go file → no CD"
+echo "Test 9: 'nemus l' without go file → no CD"
 (
   unset FAKE_GO_FILE FAKE_GO_PATH FAKE_CREATED_FILE FAKE_CREATED_PATH
   export FAKE_EXIT_CODE=0
   cd "$TEMP_DIR"
-  grove l
+  nemus l
   assert_eq "pwd unchanged" "$TEMP_DIR" "$(pwd)"
 )
 
 # ── Test 10: stale go file cleaned before run ──────────────────────
 echo ""
-echo "Test 10: stale go file is cleaned before running 'grove l'"
+echo "Test 10: stale go file is cleaned before running 'nemus l'"
 (
   echo "/some/old/path" > "$HOME/.workspace-last-go"
   unset FAKE_GO_FILE FAKE_GO_PATH FAKE_CREATED_FILE FAKE_CREATED_PATH
   export FAKE_EXIT_CODE=0
   cd "$TEMP_DIR"
-  grove l
+  nemus l
   # The stale file was cleaned before running, and the fake binary
   # didn't write a new one, so no CD should happen
   assert_eq "pwd unchanged" "$TEMP_DIR" "$(pwd)"
   assert_file_absent "stale go file removed" "$HOME/.workspace-last-go"
 )
 
-# ── Test 11: grove with no args → passes through to binary for help ─
+# ── Test 11: nemus with no args → passes through to binary for help ─
 echo ""
-echo "Test 11: 'grove' with no args → runs binary with no args"
+echo "Test 11: 'nemus' with no args → runs binary with no args"
 (
   unset FAKE_GO_FILE FAKE_GO_PATH FAKE_CREATED_FILE FAKE_CREATED_PATH
   export FAKE_EXIT_CODE=0
   cd "$TEMP_DIR"
-  grove
+  nemus
   assert_eq "pwd unchanged (no CD)" "$TEMP_DIR" "$(pwd)"
 )
 
-# ── Test 12: gv with no args → same ────────────────────────────────
+# ── Test 12: nem with no args → same ────────────────────────────────
 echo ""
-echo "Test 12: 'gv' with no args → runs binary with no args"
+echo "Test 12: 'nem' with no args → runs binary with no args"
 (
   unset FAKE_GO_FILE FAKE_GO_PATH FAKE_CREATED_FILE FAKE_CREATED_PATH
   export FAKE_EXIT_CODE=0
   cd "$TEMP_DIR"
-  gv
+  nem
   assert_eq "pwd unchanged (no CD)" "$TEMP_DIR" "$(pwd)"
 )
 
@@ -309,9 +309,9 @@ echo "Test 13: upgrade from old version preserves rest of RC file"
 # user stuff before
 export FOO=bar
 
-# Grove - Shell Integration
-grove() {
-  command grove "$@"
+# Nemus - Shell Integration
+nemus() {
+  command nemus "$@"
 }
 
 # user stuff after
@@ -329,30 +329,30 @@ RCEOF
   assert_eq "BAZ line preserved" "1" "$(grep -c 'export BAZ=qux' "$TEST_RC")"
   assert_eq "alias preserved" "1" "$(grep -c "alias ll=" "$TEST_RC")"
   assert_eq "user comment preserved" "1" "$(grep -c '# user stuff after' "$TEST_RC")"
-  assert_eq "old grove() removed" "0" "$(grep -c 'grove()' "$TEST_RC")"
-  assert_eq "old marker removed" "0" "$(grep -c 'Grove - Shell Integration' "$TEST_RC")"
+  assert_eq "old nemus() removed" "0" "$(grep -c 'nemus()' "$TEST_RC")"
+  assert_eq "old marker removed" "0" "$(grep -c 'Nemus - Shell Integration' "$TEST_RC")"
   rm -f "$TEST_RC"
 )
 
-# ── Test 14: upgrade removes old block WITH gvgo and preserves rest ─
+# ── Test 14: upgrade removes old block WITH nemgo and preserves rest ─
 echo ""
-echo "Test 14: upgrade from version with gvgo preserves rest of RC file"
+echo "Test 14: upgrade from version with nemgo preserves rest of RC file"
 (
   TEST_RC="$TEMP_DIR/.zshrc-test2"
   cat > "$TEST_RC" << 'RCEOF'
 export BEFORE=yes
 
-# Grove - Shell Integration
-grove() {
-  command grove "$@"
+# Nemus - Shell Integration
+nemus() {
+  command nemus "$@"
 }
 
-gv() {
-  command gv "$@"
+nem() {
+  command nem "$@"
 }
 
-gvgo() {
-  command grove go "$@"
+nemgo() {
+  command nemus go "$@"
 }
 
 export AFTER=yes
@@ -364,10 +364,10 @@ RCEOF
 
   assert_eq "BEFORE preserved" "1" "$(grep -c 'BEFORE=yes' "$TEST_RC")"
   assert_eq "AFTER preserved" "1" "$(grep -c 'AFTER=yes' "$TEST_RC")"
-  assert_eq "old grove() removed" "0" "$(grep -c 'grove()' "$TEST_RC")"
-  assert_eq "old gv() removed" "0" "$(grep -c 'gv()' "$TEST_RC")"
-  assert_eq "old gvgo() removed" "0" "$(grep -c 'gvgo()' "$TEST_RC")"
-  assert_eq "old marker removed" "0" "$(grep -c 'Grove - Shell Integration' "$TEST_RC")"
+  assert_eq "old nemus() removed" "0" "$(grep -c 'nemus()' "$TEST_RC")"
+  assert_eq "old nem() removed" "0" "$(grep -c 'nem()' "$TEST_RC")"
+  assert_eq "old nemgo() removed" "0" "$(grep -c 'nemgo()' "$TEST_RC")"
+  assert_eq "old marker removed" "0" "$(grep -c 'Nemus - Shell Integration' "$TEST_RC")"
   rm -f "$TEST_RC"
 )
 
@@ -379,10 +379,10 @@ echo "Test 15: upgrade from single-line function defs preserves rest of RC file"
   cat > "$TEST_RC" << 'RCEOF'
 export TOP=yes
 
-# Grove - Shell Integration
-grove() { command grove "$@"; }
-gv() { command gv "$@"; }
-gvgo() { command grove go "$@"; }
+# Nemus - Shell Integration
+nemus() { command nemus "$@"; }
+nem() { command nem "$@"; }
+nemgo() { command nemus go "$@"; }
 
 export BOTTOM=yes
 RCEOF
@@ -393,10 +393,10 @@ RCEOF
 
   assert_eq "TOP preserved" "1" "$(grep -c 'TOP=yes' "$TEST_RC")"
   assert_eq "BOTTOM preserved" "1" "$(grep -c 'BOTTOM=yes' "$TEST_RC")"
-  assert_eq "old grove() removed" "0" "$(grep -c 'grove()' "$TEST_RC")"
-  assert_eq "old gv() removed" "0" "$(grep -c 'gv()' "$TEST_RC")"
-  assert_eq "old gvgo() removed" "0" "$(grep -c 'gvgo()' "$TEST_RC")"
-  assert_eq "old marker removed" "0" "$(grep -c 'Grove - Shell Integration' "$TEST_RC")"
+  assert_eq "old nemus() removed" "0" "$(grep -c 'nemus()' "$TEST_RC")"
+  assert_eq "old nem() removed" "0" "$(grep -c 'nem()' "$TEST_RC")"
+  assert_eq "old nemgo() removed" "0" "$(grep -c 'nemgo()' "$TEST_RC")"
+  assert_eq "old marker removed" "0" "$(grep -c 'Nemus - Shell Integration' "$TEST_RC")"
   rm -f "$TEST_RC"
 )
 
@@ -408,13 +408,13 @@ echo "Test 16: user comments immediately after old block are preserved"
   cat > "$TEST_RC" << 'RCEOF'
 export TOP=yes
 
-# Grove - Shell Integration
-grove() {
-  command grove "$@"
+# Nemus - Shell Integration
+nemus() {
+  command nemus "$@"
 }
 
-gvgo() {
-  command grove go "$@"
+nemgo() {
+  command nemus go "$@"
 }
 
 # My custom aliases
@@ -432,9 +432,9 @@ RCEOF
   assert_eq "user comment preserved" "1" "$(grep -c '# My custom aliases' "$TEST_RC")"
   assert_eq "second user comment preserved" "1" "$(grep -c '# Another comment' "$TEST_RC")"
   assert_eq "alias preserved" "1" "$(grep -c "alias gs=" "$TEST_RC")"
-  assert_eq "old grove() removed" "0" "$(grep -c 'grove()' "$TEST_RC")"
-  assert_eq "old gvgo() removed" "0" "$(grep -c 'gvgo()' "$TEST_RC")"
-  assert_eq "old marker removed" "0" "$(grep -c 'Grove - Shell Integration' "$TEST_RC")"
+  assert_eq "old nemus() removed" "0" "$(grep -c 'nemus()' "$TEST_RC")"
+  assert_eq "old nemgo() removed" "0" "$(grep -c 'nemgo()' "$TEST_RC")"
+  assert_eq "old marker removed" "0" "$(grep -c 'Nemus - Shell Integration' "$TEST_RC")"
   rm -f "$TEST_RC"
 )
 
@@ -446,9 +446,9 @@ echo "Test 17: user comments after old block at EOF are flushed"
   cat > "$TEST_RC" << 'RCEOF'
 export TOP=yes
 
-# Grove - Shell Integration
-grove() {
-  command grove "$@"
+# Nemus - Shell Integration
+nemus() {
+  command nemus "$@"
 }
 
 # my trailing comment
@@ -460,52 +460,52 @@ RCEOF
 
   assert_eq "TOP preserved" "1" "$(grep -c 'TOP=yes' "$TEST_RC")"
   assert_eq "trailing comment preserved" "1" "$(grep -c '# my trailing comment' "$TEST_RC")"
-  assert_eq "old grove() removed" "0" "$(grep -c 'grove()' "$TEST_RC")"
-  assert_eq "old marker removed" "0" "$(grep -c 'Grove - Shell Integration' "$TEST_RC")"
+  assert_eq "old nemus() removed" "0" "$(grep -c 'nemus()' "$TEST_RC")"
+  assert_eq "old marker removed" "0" "$(grep -c 'Nemus - Shell Integration' "$TEST_RC")"
   rm -f "$TEST_RC"
 )
 
 # ── Test 18: tab title is set to workspace name ─────────────────────
 echo ""
-echo "Test 18: 'grove l' sets terminal tab title to workspace name"
+echo "Test 18: 'nemus l' sets terminal tab title to workspace name"
 (
   export FAKE_GO_FILE="$HOME/.workspace-last-go"
   export FAKE_GO_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=0
   cd "$TEMP_DIR"
   # Capture raw output including escape sequences
-  OUTPUT=$(grove l 2>&1 | /bin/cat -v)
+  OUTPUT=$(nemus l 2>&1 | /bin/cat -v)
   # OSC 0 sequence: ^[]0;my-ws^G
   assert_eq "OSC title escape emitted" "1" "$(echo "$OUTPUT" | grep -cF ']0;my-ws')"
 )
 
 # ── Test 19: tab title is set for create command ─────────────────────
 echo ""
-echo "Test 19: 'grove c' sets terminal tab title to workspace name"
+echo "Test 19: 'nemus c' sets terminal tab title to workspace name"
 (
   export FAKE_CREATED_FILE="$HOME/.workspace-last-created"
   export FAKE_CREATED_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=0
   cd "$TEMP_DIR"
-  OUTPUT=$(grove c 2>&1 | /bin/cat -v)
+  OUTPUT=$(nemus c 2>&1 | /bin/cat -v)
   assert_eq "OSC title escape emitted" "1" "$(echo "$OUTPUT" | grep -cF ']0;my-ws')"
 )
 
-# ── Test 20: tab title is set for gvgo ───────────────────────────────
+# ── Test 20: tab title is set for nemgo ───────────────────────────────
 echo ""
-echo "Test 20: 'gvgo' sets terminal tab title to workspace name"
+echo "Test 20: 'nemgo' sets terminal tab title to workspace name"
 (
   export FAKE_GO_FILE="$HOME/.workspace-last-go"
   export FAKE_GO_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=0
   cd "$TEMP_DIR"
-  OUTPUT=$(gvgo 2>&1 | /bin/cat -v)
+  OUTPUT=$(nemgo 2>&1 | /bin/cat -v)
   assert_eq "OSC title escape emitted" "1" "$(echo "$OUTPUT" | grep -cF ']0;my-ws')"
 )
 
-# ── Test 21: grove -- (AI prompt) → CD + pass prompt to follow-up Claude session
+# ── Test 21: nemus -- (AI prompt) → CD + pass prompt to follow-up Claude session
 echo ""
-echo "Test 21: 'grove -- create payments workspace' → CD + prompt handoff"
+echo "Test 21: 'nemus -- create payments workspace' → CD + prompt handoff"
 (
   export FAKE_CREATED_FILE="$HOME/.workspace-last-created"
   export FAKE_CREATED_PATH="$FAKE_WS"
@@ -513,7 +513,7 @@ echo "Test 21: 'grove -- create payments workspace' → CD + prompt handoff"
   export FAKE_EXIT_CODE=0
   rm -f "$HOME/.claude-invocations"
   cd "$TEMP_DIR"
-  grove -- create payments workspace
+  nemus -- create payments workspace
   assert_eq "pwd is workspace" "$FAKE_WS" "$(pwd)"
   assert_file_absent "ai prompt file cleaned up" "$HOME/.workspace-ai-prompt"
   assert_file_absent "created file cleaned up" "$HOME/.workspace-last-created"
@@ -538,45 +538,45 @@ echo "Test 21: 'grove -- create payments workspace' → CD + prompt handoff"
   rm -f "$HOME/.claude-invocations"
 )
 
-# ── Test 22: grove -- without workspace creation → ai prompt file cleaned up
+# ── Test 22: nemus -- without workspace creation → ai prompt file cleaned up
 echo ""
-echo "Test 22: 'grove -- list workspaces' (no workspace created) → ai prompt file cleaned"
+echo "Test 22: 'nemus -- list workspaces' (no workspace created) → ai prompt file cleaned"
 (
   unset FAKE_CREATED_FILE FAKE_CREATED_PATH FAKE_GO_FILE FAKE_GO_PATH
   export FAKE_AI_PROMPT="list workspaces"
   export FAKE_EXIT_CODE=0
   rm -f "$HOME/.claude-invocations"
   cd "$TEMP_DIR"
-  grove -- list workspaces
+  nemus -- list workspaces
   assert_eq "pwd unchanged" "$TEMP_DIR" "$(pwd)"
   assert_file_absent "ai prompt file cleaned up" "$HOME/.workspace-ai-prompt"
   rm -f "$HOME/.claude-invocations"
 )
 
-# ── Test 23: grove -- with exit 1 → no CD, ai prompt file cleaned up
+# ── Test 23: nemus -- with exit 1 → no CD, ai prompt file cleaned up
 echo ""
-echo "Test 23: 'grove --' with exit 1 → no CD, ai prompt file cleaned"
+echo "Test 23: 'nemus --' with exit 1 → no CD, ai prompt file cleaned"
 (
   export FAKE_CREATED_FILE="$HOME/.workspace-last-created"
   export FAKE_CREATED_PATH="$FAKE_WS"
   export FAKE_AI_PROMPT="create something"
   export FAKE_EXIT_CODE=1
   cd "$TEMP_DIR"
-  grove -- create something || true
+  nemus -- create something || true
   assert_eq "pwd unchanged" "$TEMP_DIR" "$(pwd)"
   assert_file_absent "ai prompt file cleaned up" "$HOME/.workspace-ai-prompt"
 )
 
-# ── Test 24: grove create (non-AI) → no ai prompt handoff, plain claude launch
+# ── Test 24: nemus create (non-AI) → no ai prompt handoff, plain claude launch
 echo ""
-echo "Test 24: 'grove create' (non-AI) → plain claude launch without prompt handoff"
+echo "Test 24: 'nemus create' (non-AI) → plain claude launch without prompt handoff"
 (
   export FAKE_CREATED_FILE="$HOME/.workspace-last-created"
   export FAKE_CREATED_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=0
   rm -f "$HOME/.claude-invocations"
   cd "$TEMP_DIR"
-  grove create
+  nemus create
   assert_eq "pwd is workspace" "$FAKE_WS" "$(pwd)"
   CLAUDE_ARGS=$(cat "$HOME/.claude-invocations" 2>/dev/null || echo "")
   if echo "$CLAUDE_ARGS" | grep -q -- "--name my-ws" && ! echo "$CLAUDE_ARGS" | grep -q -- "--append-system-prompt"; then
@@ -590,59 +590,59 @@ echo "Test 24: 'grove create' (non-AI) → plain claude launch without prompt ha
   rm -f "$HOME/.claude-invocations"
 )
 
-# ── Test 25: 'grove create --yes' → CD but skip agent auto-launch ──
+# ── Test 25: 'nemus create --yes' → CD but skip agent auto-launch ──
 echo ""
-echo "Test 25: 'grove create --workspace X --repos Y --yes' → CD, no agent launch"
+echo "Test 25: 'nemus create --workspace X --repos Y --yes' → CD, no agent launch"
 (
   export FAKE_CREATED_FILE="$HOME/.workspace-last-created"
   export FAKE_CREATED_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=0
   rm -f "$HOME/.claude-invocations"
   cd "$TEMP_DIR"
-  grove create --workspace my-ws --repos foo --yes
+  nemus create --workspace my-ws --repos foo --yes
   assert_eq "pwd is workspace" "$FAKE_WS" "$(pwd)"
   assert_file_absent "created file cleaned up" "$HOME/.workspace-last-created"
   assert_file_absent "claude NOT launched (--yes)" "$HOME/.claude-invocations"
 )
 
-# ── Test 26: 'grove c -y' (short flag) → skip agent auto-launch ────
+# ── Test 26: 'nemus c -y' (short flag) → skip agent auto-launch ────
 echo ""
-echo "Test 26: 'grove c -y' (short flag) → CD, no agent launch"
+echo "Test 26: 'nemus c -y' (short flag) → CD, no agent launch"
 (
   export FAKE_CREATED_FILE="$HOME/.workspace-last-created"
   export FAKE_CREATED_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=0
   rm -f "$HOME/.claude-invocations"
   cd "$TEMP_DIR"
-  grove c --workspace my-ws -y
+  nemus c --workspace my-ws -y
   assert_eq "pwd is workspace" "$FAKE_WS" "$(pwd)"
   assert_file_absent "claude NOT launched (-y)" "$HOME/.claude-invocations"
 )
 
-# ── Test 27: 'grove suite use --yes' → skip agent auto-launch ──────
+# ── Test 27: 'nemus suite use --yes' → skip agent auto-launch ──────
 echo ""
-echo "Test 27: 'grove suite use --yes' → CD, no agent launch"
+echo "Test 27: 'nemus suite use --yes' → CD, no agent launch"
 (
   export FAKE_CREATED_FILE="$HOME/.workspace-last-created"
   export FAKE_CREATED_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=0
   rm -f "$HOME/.claude-invocations"
   cd "$TEMP_DIR"
-  grove suite use --suite my-suite --workspace my-ws --yes
+  nemus suite use --suite my-suite --workspace my-ws --yes
   assert_eq "pwd is workspace" "$FAKE_WS" "$(pwd)"
   assert_file_absent "claude NOT launched (--yes)" "$HOME/.claude-invocations"
 )
 
-# ── Test 28: 'grove create' without --yes → agent still launches ──
+# ── Test 28: 'nemus create' without --yes → agent still launches ──
 echo ""
-echo "Test 28: 'grove create' (no --yes) → agent still auto-launches (unchanged)"
+echo "Test 28: 'nemus create' (no --yes) → agent still auto-launches (unchanged)"
 (
   export FAKE_CREATED_FILE="$HOME/.workspace-last-created"
   export FAKE_CREATED_PATH="$FAKE_WS"
   export FAKE_EXIT_CODE=0
   rm -f "$HOME/.claude-invocations"
   cd "$TEMP_DIR"
-  grove create --workspace my-ws --repos foo
+  nemus create --workspace my-ws --repos foo
   CLAUDE_ARGS=$(cat "$HOME/.claude-invocations" 2>/dev/null || echo "")
   if [ -n "$CLAUDE_ARGS" ]; then
     _record 1 0
@@ -654,11 +654,11 @@ echo "Test 28: 'grove create' (no --yes) → agent still auto-launches (unchange
   rm -f "$HOME/.claude-invocations"
 )
 
-# ── Test 29: 'grove -- prompt --yes' (AI path) → agent still launches ─
+# ── Test 29: 'nemus -- prompt --yes' (AI path) → agent still launches ─
 # The AI-prompt handoff is interactive-only by design; --yes appearing
 # in the natural-language prompt text must not suppress the handoff.
 echo ""
-echo "Test 29: 'grove -- prompt --yes' (AI path) → agent still launches"
+echo "Test 29: 'nemus -- prompt --yes' (AI path) → agent still launches"
 (
   export FAKE_CREATED_FILE="$HOME/.workspace-last-created"
   export FAKE_CREATED_PATH="$FAKE_WS"
@@ -666,7 +666,7 @@ echo "Test 29: 'grove -- prompt --yes' (AI path) → agent still launches"
   export FAKE_EXIT_CODE=0
   rm -f "$HOME/.claude-invocations"
   cd "$TEMP_DIR"
-  grove -- create payments workspace --yes
+  nemus -- create payments workspace --yes
   CLAUDE_ARGS=$(cat "$HOME/.claude-invocations" 2>/dev/null || echo "")
   if [ -n "$CLAUDE_ARGS" ]; then
     _record 1 0

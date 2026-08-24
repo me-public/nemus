@@ -5,7 +5,7 @@ Configure Claude Code integration settings.
 ## Instructions
 
 ```bash
-grove configure-claude
+nemus configure-claude
 ```
 
 Alias:

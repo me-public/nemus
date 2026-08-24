@@ -4,15 +4,15 @@ Show diff summary (staged/unstaged file counts, insertions, deletions) for all r
 
 ## Instructions
 
-1. If no workspace is specified, run `grove list` and ask which one.
+1. If no workspace is specified, run `nemus list` and ask which one.
 
 2. Run:
    ```bash
-   grove diff
+   nemus diff
    ```
    Or target a specific workspace:
    ```bash
-   grove diff <name>
+   nemus diff <name>
    ```
 
 3. Present a clear summary showing per-repo:

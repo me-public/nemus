@@ -5,8 +5,8 @@ Launch a tmux-based multi-agent management dashboard for monitoring and controll
 ## Instructions
 
 ```bash
-grove dashboard
-grove dash
+nemus dashboard
+nemus dash
 ```
 
 Opens a tmux session with a sidebar showing active agents and their status. Agent panes are on the right.
@@ -50,7 +50,7 @@ Opens a tmux session with a sidebar showing active agents and their status. Agen
 ## Features
 
 - Real-time agent status via Claude Code hooks (idle/working/waiting/stopped)
-- Session persistence: `q` detaches, `grove dash` reconnects
+- Session persistence: `q` detaches, `nemus dash` reconnects
 - Zoom mode: selected agent takes full right side, others hidden
 - Session resume picker (`s`) with fuzzy search
 - Auto-installs Claude hooks on first run

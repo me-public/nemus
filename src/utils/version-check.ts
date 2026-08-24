@@ -44,7 +44,7 @@ async function saveCache(cache: VersionCheckCache): Promise<void> {
 
 async function fetchLatestVersion(): Promise<string | null> {
   try {
-    const { stdout } = await execFileAsync('npm', ['view', 'grove-cli', 'version'], {
+    const { stdout } = await execFileAsync('npm', ['view', 'nemus', 'version'], {
       timeout: 5000,
     });
     return stdout.trim();
@@ -92,5 +92,5 @@ export async function checkForUpdate(): Promise<string | null> {
 }
 
 function formatUpdateMessage(current: string, latest: string): string {
-  return `\x1b[33m[grove] Update available: ${current} -> ${latest}. Run: npm install -g grove-cli@latest\x1b[0m`;
+  return `\x1b[33m[nemus] Update available: ${current} -> ${latest}. Run: npm install -g nemus@latest\x1b[0m`;
 }

@@ -6,11 +6,11 @@ List all existing workspaces managed by workspace-manager.
 
 1. Run:
    ```bash
-   grove list
+   nemus list
    ```
    Pass `--archived` only if the user asks to see archived workspaces:
    ```bash
-   grove list --archived
+   nemus list --archived
    ```
 
 2. Present the results showing:
@@ -19,7 +19,7 @@ List all existing workspaces managed by workspace-manager.
    - Creation date
    - Archived status (if applicable)
 
-3. If no workspaces exist, suggest creating one with `grove create`.
+3. If no workspaces exist, suggest creating one with `nemus create`.
 
 ## Success Criteria
 

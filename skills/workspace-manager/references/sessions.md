@@ -6,7 +6,7 @@ Pick a workspace with an active Claude Code session and resume it.
 
 Interactive only — displays a fuzzy-searchable list of workspaces with sessions:
 ```bash
-grove sessions
+nemus sessions
 ```
 
 Alias:

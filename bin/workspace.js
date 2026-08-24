@@ -18,8 +18,8 @@ if (!command || command === '--help' || command === '-h' || command === 'help') 
   } catch {
     // Fallback: dist/ not built yet (e.g., CI test step runs before build)
     const pkg = require(path.join(__dirname, '..', 'package.json'));
-    console.log(`Grove v${pkg.version} · multi-repo workspaces`);
-    console.log(`Use "npm run build" then "grove --help" for full command reference.`);
+    console.log(`Nemus v${pkg.version} · multi-repo workspaces`);
+    console.log(`Use "npm run build" then "nemus --help" for full command reference.`);
     process.exit(0);
   }
 }
@@ -37,7 +37,7 @@ try {
   const { repairStaleHooks } = require(path.join(__dirname, '..', 'dist', 'utils', 'permission-sync.js'));
   const fixed = repairStaleHooks();
   if (fixed > 0) {
-    process.stderr.write(`[grove] Repaired ${fixed} stale Claude Code hook path(s).\n`);
+    process.stderr.write(`[nemus] Repaired ${fixed} stale Claude Code hook path(s).\n`);
   }
 } catch {}
 
@@ -90,20 +90,20 @@ function handleFatalError(err, command) {
     if (autoReport) {
       const result = reportBug(captured, pkg.version);
       if (result.status === 'created') {
-        console.error('\n[grove] Filed bug report: ' + result.url);
+        console.error('\n[nemus] Filed bug report: ' + result.url);
       } else if (result.status === 'duplicate') {
-        console.error('\n[grove] Known issue: ' + result.url);
+        console.error('\n[nemus] Known issue: ' + result.url);
       } else {
         // skipped (e.g. environmental) or failed (e.g. gh not authed) —
         // surface the specific reason instead of a generic hint.
-        if (result.reason) console.error('\n[grove] Not filed: ' + result.reason);
+        if (result.reason) console.error('\n[nemus] Not filed: ' + result.reason);
         const retry = result.status === 'skipped'
           ? 'Run "w report-bug --force" to file it anyway.'
           : 'Run "w report-bug" to try again.';
-        console.error('[grove] ' + retry);
+        console.error('[nemus] ' + retry);
       }
     } else {
-      console.error('\n[grove] Run "w report-bug" to file this as a GitHub issue.');
+      console.error('\n[nemus] Run "w report-bug" to file this as a GitHub issue.');
     }
   } catch {
     // bug-report machinery is best-effort; never mask the original error

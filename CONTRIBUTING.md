@@ -1,6 +1,6 @@
-# Contributing to Grove
+# Contributing to Nemus
 
-Thanks for your interest in improving Grove! This guide covers everything you need
+Thanks for your interest in improving Nemus! This guide covers everything you need
 to get set up, make a change, and get it merged.
 
 By participating, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
@@ -11,8 +11,8 @@ By participating, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md
 
 ```bash
 # Fork & clone
-git clone https://github.com/<your-username>/grove.git
-cd grove
+git clone https://github.com/<your-username>/nemus.git
+cd nemus
 
 # Install dependencies
 npm install
@@ -21,8 +21,8 @@ npm install
 npm run build
 
 # Run the CLI from your local build
-npm link          # exposes `grove` / `gv` on your PATH
-grove --help
+npm link          # exposes `nemus` / `nem` on your PATH
+nemus --help
 ```
 
 ## Project layout
@@ -37,7 +37,7 @@ src/
 ├── mcp/                # Model Context Protocol server + tools
 ├── utils/              # shared helpers (git, github, config, agents, …)
 └── types/              # shared TypeScript types
-bin/workspace.js        # thin launcher for the `grove`/`gv` binaries
+bin/workspace.js        # thin launcher for the `nemus`/`nem` binaries
 skills/                 # agent skill definitions (Markdown)
 assets/                 # brand imagery
 ```
@@ -67,9 +67,9 @@ See [docs/architecture.md](docs/architecture.md) for a deeper tour.
 
 ## Guidelines
 
-- **Stay vendor-neutral.** Grove is a general-purpose, org-agnostic tool. Don't
+- **Stay vendor-neutral.** Nemus is a general-purpose, org-agnostic tool. Don't
   hard-code a company name, private URL, internal service, or cloud infrastructure.
-- **No cloud/hosting code.** Grove is a local CLI. Server/agent-hosting features
+- **No cloud/hosting code.** Nemus is a local CLI. Server/agent-hosting features
   are out of scope.
 - **Agent support:** new agent integrations go through `src/utils/agent-config.ts`
   (add an entry to the registry + `AGENT_ORDER`). Keep them optional and
@@ -85,8 +85,8 @@ Conventional-commit-style prefixes are appreciated but not required:
 
 ## Reporting bugs & requesting features
 
-Use the [issue templates](https://github.com/grove-cli/grove/issues/new/choose).
-Include your OS, Node version (`node --version`), Grove version (`grove --version`),
+Use the [issue templates](https://github.com/nemus-cli/nemus/issues/new/choose).
+Include your OS, Node version (`node --version`), Nemus version (`nemus --version`),
 and clear reproduction steps.
 
 ## Releasing

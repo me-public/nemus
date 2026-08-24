@@ -8,5 +8,5 @@ description: Save a snapshot of the current workspace state
 Snapshots are automatically saved by workspace-manager operations (create, update, delete, etc.). There is no separate snapshot command — the history command shows past operations:
 
 ```bash
-grove history
+nemus history
 ```

@@ -6,17 +6,17 @@ Archive a workspace to hide it from default listings. Archived workspaces auto-d
 
 ### Archive
 ```bash
-grove archive --workspace <name> --yes
+nemus archive --workspace <name> --yes
 ```
 
 ### Unarchive
 ```bash
-grove archive --unarchive --workspace <name> --yes
+nemus archive --unarchive --workspace <name> --yes
 ```
 
 To list archived workspaces first:
 ```bash
-grove list --archived
+nemus list --archived
 ```
 
 ## Flags
@@ -34,5 +34,5 @@ grove list --archived
 
 ## Success Criteria
 
-- Workspace is hidden from default `grove list` results.
+- Workspace is hidden from default `nemus list` results.
 - User is aware of the 30-day auto-delete policy.

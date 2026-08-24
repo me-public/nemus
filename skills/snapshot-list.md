@@ -10,7 +10,7 @@ List all saved workspace snapshots.
 ## Running
 
 ```bash
-grove history
+nemus history
 ```
 
 ## Presenting Results

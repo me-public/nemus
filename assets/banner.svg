@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="Grove — multi-repo workspaces for the AI-agent era">
-  <title>Grove</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="Nemus — multi-repo workspaces for the AI-agent era">
+  <title>Nemus</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0D1117"/>
@@ -24,7 +24,7 @@
   <rect width="1280" height="640" fill="url(#glow)"/>
 
   <!-- wordmark + tagline -->
-  <text x="96" y="150" font-family="'SF Mono','JetBrains Mono','Fira Code',ui-monospace,Menlo,Consolas,monospace" font-size="112" font-weight="700" letter-spacing="-3" fill="#E6EDF3">Grove</text>
+  <text x="96" y="150" font-family="'SF Mono','JetBrains Mono','Fira Code',ui-monospace,Menlo,Consolas,monospace" font-size="112" font-weight="700" letter-spacing="-3" fill="#E6EDF3">Nemus</text>
   <text x="100" y="204" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="30" font-weight="500" fill="#7EE2A8">Multi-repo workspaces for the AI-agent era</text>
 
   <!-- terminal window -->
@@ -35,13 +35,13 @@
     <circle cx="26" cy="22" r="7" fill="#FF5F56"/>
     <circle cx="50" cy="22" r="7" fill="#FFBD2E"/>
     <circle cx="74" cy="22" r="7" fill="#27C93F"/>
-    <text x="310" y="27" text-anchor="middle" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#7D8590">grove</text>
+    <text x="310" y="27" text-anchor="middle" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#7D8590">nemus</text>
 
     <g font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,Consolas,monospace" font-size="22">
-      <text x="30" y="98"  fill="#7EE2A8">$ <tspan fill="#E6EDF3">grove create payments</tspan></text>
+      <text x="30" y="98"  fill="#7EE2A8">$ <tspan fill="#E6EDF3">nemus create payments</tspan></text>
       <text x="30" y="140" fill="#7D8590">✓ cloned 12 repositories</text>
       <text x="30" y="182" fill="#7D8590">✓ wrote AGENTS.md · installed skills</text>
-      <text x="30" y="224" fill="#7EE2A8">$ <tspan fill="#E6EDF3">grove -- "start the checkout refactor"</tspan></text>
+      <text x="30" y="224" fill="#7EE2A8">$ <tspan fill="#E6EDF3">nemus -- "start the checkout refactor"</tspan></text>
       <text x="30" y="266" fill="#3FB950">▸ launching agent<tspan fill="#3FB950">█</tspan></text>
     </g>
   </g>

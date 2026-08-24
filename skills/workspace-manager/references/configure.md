@@ -5,7 +5,7 @@ Configure workspace-manager global settings interactively.
 ## Instructions
 
 ```bash
-grove configure
+nemus configure
 ```
 
 Alias:

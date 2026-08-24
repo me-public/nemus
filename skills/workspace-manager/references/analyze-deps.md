@@ -5,7 +5,7 @@ Analyze inter-repository dependencies within a workspace and detect circular dep
 ## Instructions
 
 ```bash
-grove analyze-deps <workspace>
+nemus analyze-deps <workspace>
 ```
 
 Alias:
@@ -15,7 +15,7 @@ w ad <workspace>
 
 Without a workspace name, prompts interactively:
 ```bash
-grove analyze-deps
+nemus analyze-deps
 ```
 
 ## What It Analyzes
@@ -34,9 +34,9 @@ grove analyze-deps
 
 ## Suggested Follow-ups
 
-- Missing dependencies: `grove update --workspace <name> --repos <missing>` to add them
+- Missing dependencies: `nemus update --workspace <name> --repos <missing>` to add them
 - Circular dependencies: explain resolution strategies
-- For documentation: `grove generate-docs <name>` to include the dependency graph
+- For documentation: `nemus generate-docs <name>` to include the dependency graph
 
 ## Success Criteria
 

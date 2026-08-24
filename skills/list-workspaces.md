@@ -10,12 +10,12 @@ List all workspaces with their status.
 ## Listing
 
 ```bash
-grove list
+nemus list
 ```
 
 Note: This command opens an interactive picker. To just see the output without selecting, pipe it:
 ```bash
-grove list 2>&1 | cat
+nemus list 2>&1 | cat
 ```
 
 ## Presenting Results

@@ -11,19 +11,19 @@ Delete one or more workspaces permanently.
 
 If the user hasn't specified which workspace to delete:
 ```bash
-grove list 2>&1 | cat
+nemus list 2>&1 | cat
 ```
 
 ## Deleting
 
 Run non-interactively:
 ```bash
-grove delete --workspace <name> --yes
+nemus delete --workspace <name> --yes
 ```
 
 Or interactively (prompts for confirmation):
 ```bash
-grove delete
+nemus delete
 ```
 
 ## Important Notes
@@ -34,4 +34,4 @@ grove delete
 
 ## Suggested Follow-ups
 
-- `grove list` to verify the workspace is gone
+- `nemus list` to verify the workspace is gone

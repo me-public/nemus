@@ -6,16 +6,16 @@ Delete a saved suite.
 
 1. In interactive mode:
    ```bash
-   grove suite delete
+   nemus suite delete
    ```
 
 2. In non-interactive mode (for agents):
    ```bash
-   grove suite delete --name <suite-name> --yes
+   nemus suite delete --name <suite-name> --yes
    ```
 
 3. Confirm deletion.
 
 ## Success Criteria
 
-- Suite is removed and no longer appears in `grove suite list`.
+- Suite is removed and no longer appears in `nemus suite list`.

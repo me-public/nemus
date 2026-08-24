@@ -10,7 +10,7 @@ Switch all repos in a workspace to a specified branch.
 ## Running
 
 ```bash
-grove branch switch <workspace-name> <branch-name>
+nemus branch switch <workspace-name> <branch-name>
 ```
 
 ## Presenting Results

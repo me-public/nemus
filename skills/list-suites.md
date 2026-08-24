@@ -10,7 +10,7 @@ List all saved suites (reusable collections of repos).
 ## Running
 
 ```bash
-grove suite list
+nemus suite list
 ```
 
 ## Presenting Results
@@ -19,6 +19,6 @@ Show each suite's name and the repos it contains.
 
 ## Related
 
-- `grove suite create` to create a new suite
-- `grove suite use` to create a workspace from a suite
-- `grove suite delete` to remove a suite
+- `nemus suite create` to create a new suite
+- `nemus suite use` to create a workspace from a suite
+- `nemus suite delete` to remove a suite

@@ -29,7 +29,7 @@ Two steps: **sync the repos to latest**, then **regenerate the context**.
 ### 1. Pull the latest for every repo in the workspace
 
 ```bash
-grove sync <workspace-name>
+nemus sync <workspace-name>
 ```
 
 This `git pull`s every repo so their on-disk `README.md`, `AGENTS.md`, and
@@ -42,7 +42,7 @@ current workspace.)
 w migrate
 ```
 
-`grove migrate` re-reads each repo's context files from disk and **surgically
+`nemus migrate` re-reads each repo's context files from disk and **surgically
 updates only the `## Per-Repository Context` section** of the workspace
 `AGENTS.md` / `.claude.md`. Your own notes (the `## Notes` section, saved
 `CONTEXT.md`, etc.) are preserved untouched.
@@ -70,8 +70,8 @@ the top of the workspace context file so the agent weights it heavily.
 ## Notes
 
 - This only refreshes **embedded** per-repo docs in the workspace context
-  file. The repos themselves are updated by `grove sync` in step 1.
-- `grove migrate` runs across **all** workspaces. That's safe and idempotent —
+  file. The repos themselves are updated by `nemus sync` in step 1.
+- `nemus migrate` runs across **all** workspaces. That's safe and idempotent —
   every workspace gets its per-repo section refreshed from current on-disk
   content. Use `--dry-run` first if you want to see scope.
 - If a workspace has no repo-level context files, the section is omitted
@@ -83,7 +83,7 @@ the top of the workspace context file so the agent weights it heavily.
 # Workspace 'payments' was created 3 weeks ago; partnerships-api has since
 # rewritten its AGENTS.md with new Jira board instructions.
 
-grove sync payments        # pull latest — partnerships-api/AGENTS.md now current
+nemus sync payments        # pull latest — partnerships-api/AGENTS.md now current
 w migrate --dry-run    # preview: "payments: would embed per-repo context from 4 location(s)"
 w migrate              # apply — workspace AGENTS.md now has the new instructions
 ```

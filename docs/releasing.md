@@ -1,6 +1,6 @@
-# Releasing Grove
+# Releasing Nemus
 
-Grove publishes to npm as [`grove-cli`](https://www.npmjs.com/package/grove-cli).
+Nemus publishes to npm as [`nemus`](https://www.npmjs.com/package/nemus).
 Releases are **automated but gated by a manual approval**, so nothing reaches npm
 without a maintainer's explicit sign-off.
 
@@ -22,7 +22,7 @@ It then:
 
 ## One-time setup (maintainers)
 
-1. **Create an npm automation token** with publish rights for `grove-cli` and add
+1. **Create an npm automation token** with publish rights for `nemus` and add
    it as the repository secret **`NPM_TOKEN`**
    (*Settings → Secrets and variables → Actions*).
 2. **Create the `release` environment** (*Settings → Environments → New
@@ -57,7 +57,7 @@ Pushing the version bump to `main` starts the workflow. Open the run in the
 
 ## After release
 
-- Confirm the new version on npm: `npm view grove-cli version`.
+- Confirm the new version on npm: `npm view nemus version`.
 - Confirm the GitHub Release and tag were created.
 - Announce in Discussions / release notes as appropriate.
 
@@ -65,5 +65,5 @@ Pushing the version bump to `main` starts the workflow. Open the run in the
 
 npm does not allow re-publishing the same version. If a release is broken:
 
-1. `npm deprecate grove-cli@<bad-version> "broken release, use <good-version>"`.
+1. `npm deprecate nemus@<bad-version> "broken release, use <good-version>"`.
 2. Fix forward: bump to a new patch version and release again.

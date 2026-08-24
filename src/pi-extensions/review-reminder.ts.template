@@ -34,14 +34,14 @@ export default function (pi: ExtensionAPI) {
 
     if (latestEpoch === 0) {
       ctx.ui.notify(
-        "[grove] Your global permissions have never been reviewed. Run /review-permissions to audit them.",
+        "[nemus] Your global permissions have never been reviewed. Run /review-permissions to audit them.",
         "warning"
       );
     } else {
       const daysSince = Math.floor((now - latestEpoch) / (24 * 60 * 60 * 1000));
       if (daysSince >= 30) {
         ctx.ui.notify(
-          `[grove] Your global permissions haven't been reviewed in ${daysSince} days. Run /review-permissions to clean up stale entries.`,
+          `[nemus] Your global permissions haven't been reviewed in ${daysSince} days. Run /review-permissions to clean up stale entries.`,
           "warning"
         );
       } else {

@@ -5,7 +5,7 @@ Check the status of ghq integration for faster repository cloning.
 ## Instructions
 
 ```bash
-grove ghq-status
+nemus ghq-status
 ```
 
 ## What It Shows

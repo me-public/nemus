@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Grove - Uninstall Script
+# Nemus - Uninstall Script
 
 set -e
 
@@ -13,7 +13,7 @@ NC='\033[0m' # No Color
 
 echo ""
 echo "============================================================"
-echo -e "${CYAN}Grove - Uninstall${NC}"
+echo -e "${CYAN}Nemus - Uninstall${NC}"
 echo "============================================================"
 echo ""
 
@@ -31,7 +31,7 @@ print_info() {
 
 # Confirm uninstall
 echo -e "${YELLOW}This will remove:${NC}"
-echo "  • Global grove/gv command"
+echo "  • Global nemus/nem command"
 echo "  • npm link"
 echo ""
 echo -e "${YELLOW}This will NOT remove:${NC}"
@@ -63,10 +63,10 @@ if [ -f "$PERM_SYNC_JS" ]; then
     node -e "require('$PERM_SYNC_JS').uninstallReviewSkillAndReminder()" 2>/dev/null && \
         print_success "Permission review skill and reminder hook removed" || \
         print_warning "Could not remove permission review skill (non-critical)"
-    print_info "Removing Grove skills..."
+    print_info "Removing Nemus skills..."
     node -e "require('$PERM_SYNC_JS').uninstallWorkspaceSkills()" 2>/dev/null && \
-        print_success "Grove skills removed" || \
-        print_warning "Could not remove Grove skills (non-critical)"
+        print_success "Nemus skills removed" || \
+        print_warning "Could not remove Nemus skills (non-critical)"
 fi
 
 # Unlink global command
@@ -82,22 +82,22 @@ echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     # Remove from .zshrc
     if [ -f "$HOME/.zshrc" ]; then
-        if grep -q "# Grove - Shell Integration" "$HOME/.zshrc"; then
+        if grep -q "# Nemus - Shell Integration" "$HOME/.zshrc"; then
             # Create backup
             cp "$HOME/.zshrc" "$HOME/.zshrc.backup.$(date +%Y%m%d_%H%M%S)"
             # Remove the function
-            sed -i.bak '/# Grove - Shell Integration/,/^}$/d' "$HOME/.zshrc"
+            sed -i.bak '/# Nemus - Shell Integration/,/^}$/d' "$HOME/.zshrc"
             print_success "Removed from .zshrc (backup created)"
         fi
     fi
 
     # Remove from .bashrc
     if [ -f "$HOME/.bashrc" ]; then
-        if grep -q "# Grove - Shell Integration" "$HOME/.bashrc"; then
+        if grep -q "# Nemus - Shell Integration" "$HOME/.bashrc"; then
             # Create backup
             cp "$HOME/.bashrc" "$HOME/.bashrc.backup.$(date +%Y%m%d_%H%M%S)"
             # Remove the function
-            sed -i.bak '/# Grove - Shell Integration/,/^}$/d' "$HOME/.bashrc"
+            sed -i.bak '/# Nemus - Shell Integration/,/^}$/d' "$HOME/.bashrc"
             print_success "Removed from .bashrc (backup created)"
         fi
     fi
@@ -149,7 +149,7 @@ echo "============================================================"
 echo ""
 
 echo "What was removed:"
-print_success "Global grove/gv command unlinked"
+print_success "Global nemus/nem command unlinked"
 echo ""
 
 echo "To completely remove the source code:"

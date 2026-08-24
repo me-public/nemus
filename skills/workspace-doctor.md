@@ -10,12 +10,12 @@ Run health checks on a workspace.
 ## Running
 
 ```bash
-grove doctor <workspace-name>
+nemus doctor <workspace-name>
 ```
 
 Or for the current workspace:
 ```bash
-grove doctor
+nemus doctor
 ```
 
 ## Presenting Results

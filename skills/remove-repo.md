@@ -10,12 +10,12 @@ Remove a repository from a workspace.
 ## Running
 
 ```bash
-grove remove-repo --workspace <name> --repo <repo-name> --yes
+nemus remove-repo --workspace <name> --repo <repo-name> --yes
 ```
 
 Or interactively:
 ```bash
-grove remove-repo
+nemus remove-repo
 ```
 
 ## Important Notes

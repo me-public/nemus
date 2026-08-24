@@ -6,7 +6,7 @@ Merge a source branch into a target branch across all repositories in a workspac
 
 1. Run:
    ```bash
-   grove branch merge <workspace> <source-branch> <target-branch> [--no-ff|--ff-only|--squash]
+   nemus branch merge <workspace> <source-branch> <target-branch> [--no-ff|--ff-only|--squash]
    ```
 
 2. Present results per repo:

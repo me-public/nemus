@@ -6,7 +6,7 @@ Rebase all repositories in a workspace onto a target branch.
 
 1. Run:
    ```bash
-   grove branch rebase <workspace> <target-branch>
+   nemus branch rebase <workspace> <target-branch>
    ```
 
 2. Present results per repo:
