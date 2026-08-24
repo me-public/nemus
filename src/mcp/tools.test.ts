@@ -526,4 +526,20 @@ describe('MCP tool handlers', () => {
       expect(result.repos[0]).toHaveProperty('isPrivate');
     });
   });
+
+  describe("path traversal is rejected (security)", () => {
+    it("handleWorkspaceStatus refuses a traversal workspace name", async () => {
+      await expect(handleWorkspaceStatus("../../etc")).rejects.toThrow(/Invalid workspace name/);
+    });
+    it("handleRunCommand refuses a traversal name (no command runs outside the sandbox)", async () => {
+      await expect(handleRunCommand("../../tmp", "echo pwned")).rejects.toThrow(/Invalid workspace name/);
+    });
+    it("handleDeleteWorkspace refuses a traversal name (no rm outside the sandbox)", async () => {
+      await expect(handleDeleteWorkspace("../../Documents")).rejects.toThrow(/Invalid workspace name/);
+      await expect(handleDeleteWorkspace(["ok-name", "../../Documents"])).rejects.toThrow(/Invalid workspace name/);
+    });
+    it("handleRemoveRepo refuses a traversal workspace name", async () => {
+      await expect(handleRemoveRepo("../../etc", "repo")).rejects.toThrow(/Invalid workspace name/);
+    });
+  });
 });

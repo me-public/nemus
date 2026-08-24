@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import fuzzy from 'fuzzy';
 import { resolveRepoNames } from '../utils/repo-resolver';
-import { WORKSPACES_DIR, getCloneUrl } from '../utils/config';
+import { getCloneUrl } from '../utils/config';
 import { formatContextFile, appendToContextFile } from '../utils/context-file';
 import { listWorkspaces, loadMetadata, createMetadata, saveMetadata, archiveWorkspace, unarchiveWorkspace } from '../utils/workspace-meta';
 import { getAllReposStatus } from '../utils/git-status';
@@ -20,7 +20,7 @@ import { createBranch, switchBranch, mergeBranch, rebaseBranch } from '../utils/
 import { removeNodeModules, removeBuildArtifacts } from '../utils/cleanup-operations';
 import { runPostCloneHooks } from '../utils/hooks';
 import { SuiteEntry, WorkspaceSuite, SuitesStore } from '../types';
-import { resolveWorkspaceNameConflict, sanitizeWorkspaceName } from '../utils/validation';
+import { resolveWorkspaceNameConflict, sanitizeWorkspaceName, safeWorkspacePath } from '../utils/validation';
 
 /**
  * Redirects stdout to stderr for the duration of a function call.
@@ -74,7 +74,7 @@ export async function handleUnarchiveWorkspace(workspace: string) {
 
 export async function handleWorkspaceStatus(workspace: string) {
   return withStdoutProtection(async () => {
-    const workspacePath = path.join(WORKSPACES_DIR, workspace);
+    const workspacePath = safeWorkspacePath(workspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
@@ -94,7 +94,7 @@ export async function handleWorkspaceStatus(workspace: string) {
 
 export async function handleWorkspaceDiff(workspace: string, full: boolean = false) {
   return withStdoutProtection(async () => {
-    const workspacePath = path.join(WORKSPACES_DIR, workspace);
+    const workspacePath = safeWorkspacePath(workspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
@@ -124,7 +124,7 @@ export async function handleWorkspaceDiff(workspace: string, full: boolean = fal
 
 export async function handleWorkspaceSync(workspace: string) {
   return withStdoutProtection(async () => {
-    const workspacePath = path.join(WORKSPACES_DIR, workspace);
+    const workspacePath = safeWorkspacePath(workspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
@@ -154,7 +154,7 @@ export async function handleWorkspaceSync(workspace: string) {
 
 export async function handleRunCommand(workspace: string, command: string) {
   return withStdoutProtection(async () => {
-    const workspacePath = path.join(WORKSPACES_DIR, workspace);
+    const workspacePath = safeWorkspacePath(workspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
@@ -204,7 +204,7 @@ export async function handleListSuites() {
 
 export async function handleWorkspaceInfo(workspace: string) {
   return withStdoutProtection(async () => {
-    const workspacePath = path.join(WORKSPACES_DIR, workspace);
+    const workspacePath = safeWorkspacePath(workspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
@@ -227,7 +227,7 @@ export async function handleUpdateWorkspace(workspace: string, repos: Array<stri
       throw new Error('At least one repository name is required');
     }
 
-    const workspacePath = path.join(WORKSPACES_DIR, workspace);
+    const workspacePath = safeWorkspacePath(workspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
@@ -358,7 +358,7 @@ export async function handleCreateWorkspace(workspace: string, repos: string[]) 
     }
 
     const sanitizedWorkspace = sanitizeWorkspaceName(workspace);
-    const workspacePath = path.join(WORKSPACES_DIR, sanitizedWorkspace);
+    const workspacePath = safeWorkspacePath(sanitizedWorkspace);
 
     // Auto-resolve workspace name conflict instead of throwing
     let finalWorkspaceName = sanitizedWorkspace;
@@ -393,7 +393,7 @@ export async function handleCreateWorkspace(workspace: string, repos: string[]) 
     }
 
     // Create workspace directory
-    const finalWorkspacePath = path.join(WORKSPACES_DIR, finalWorkspaceName);
+    const finalWorkspacePath = safeWorkspacePath(finalWorkspaceName);
     await fs.mkdir(finalWorkspacePath, { recursive: true });
 
     // Clone repositories
@@ -479,7 +479,7 @@ export async function handleDeleteWorkspace(workspaces: string | string[]) {
     const results: Array<{ workspace: string; path: string; deleted: boolean; error?: string }> = [];
 
     for (const workspace of names) {
-      const workspacePath = path.join(WORKSPACES_DIR, workspace);
+      const workspacePath = safeWorkspacePath(workspace);
 
       try {
         await fs.access(workspacePath);
@@ -508,7 +508,7 @@ export async function handleDeleteWorkspace(workspaces: string | string[]) {
 
 export async function handleRemoveRepo(workspace: string, repo: string) {
   return withStdoutProtection(async () => {
-    const workspacePath = path.join(WORKSPACES_DIR, workspace);
+    const workspacePath = safeWorkspacePath(workspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
@@ -555,7 +555,7 @@ export async function handleRemoveRepo(workspace: string, repo: string) {
 
 export async function handleWorkspaceDoctor(workspace: string) {
   return withStdoutProtection(async () => {
-    const workspacePath = path.join(WORKSPACES_DIR, workspace);
+    const workspacePath = safeWorkspacePath(workspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
@@ -575,7 +575,7 @@ export async function handleWorkspaceDoctor(workspace: string) {
 
 export async function handleAnalyzeDeps(workspace: string) {
   return withStdoutProtection(async () => {
-    const workspacePath = path.join(WORKSPACES_DIR, workspace);
+    const workspacePath = safeWorkspacePath(workspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
@@ -609,7 +609,7 @@ export async function handleAnalyzeDeps(workspace: string) {
 
 export async function handleBranchCreate(workspace: string, branchName: string, baseBranch?: string) {
   return withStdoutProtection(async () => {
-    const workspacePath = path.join(WORKSPACES_DIR, workspace);
+    const workspacePath = safeWorkspacePath(workspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
@@ -640,7 +640,7 @@ export async function handleBranchCreate(workspace: string, branchName: string, 
 
 export async function handleSwitchBranch(workspace: string, branch: string) {
   return withStdoutProtection(async () => {
-    const workspacePath = path.join(WORKSPACES_DIR, workspace);
+    const workspacePath = safeWorkspacePath(workspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
@@ -675,7 +675,7 @@ export async function handleWorkspaceCleanup(
   includeBuildArtifacts: boolean = true
 ) {
   return withStdoutProtection(async () => {
-    const workspacePath = path.join(WORKSPACES_DIR, workspace);
+    const workspacePath = safeWorkspacePath(workspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
@@ -731,7 +731,7 @@ export async function handleBranchMerge(
   strategy?: 'no-ff' | 'ff-only' | 'squash'
 ) {
   return withStdoutProtection(async () => {
-    const workspacePath = path.join(WORKSPACES_DIR, workspace);
+    const workspacePath = safeWorkspacePath(workspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
@@ -769,7 +769,7 @@ export async function handleBranchMerge(
 
 export async function handleBranchRebase(workspace: string, targetBranch: string) {
   return withStdoutProtection(async () => {
-    const workspacePath = path.join(WORKSPACES_DIR, workspace);
+    const workspacePath = safeWorkspacePath(workspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
@@ -888,7 +888,7 @@ export async function handleSuiteUse(suiteName: string, workspace: string) {
     }
 
     const sanitizedSuiteWorkspace = sanitizeWorkspaceName(workspace);
-    const workspacePath = path.join(WORKSPACES_DIR, sanitizedSuiteWorkspace);
+    const workspacePath = safeWorkspacePath(sanitizedSuiteWorkspace);
 
     // Auto-resolve workspace name conflict using suite repo names as hints
     let finalSuiteWorkspaceName = sanitizedSuiteWorkspace;
@@ -925,7 +925,7 @@ export async function handleSuiteUse(suiteName: string, workspace: string) {
     }
 
     // Create workspace directory
-    const finalSuiteWorkspacePath = path.join(WORKSPACES_DIR, finalSuiteWorkspaceName);
+    const finalSuiteWorkspacePath = safeWorkspacePath(finalSuiteWorkspaceName);
     await fs.mkdir(finalSuiteWorkspacePath, { recursive: true });
 
     // Clone repositories
@@ -984,7 +984,7 @@ export async function handleSaveContext(workspace: string, content: string, appe
       throw new Error('Content is required');
     }
 
-    const workspacePath = path.join(WORKSPACES_DIR, workspace);
+    const workspacePath = safeWorkspacePath(workspace);
     const metadata = await loadMetadata(workspacePath);
     if (!metadata) {
       throw new Error(`Workspace not found: ${workspace}`);
