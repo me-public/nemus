@@ -39,6 +39,18 @@ launch third-party agent CLIs. Please keep in mind:
   the same caution as any script.
 - It reads/writes agent configuration and skill files under your home directory.
 
+### Path handling
+
+All workspace paths are derived from a single hardened helper
+(`safeWorkspacePath`) that enforces a strict name allowlist
+(`^[A-Za-z0-9_-]+$`) **and** verifies the resolved path stays inside the
+workspaces directory. This applies to every entry point, including the
+**MCP server** tools (`delete-workspace`, `run-command`, etc.), whose inputs
+are additionally validated at the schema boundary. A caller — including an
+automated agent driving the MCP server — cannot use a `../` traversal in a
+workspace name to read, write, delete, or execute outside the workspaces
+sandbox. Any regression here is in scope.
+
 Reports about these documented behaviors are still welcome if you find a way they
 can be abused beyond their intent (e.g. injection, privilege escalation, or
 leaking secrets).
