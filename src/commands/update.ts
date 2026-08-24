@@ -6,6 +6,7 @@ import { promptRepositorySelection, promptWorkspaceSelection } from '../utils/pr
 import { cloneRepositories, reportCloneResults } from '../utils/git-operations';
 import { warnIfGhqMissing } from '../utils/ghq-integration';
 import { loadMetadata, saveMetadata, listWorkspaces } from '../utils/workspace-meta';
+import { generateClaudeContext } from '../utils/claude-integration';
 import { logInfo, logSuccess, logError, logStep, logWarning } from '../utils/logger';
 import { colorize } from '../utils/colors';
 import { getGlobalOpts, resolveWorkspace, parseList } from '../utils/command-helpers';
@@ -141,10 +142,12 @@ async function handleUpdate(opts: {
       error: result.error,
     }));
 
+    let finalMetadata;
     if (metadata) {
       metadata.repositories.push(...newRepoMetadata);
       metadata.lastModified = new Date().toISOString();
       await saveMetadata(workspacePath, metadata);
+      finalMetadata = metadata;
     } else {
       // Workspace had no metadata file — create one now
       const fresh = {
@@ -154,7 +157,27 @@ async function handleUpdate(opts: {
         repositories: newRepoMetadata,
       };
       await saveMetadata(workspacePath, fresh);
+      finalMetadata = fresh;
     }
+
+    // Regenerate the agent context (CLAUDE.md/AGENTS.md) + .mcp.json so the
+    // newly added repos actually surface — otherwise an investigate-first
+    // workspace keeps saying "0 repositories" and its context stays stale.
+    // Resolve the FULL remaining set (existing + new) to catalog objects so
+    // pre-existing repos keep their descriptions/URLs on regenerate (matches
+    // the remove-repo path). Best-effort: never fail the update over this.
+    const repoObjects = finalMetadata.repositories
+      .filter(r => r.status === 'success')
+      .map(r => allRepos.find(ar => ar.name === r.name))
+      .filter((r): r is NonNullable<typeof r> => r != null);
+    // Only regenerate when this update actually added a repo — a failure-only
+    // update must not rewrite (and clobber) the existing context.
+    const addedNewRepo = cloneResults.some(r => r.status === 'success');
+    try {
+      if (addedNewRepo && repoObjects.length > 0) {
+        await generateClaudeContext(workspacePath, workspaceName, repoObjects, finalMetadata);
+      }
+    } catch { /* context regen is best-effort */ }
 
     // Report results
     reportCloneResults(cloneResults);

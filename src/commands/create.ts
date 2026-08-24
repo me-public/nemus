@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { WORKSPACES_DIR } from '../utils/config';
 import * as path from 'path';
 import { verifyGhAuth, fetchOrgRepos, displayAuthInstructions } from '../utils/github';
-import { promptRepositorySelection, promptWorkspaceName, confirmWorkspaceCreation } from '../utils/prompts';
+import { promptRepositorySelection, promptWorkspaceName, confirmWorkspaceCreation, type RepoSelection } from '../utils/prompts';
 import { cloneRepositories, reportCloneResults } from '../utils/git-operations';
 import { warnIfGhqMissing } from '../utils/ghq-integration';
 import { createMetadata, saveMetadata } from '../utils/workspace-meta';
@@ -22,6 +22,7 @@ export function registerCreateCommand(parent: Command) {
     .option('-w, --workspace <name>', 'Workspace name')
     .option('-r, --repos <repos>', 'Comma-separated repository names. Use repo:suffix to add the same repo more than once under a separate folder, e.g. casper:cas-101 -> casper-cas-101')
     .option('--prompt <prompt>', 'Original prompt that triggered workspace creation (saved to metadata)')
+    .option('--allow-empty', 'Create the workspace with no repositories (e.g. investigate-first: the agent adds repos later)')
     .action(async (opts, cmd) => {
       const globalOpts = getGlobalOpts(cmd);
       await handleCreate({ ...opts, ...globalOpts });
@@ -32,6 +33,7 @@ async function handleCreate(opts: {
   workspace?: string;
   repos?: string;
   prompt?: string;
+  allowEmpty?: boolean;
   forceRefresh: boolean;
   yes: boolean;
 }) {
@@ -50,20 +52,33 @@ async function handleCreate(opts: {
 
     logSuccess('GitHub CLI authenticated');
 
-    // Step 2: Fetch repositories
-    logStep(2, 6, 'Fetching repositories...');
-    const repos = await fetchOrgRepos({ forceRefresh: opts.forceRefresh });
+    // Investigate-first empty workspace: no repos to resolve, so skip the org
+    // catalog fetch entirely — otherwise an empty/failed catalog would abort
+    // creation on the guard below even though we need no repos.
+    const investigateEmpty = !!opts.allowEmpty && !opts.repos;
 
-    if (repos.length === 0) {
-      logError('No repositories found');
-      process.exit(1);
+    // Step 2: Fetch repositories (only when we actually need to resolve repos)
+    let repos: Awaited<ReturnType<typeof fetchOrgRepos>> = [];
+    if (!investigateEmpty) {
+      logStep(2, 6, 'Fetching repositories...');
+      repos = await fetchOrgRepos({ forceRefresh: opts.forceRefresh });
+
+      if (repos.length === 0) {
+        logError('No repositories found');
+        process.exit(1);
+      }
     }
 
     // Step 3: Select repositories
     logStep(3, 6, 'Select repositories to clone...');
-    let selectedEntries;
+    let selectedEntries: RepoSelection[];
 
-    if (opts.repos) {
+    if (investigateEmpty) {
+      // Investigate-first: start with no repos; the in-session agent discovers
+      // and adds the relevant repos itself.
+      logInfo('Creating an empty workspace (no repositories) — repos can be added later.');
+      selectedEntries = [];
+    } else if (opts.repos) {
       const repoSpecs = parseList(opts.repos);
       const { resolved, notFound, invalidSuffix } = resolveRepoSpecs(repoSpecs, repos);
 
@@ -90,7 +105,7 @@ async function handleCreate(opts: {
       selectedEntries = await promptRepositorySelection(repos);
     }
 
-    if (selectedEntries.length === 0) {
+    if (selectedEntries.length === 0 && !opts.allowEmpty) {
       logInfo('No repositories selected');
       return;
     }
@@ -139,7 +154,7 @@ async function handleCreate(opts: {
     const { mkdir } = await import('fs/promises');
     await mkdir(workspacePath, { recursive: true });
 
-    await warnIfGhqMissing();
+    if (selectedEntries.length > 0) await warnIfGhqMissing();
     const results = await cloneRepositories(selectedEntries, workspacePath);
     reportCloneResults(results);
 
@@ -152,7 +167,10 @@ async function handleCreate(opts: {
       .filter(r => r.status === 'success')
       .map(r => r.repo);
 
-    if (successfulRepos.length > 0) {
+    // Generate context + .mcp.json even for an empty (investigate-first)
+    // workspace, so the in-session agent lands with the MCP tools (search-repos
+    // / update-workspace) needed to discover and add repos.
+    if (successfulRepos.length > 0 || opts.allowEmpty) {
       await generateClaudeContext(workspacePath, workspaceName, successfulRepos, metadata);
     }
 

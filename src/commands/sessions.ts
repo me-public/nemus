@@ -31,7 +31,7 @@ async function handleSessions() {
 
     if (sessions.length === 0) {
       logInfo('No workspace sessions found.');
-      console.log('\nYou can create a workspace with: w create');
+      console.log('\nYou can create a workspace with: nemus create');
       console.log('Or navigate to one with: w go');
       return;
     }

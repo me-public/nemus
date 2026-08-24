@@ -105,6 +105,33 @@ describe('handleUpdateWorkspace — suffix logic', () => {
     expect(result.alreadyExists).toBeUndefined();
   });
 
+  it('regenerates the agent context after adding repos (so an empty workspace stops saying 0 repos)', async () => {
+    const { generateClaudeContext } = await import('../utils/claude-integration');
+    await createWorkspace('ws-empty', []);
+    mockCloneRepositories.mockResolvedValue([
+      { repo: makeRepo('payments-service'), directoryName: 'payments-service', status: 'success', clonedAt: '2024-01-01T00:00:00Z' },
+    ]);
+
+    await handleUpdateWorkspace('ws-empty', ['payments-service']);
+
+    expect(vi.mocked(generateClaudeContext)).toHaveBeenCalledTimes(1);
+    const [, wsName, reposArg] = vi.mocked(generateClaudeContext).mock.calls[0];
+    expect(wsName).toBe('ws-empty');
+    expect((reposArg as Array<{ name: string }>).map(r => r.name)).toContain('payments-service');
+  });
+
+  it('does NOT regenerate context when all new clones fail (must not clobber existing context)', async () => {
+    const { generateClaudeContext } = await import('../utils/claude-integration');
+    await createWorkspace('ws-fail', ['acme-db']);
+    mockCloneRepositories.mockResolvedValue([
+      { repo: makeRepo('partnerships-api'), directoryName: 'partnerships-api', status: 'failed', error: 'network' },
+    ]);
+
+    await handleUpdateWorkspace('ws-fail', ['partnerships-api']);
+
+    expect(vi.mocked(generateClaudeContext)).not.toHaveBeenCalled();
+  });
+
   it('rejects duplicate repo without suffix', async () => {
     await createWorkspace('ws2', ['partnerships-api']);
 

@@ -30,7 +30,7 @@ fi
 # Shell function to wrap workspace command
 read -r -d '' SHELL_FUNCTION << 'EOF' || true
 
-# Nemus - Shell Integration (v49)
+# Nemus - Shell Integration (v50)
 # Wraps both 'nemus' and 'nem' commands so the shell can CD after
 # create / list / go commands. A child process cannot change the parent
 # shell's directory, so we need shell functions that read a temp file
@@ -199,7 +199,8 @@ __workspace_detect_agent() {
     echo "$__ws_cached_agent"
     return
   fi
-  local agent="claude"
+  # An explicit primaryAgent from config wins; otherwise we auto-detect.
+  local agent=""
   if command -v node >/dev/null 2>&1; then
     local cfg="$HOME/.workspace-manager-cache/config.json"
     if [ -f "$cfg" ]; then
@@ -213,16 +214,31 @@ __workspace_detect_agent() {
       case "$ai" in
         pi) agent="pi" ;;
         opencode) agent="opencode" ;;
+        codex) agent="codex" ;;
+        gemini) agent="gemini" ;;
         claude) agent="claude" ;;
-        *) # 'auto' — prefer claude if available, fall back to pi, then opencode
-          if command -v claude >/dev/null 2>&1; then
-            agent="claude"
-          elif command -v pi >/dev/null 2>&1; then
-            agent="pi"
-          elif command -v opencode >/dev/null 2>&1; then
-            agent="opencode"
-          fi ;;
+        # 'auto' (or anything else) falls through to the probe below.
       esac
+    fi
+  fi
+  # No explicit choice (no config file, node unavailable, or primaryAgent=auto):
+  # probe for an installed agent in the same order as the TS getPrimaryAgent()
+  # 'auto' path (claude → pi → opencode → codex → gemini). This is what lets a
+  # Pi-only machine with no config actually launch the seeded prompt instead of
+  # silently defaulting to a claude that isn't installed.
+  if [ -z "$agent" ]; then
+    if command -v claude >/dev/null 2>&1; then
+      agent="claude"
+    elif command -v pi >/dev/null 2>&1; then
+      agent="pi"
+    elif command -v opencode >/dev/null 2>&1; then
+      agent="opencode"
+    elif command -v codex >/dev/null 2>&1; then
+      agent="codex"
+    elif command -v gemini >/dev/null 2>&1; then
+      agent="gemini"
+    else
+      agent="claude"
     fi
   fi
   __ws_cached_agent="$agent"
@@ -476,7 +492,7 @@ else
 fi
 
 # Check if already installed (version marker is in the grep below)
-if grep -q "Shell Integration (v49)" "$RC_FILE" 2>/dev/null; then
+if grep -q "Shell Integration (v50)" "$RC_FILE" 2>/dev/null; then
   echo "✅ Shell integration already up to date in $RC_FILE"
 elif grep -q "# Nemus - Shell Integration" "$RC_FILE" 2>/dev/null; then
   # Old version installed — remove it and install new version

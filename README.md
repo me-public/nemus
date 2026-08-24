@@ -199,7 +199,17 @@ nemus snapshot restore <id>   # (sr)
 ```bash
 nemus -- create a workspace for the payments team
 nemus -- list my workspaces and show their status
+
+# Investigate-first: create an EMPTY workspace and let the agent discover the repos
+nemus -- search the logs for the OCR 500s, find the services in the trace, and open those repos
 ```
+
+**Investigate-first workspaces:** when your prompt doesn't name concrete repos but
+asks the agent to *figure out* which repos are relevant (from a trace, a stack
+trace, or a log search), Nemus creates an **empty** workspace and hands the agent a
+discover-then-add workflow: it investigates, maps the services it finds to repos
+(fuzzy `search-repos`, or the `gh` CLI), adds them with `nemus update`, and only
+then digs into the code.
 
 Nemus exposes an **MCP server** (`nemus-mcp`) so MCP-capable agents can search
 repos, create/update workspaces, check status, and more directly from a prompt.

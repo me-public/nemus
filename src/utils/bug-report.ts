@@ -29,7 +29,7 @@ export const LAST_ERROR_FILE = path.join(CACHE_DIR, 'last-error.json');
 export const BUG_LABEL = 'auto-reported';
 
 export interface CapturedError {
-  /** The command the user ran, e.g. "w update --workspace x". */
+  /** The command the user ran, e.g. "nemus update --workspace x". */
   command: string;
   message: string;
   stack?: string;
