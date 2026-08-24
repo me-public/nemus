@@ -1,6 +1,6 @@
 {
   "name": "nemus",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Nemus — a CLI for managing multi-repository workspaces. Create, sync, and operate across dozens of repos with a single command, and wire them up to your favorite coding agent.",
   "keywords": [
     "workspace",

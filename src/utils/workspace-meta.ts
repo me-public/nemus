@@ -3,6 +3,7 @@ import * as path from 'path';
 import { WorkspaceMetadata, RepositoryMetadata, CloneResult } from '../types';
 import { logSuccess, logWarning, logError } from './logger';
 import { WORKSPACES_DIR, META_FILENAME, getCloneUrl } from './config';
+import { safeWorkspacePath } from './validation';
 
 const ARCHIVE_EXPIRY_DAYS = 30;
 
@@ -106,7 +107,7 @@ export const listWorkspaces = async (
 };
 
 export const archiveWorkspace = async (workspaceName: string): Promise<void> => {
-  const workspacePath = path.join(WORKSPACES_DIR, workspaceName);
+  const workspacePath = safeWorkspacePath(workspaceName);
   const metadata = await loadMetadata(workspacePath);
 
   if (!metadata) {
@@ -122,7 +123,7 @@ export const archiveWorkspace = async (workspaceName: string): Promise<void> => 
 };
 
 export const unarchiveWorkspace = async (workspaceName: string): Promise<void> => {
-  const workspacePath = path.join(WORKSPACES_DIR, workspaceName);
+  const workspacePath = safeWorkspacePath(workspaceName);
   const metadata = await loadMetadata(workspacePath);
 
   if (!metadata) {

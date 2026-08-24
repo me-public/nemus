@@ -3,6 +3,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+
+// Traversal-safe name for any parameter used to build a filesystem path (a
+// workspace name). Blocks path separators, drive letters, "."/".." and NUL, so an
+// MCP client cannot escape the workspaces sandbox; spaces are allowed because the
+// create path sanitizes them to hyphens. Handlers still call safeWorkspacePath()
+// as the authoritative check 2014 this is defense in depth with a clean client error.
+const WS_NAME_RE = /^[A-Za-z0-9 _-]+$/;
+const wsName = z.string().min(1).max(64).regex(WS_NAME_RE, 'may contain only letters, numbers, spaces, hyphens, and underscores (no path separators, "..", or other special characters)');
 import {
   handleListWorkspaces,
   handleWorkspaceStatus,
@@ -63,7 +71,7 @@ server.tool(
   'archive-workspace',
   'Archive a workspace so it is hidden from default listing. Archived workspaces auto-delete after 30 days.',
   {
-    workspace: z.string().describe('Name of the workspace to archive'),
+    workspace: wsName.describe('Name of the workspace to archive'),
   },
   async ({ workspace }) => {
     try {
@@ -80,7 +88,7 @@ server.tool(
   'unarchive-workspace',
   'Unarchive a previously archived workspace, making it active again',
   {
-    workspace: z.string().describe('Name of the workspace to unarchive'),
+    workspace: wsName.describe('Name of the workspace to unarchive'),
   },
   async ({ workspace }) => {
     try {
@@ -96,7 +104,7 @@ server.tool(
 server.tool(
   'workspace-status',
   'Show git status (branch, clean/dirty, ahead/behind) for all repos in a workspace',
-  { workspace: z.string().describe('Name of the workspace') },
+  { workspace: wsName.describe('Name of the workspace') },
   async ({ workspace }) => {
     try {
       const result = await handleWorkspaceStatus(workspace);
@@ -112,7 +120,7 @@ server.tool(
   'workspace-diff',
   'Show diff summary (staged/unstaged file counts, insertions, deletions) for all repos in a workspace',
   {
-    workspace: z.string().describe('Name of the workspace'),
+    workspace: wsName.describe('Name of the workspace'),
     full: z.boolean().optional().describe('Include full diff output'),
   },
   async ({ workspace, full }) => {
@@ -129,7 +137,7 @@ server.tool(
 server.tool(
   'workspace-sync',
   'Git pull all repos in a workspace (skips repos with uncommitted changes)',
-  { workspace: z.string().describe('Name of the workspace') },
+  { workspace: wsName.describe('Name of the workspace') },
   async ({ workspace }) => {
     try {
       const result = await handleWorkspaceSync(workspace);
@@ -145,7 +153,7 @@ server.tool(
   'run-command',
   'Run a shell command across all repos in a workspace (3 concurrent, 5min timeout)',
   {
-    workspace: z.string().describe('Name of the workspace'),
+    workspace: wsName.describe('Name of the workspace'),
     command: z.string().describe('Shell command to run in each repo'),
   },
   async ({ workspace, command }) => {
@@ -177,7 +185,7 @@ server.tool(
 server.tool(
   'workspace-info',
   'Get detailed metadata for a workspace including all repository info, dependencies, and tags',
-  { workspace: z.string().describe('Name of the workspace') },
+  { workspace: wsName.describe('Name of the workspace') },
   async ({ workspace }) => {
     try {
       const result = await handleWorkspaceInfo(workspace);
@@ -193,7 +201,7 @@ server.tool(
   'create-workspace',
   'Create a new workspace by cloning specified repositories. Provide the workspace name and an array of repository names (e.g., ["api", "web", "shared-lib"]).',
   {
-    workspace: z.string().describe('Name of the workspace to create'),
+    workspace: wsName.describe('Name of the workspace to create'),
     repos: z.array(z.string()).describe('Array of repository names to clone'),
   },
   async ({ workspace, repos }) => {
@@ -211,7 +219,7 @@ server.tool(
   'update-workspace',
   'Add repositories to an existing workspace. Provide the workspace name and an array of repository names to add. Each entry can be a string (e.g., "partnerships-api") or an object with name and suffix (e.g., {"name": "partnerships-api", "suffix": "v2"}) to add the same repo again under a different directory name (partnerships-api-v2). Skips repos whose target directory name already exists in the workspace.',
   {
-    workspace: z.string().describe('Name of the existing workspace to update'),
+    workspace: wsName.describe('Name of the existing workspace to update'),
     repos: z.array(z.union([
       z.string(),
       z.object({
@@ -271,8 +279,8 @@ server.tool(
   'Delete one or more workspaces and all their contents permanently. Works even if a workspace has no repos or no metadata file.',
   {
     workspaces: z.union([
-      z.string(),
-      z.array(z.string()),
+      wsName,
+      z.array(wsName),
     ]).describe('Name of the workspace(s) to delete — a single string or an array of names'),
   },
   async ({ workspaces }) => {
@@ -290,7 +298,7 @@ server.tool(
   'remove-repo',
   'Remove a repository from a workspace',
   {
-    workspace: z.string().describe('Name of the workspace'),
+    workspace: wsName.describe('Name of the workspace'),
     repo: z.string().describe('Directory name of the repository to remove'),
   },
   async ({ workspace, repo }) => {
@@ -308,7 +316,7 @@ server.tool(
   'workspace-doctor',
   'Run health checks on a workspace and return a health score (0-100)',
   {
-    workspace: z.string().describe('Name of the workspace to check'),
+    workspace: wsName.describe('Name of the workspace to check'),
   },
   async ({ workspace }) => {
     try {
@@ -325,7 +333,7 @@ server.tool(
   'analyze-deps',
   'Analyze inter-repository dependencies within a workspace and detect circular dependencies',
   {
-    workspace: z.string().describe('Name of the workspace to analyze'),
+    workspace: wsName.describe('Name of the workspace to analyze'),
   },
   async ({ workspace }) => {
     try {
@@ -342,7 +350,7 @@ server.tool(
   'branch-create',
   'Create a new branch across all repos in a workspace',
   {
-    workspace: z.string().describe('Name of the workspace'),
+    workspace: wsName.describe('Name of the workspace'),
     branchName: z.string().describe('Name of the new branch to create'),
     baseBranch: z.string().optional().describe('Base branch to create from (defaults to current branch)'),
   },
@@ -361,7 +369,7 @@ server.tool(
   'switch-branch',
   'Switch all repos in a workspace to a specified branch',
   {
-    workspace: z.string().describe('Name of the workspace'),
+    workspace: wsName.describe('Name of the workspace'),
     branch: z.string().describe('Target branch to switch to'),
   },
   async ({ workspace, branch }) => {
@@ -379,7 +387,7 @@ server.tool(
   'workspace-cleanup',
   'Remove node_modules and build artifacts from all repos in a workspace to free disk space',
   {
-    workspace: z.string().describe('Name of the workspace'),
+    workspace: wsName.describe('Name of the workspace'),
     includeNodeModules: z.boolean().optional().default(true).describe('Remove node_modules directories'),
     includeBuildArtifacts: z.boolean().optional().default(true).describe('Remove build artifact directories (dist, build, .next, coverage, out)'),
   },
@@ -415,7 +423,7 @@ server.tool(
   'branch-merge',
   'Merge a source branch into a target branch across all repos in a workspace',
   {
-    workspace: z.string().describe('Name of the workspace'),
+    workspace: wsName.describe('Name of the workspace'),
     sourceBranch: z.string().describe('Branch to merge from'),
     targetBranch: z.string().describe('Branch to merge into'),
     strategy: z.enum(['no-ff', 'ff-only', 'squash']).optional().describe('Merge strategy'),
@@ -435,7 +443,7 @@ server.tool(
   'branch-rebase',
   'Rebase all repos in a workspace onto a target branch',
   {
-    workspace: z.string().describe('Name of the workspace'),
+    workspace: wsName.describe('Name of the workspace'),
     targetBranch: z.string().describe('Branch to rebase onto'),
   },
   async ({ workspace, targetBranch }) => {
@@ -527,7 +535,7 @@ server.tool(
   'Create a new workspace from a saved suite',
   {
     suite: z.string().describe('Name of the suite to use'),
-    workspace: z.string().describe('Name for the new workspace to create'),
+    workspace: wsName.describe('Name for the new workspace to create'),
   },
   async ({ suite, workspace }) => {
     try {
@@ -544,7 +552,7 @@ server.tool(
   'save-context',
   'Save a progress summary to the workspace. Use this to persist important context that should survive /clear or session restarts. The content is saved to CONTEXT.md in the workspace root.',
   {
-    workspace: z.string().describe('Name of the workspace'),
+    workspace: wsName.describe('Name of the workspace'),
     content: z.string().describe('The progress summary or context to save (markdown supported)'),
     append: z.boolean().optional().describe('Append to existing context instead of replacing (default: false)'),
   },

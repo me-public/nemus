@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-24
+
+### Security
+
+- **Fixed a path-traversal vulnerability in the MCP server.** The MCP tool
+  handlers built filesystem paths (`path.join(WORKSPACES_DIR, workspace)`)
+  directly from the caller-supplied `workspace` argument with no validation, so
+  an MCP client could pass a value like `../../etc` to read, write, delete
+  (`delete-workspace`), or run commands (`run-command`) **outside** the
+  workspaces directory. All handlers now resolve workspace paths through a new
+  `safeWorkspacePath()` choke point that enforces an allowlist
+  (`^[A-Za-z0-9_-]+$`) **and** verifies the resolved path stays inside
+  `WORKSPACES_DIR`. The MCP input schemas additionally reject traversal
+  characters at the boundary (defense in depth). The archive/unarchive metadata
+  paths are hardened the same way.
+
 ## [0.2.0] - 2026-08-24
 
 ### Added
@@ -64,6 +80,7 @@ Initial open-source release of **Nemus**.
 - Automatic retries with backoff on flaky network operations.
 - Optional shell integration (auto-cd on create + quick-navigate helper).
 
-[Unreleased]: https://github.com/nemus-cli/nemus/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/nemus-cli/nemus/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/nemus-cli/nemus/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/nemus-cli/nemus/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/nemus-cli/nemus/releases/tag/v0.1.0

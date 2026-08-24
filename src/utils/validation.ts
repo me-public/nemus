@@ -4,6 +4,52 @@ import * as path from 'path';
 
 const WORKSPACE_NAME_REGEX = /^[a-zA-Z0-9_-]+$/;
 
+/**
+ * Allowlist for a single, safe path segment used as a workspace (or suite) name.
+ * Alphanumerics plus hyphen/underscore only — it cannot express a path
+ * separator, a Windows drive, a leading `~`, or a `.`/`..` traversal component,
+ * so a value that matches this can never escape its parent directory.
+ */
+export const isSafePathSegment = (name: unknown): name is string =>
+  typeof name === 'string' && name.length > 0 && name.length <= 64 && WORKSPACE_NAME_REGEX.test(name);
+
+/**
+ * Throw unless `name` is a safe workspace-name path segment. Use this in any
+ * handler that receives a workspace/suite name from an untrusted caller (e.g.
+ * the MCP server, whose Zod schemas otherwise accept any string) BEFORE the
+ * name is used to build a filesystem path.
+ */
+export const assertSafeWorkspaceName = (name: unknown, label = 'workspace name'): void => {
+  if (!isSafePathSegment(name)) {
+    throw new Error(
+      `Invalid ${label} "${String(name)}": only letters, numbers, hyphens, and underscores are allowed ` +
+      `(no path separators, "..", or other special characters).`,
+    );
+  }
+};
+
+/**
+ * Validate a workspace name and resolve it to an absolute path guaranteed to sit
+ * directly inside WORKSPACES_DIR. This is the single choke point every code path
+ * (especially the MCP handlers) must use instead of a raw
+ * `path.join(WORKSPACES_DIR, name)` — it closes the path-traversal vector where
+ * a caller could pass e.g. "../../etc" as a workspace name to read, write,
+ * delete, or run commands outside the workspaces sandbox.
+ *
+ * Two independent guards: the allowlist above (which cannot express traversal)
+ * and a resolved-path containment check (belt-and-suspenders, also catches any
+ * future change that loosens the allowlist).
+ */
+export const safeWorkspacePath = (name: string): string => {
+  assertSafeWorkspaceName(name);
+  const base = path.resolve(WORKSPACES_DIR);
+  const resolved = path.resolve(base, name);
+  if (resolved !== base && !resolved.startsWith(base + path.sep)) {
+    throw new Error(`Refusing to use a workspace path outside the workspaces directory: "${name}"`);
+  }
+  return resolved;
+};
+
 export const validateWorkspaceName = (name: string): boolean | string => {
   if (!name || name.trim().length === 0) {
     return 'Workspace name cannot be empty';
