@@ -3,33 +3,30 @@
   <defs>
     <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#3FB950"/>
-      <stop offset="1" stop-color="#238636"/>
+      <stop offset="1" stop-color="#1F7A34"/>
     </linearGradient>
-    <radialGradient id="node" cx="0.35" cy="0.3" r="0.85">
-      <stop offset="0" stop-color="#56D364"/>
-      <stop offset="0.55" stop-color="#3FB950"/>
+    <radialGradient id="node" cx="0.34" cy="0.28" r="0.9">
+      <stop offset="0" stop-color="#7EE2A8"/>
+      <stop offset="0.5" stop-color="#3FB950"/>
       <stop offset="1" stop-color="#2EA043"/>
     </radialGradient>
   </defs>
 
-  <!-- branch edges (a git-style tree / DAG) -->
-  <g stroke="url(#edge)" stroke-width="11" stroke-linecap="round" fill="none">
-    <path d="M128 58 L78 130"/>
-    <path d="M128 58 L182 130"/>
-    <path d="M78 130 L46 202"/>
-    <path d="M78 130 L112 202"/>
-    <path d="M182 130 L146 202"/>
-    <path d="M182 130 L212 202"/>
-  </g>
-
-  <!-- nodes (commits / repos) -->
-  <g>
-    <circle cx="128" cy="52" r="20" fill="url(#node)"/>
-    <circle cx="78"  cy="130" r="16" fill="url(#node)"/>
-    <circle cx="182" cy="130" r="16" fill="url(#node)"/>
-    <circle cx="46"  cy="206" r="13" fill="url(#node)"/>
-    <circle cx="112" cy="206" r="13" fill="url(#node)"/>
-    <circle cx="146" cy="206" r="13" fill="url(#node)"/>
-    <circle cx="212" cy="206" r="13" fill="url(#node)"/>
+  <!-- an asymmetric sapling that doubles as a git commit graph -->
+  <g transform="translate(18,8)">
+    <g fill="none" stroke-linecap="round">
+      <path d="M120 210 L120 150 Q120 140 128 132 L150 108" stroke="url(#edge)" stroke-width="20"/>
+      <path d="M122 158 Q108 140 86 128 L70 118" stroke="url(#edge)" stroke-width="13"/>
+      <path d="M128 132 L128 78" stroke="url(#edge)" stroke-width="13"/>
+      <path d="M86 128 L70 92" stroke="#238636" stroke-width="9"/>
+    </g>
+    <g>
+      <circle cx="150" cy="104" r="15" fill="url(#node)"/>
+      <circle cx="150" cy="104" r="15" fill="none" stroke="#7EE2A8" stroke-width="2.5" opacity="0.9"/>
+      <circle cx="128" cy="74"  r="13" fill="url(#node)"/>
+      <circle cx="70"  cy="114" r="12" fill="url(#node)"/>
+      <circle cx="70"  cy="88"  r="9"  fill="url(#node)"/>
+      <circle cx="120" cy="212" r="10" fill="#2EA043"/>
+    </g>
   </g>
 </svg>

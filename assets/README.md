@@ -1,8 +1,11 @@
 # Nemus brand assets
 
-Original artwork for **Nemus**. The mark is a **branch/tree node graph** — a git-style
-DAG of nodes that reads at once as a *tree* (the name Nemus), a *commit/branch graph*,
-and a set of *repositories* joined into one workspace. The hero imagery uses a
+Original artwork for **Nemus** (Latin for *grove*). The mark is an **organic
+sapling that doubles as a git commit graph** — a trunk branching into commit-dot
+"buds," with one highlighted *active* node. It reads at once as a young *tree* (the
+grove), a *branch/commit graph*, and repos growing from a shared root. The square
+app **icon** is a bold negative-space tree with a `>_` terminal prompt carved into
+the canopy, so it stays legible down to favicon sizes. Hero imagery uses a
 terminal-window motif in a GitHub-dark palette for a developer-native feel.
 
 ## Files
