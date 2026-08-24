@@ -31,6 +31,36 @@ skills, and an MCP server, so "work on the payments stack" becomes a single prom
 - 🤖 **Agent-native** — first-class integration with multiple coding agents.
 - 🩺 **Healthy by default** — health checks, dependency analysis, retries.
 
+## A full clone per workspace — on purpose
+
+This is the core design decision, so it's worth being explicit: **every workspace
+gets its own independent, full `git clone` of each repo.** Two workspaces that both
+contain `api` hold two separate clones — each with its own `.git`, index, stash,
+hooks, config, branches, and build artifacts.
+
+A reasonable question is *"why not `git worktree`?"* Worktrees attach multiple
+working directories to **one shared repository**, which is great for flipping
+between branches of a **single** repo. But Grove is built for **many repos worked
+on in parallel — often by AI agents — at the same time**, and there full clones win:
+
+| | **Grove: clone per workspace** | **`git worktree`** |
+|---|---|---|
+| **Scope** | Spans **many repos** per workspace uniformly | A **single-repo** feature (`git worktree add` lives inside one repo) |
+| **Isolation** | Total: separate `.git`, index, stash, config, **hooks**, and build outputs (`node_modules/`, `target/`, `dist/`) | Partial: worktrees **share** the object store, config, and hooks |
+| **Same branch, twice** | ✅ Two workspaces can both sit on `main` (e.g. stable vs. experiment) | ❌ Git refuses to check out the same branch in two worktrees |
+| **Parallel agents** | Safe: one agent's rebase/branch-switch/`gc`/dirty tree can't touch another's | Risky: aggressive concurrent ops share one object DB + refs |
+| **Per-workspace remotes/creds** | ✅ Each clone can point at a different fork/remote | ❌ Remotes are shared |
+| **Disposable** | It's just a directory — `rm -rf` is safe | Needs `git worktree remove`; a stale/broken worktree can corrupt the parent's list |
+| **Tooling** | Every dir is a normal repo — IDEs, scripts, and git tools "just work" | Some tools mishandle the `.git`-file pointer / shared hooks |
+
+**The honest trade-off:** full clones use more disk and take longer to set up than a
+worktree that shares the object store. Grove leans into that on purpose and softens
+it — clones run **in parallel**, retry on flaky networks, and the repo list is
+cached. For juggling many repos across several workspaces (and several agents), the
+bulletproof isolation is worth the extra gigabytes. If you're switching branches
+within one repo, plain `git worktree` is still the right tool — Grove solves the
+different problem of *many* repos in *many* independent workspaces.
+
 ## Quick Start
 
 ```bash
