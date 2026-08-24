@@ -51,7 +51,7 @@ async function handleReportBug(opts: { message?: string; force?: boolean }): Pro
       return;
     }
     // Show which error we're about to report (with its age). Some failures
-    // — notably `w -- <prompt>` — exit without updating last-error.json, so
+    // — notably `nemus -- <prompt>` — exit without updating last-error.json, so
     // the most recent capture could be an older crash. Surfacing the
     // timestamp lets the user catch a stale report before filing.
     const ageMs = Date.now() - new Date(captured.timestamp).getTime();

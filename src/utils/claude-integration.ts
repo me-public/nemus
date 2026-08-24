@@ -38,12 +38,12 @@ export function buildAgentRulesSection(workspaceName: string): string {
   s += `**ALWAYS** use workspace manager commands for all repo management:\n\n`;
   s += `| Intent | Command |\n`;
   s += `|---|---|\n`;
-  s += `| Add a repo to this workspace | \`w update --workspace ${workspaceName} --repos <repo-name> --yes\` |\n`;
+  s += `| Add a repo to this workspace | \`nemus update --workspace ${workspaceName} --repos <repo-name> --yes\` |\n`;
   s += `| Sync / pull latest on all repos | \`w sync ${workspaceName}\` |\n`;
   s += `| Check git status across repos | \`w status ${workspaceName}\` |\n`;
-  s += `| Create a new workspace | \`w create --workspace <name> --repos <repos> --yes\` |\n`;
+  s += `| Create a new workspace | \`nemus create --workspace <name> --repos <repos> --yes\` |\n`;
   s += `\nUsing \`git clone\` directly bypasses workspace metadata tracking and breaks \`w status\`, \`w sync\`, and context file updates.\n\n`;
-  s += `**ONLY read code from repos in THIS workspace.** If you need to read or reference code from a repo that isn't here, add it with \`w update --workspace ${workspaceName} --repos <repo-name> --yes\` and read it from this workspace. **NEVER** read that repo's code from another workspace, a global ghq/clone path, or anywhere outside this workspace — other workspaces may be on different branches or stale, and reading them silently breaks context isolation.\n\n`;
+  s += `**ONLY read code from repos in THIS workspace.** If you need to read or reference code from a repo that isn't here, add it with \`nemus update --workspace ${workspaceName} --repos <repo-name> --yes\` and read it from this workspace. **NEVER** read that repo's code from another workspace, a global ghq/clone path, or anywhere outside this workspace — other workspaces may be on different branches or stale, and reading them silently breaks context isolation.\n\n`;
   return s;
 }
 
@@ -318,8 +318,12 @@ This workspace contains ${entries.length} repositories for focused development w
         '```\n\n';
 
       // Insert structure block at placeholder
-      const fileContent = content.replace('{{WORKSPACE_STRUCTURE}}\n', structureBlock);
+      let fileContent = content.replace('{{WORKSPACE_STRUCTURE}}\n', structureBlock);
       const contextFile = path.join(workspacePath, fileName);
+      // Regeneration (e.g. after `nemus update`/`remove-repo`) overwrites the
+      // file, so carry over any operator-authored "## Notes" the user added
+      // since the last generation instead of silently discarding it.
+      fileContent = await preserveOperatorNotes(contextFile, fileContent);
       await fs.writeFile(contextFile, fileContent, 'utf-8');
       logSuccess(`Generated ${colorize(fileName, 'cyan')} with workspace context`);
     }
@@ -334,6 +338,55 @@ This workspace contains ${entries.length} repositories for focused development w
     if (error instanceof Error) {
       logWarning(error.message);
     }
+  }
+}
+
+/**
+ * Extract a top-level markdown section (heading + body up to the next `## `
+ * heading at the start of a line, or EOF). Returns null when the heading is
+ * absent. The heading must be a WHOLE top-level heading line — anchored to the
+ * start of a line and terminated by end-of-line — so a deeper heading like
+ * `### Notes`, inline prose, or fenced-code text that merely contains the
+ * string can't be mistaken for the real section.
+ */
+function extractSection(content: string, heading: string): string | null {
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const headingRe = new RegExp(`(^|\\n)${escaped}[ \\t]*(?:\\n|$)`);
+  const m = headingRe.exec(content);
+  if (!m) return null;
+  const start = m.index + (m[1] ? m[1].length : 0); // position of the heading itself
+  const afterHeading = start + heading.length;
+  const nextIdx = content.indexOf('\n## ', afterHeading);
+  return nextIdx === -1 ? content.slice(start) : content.slice(start, nextIdx + 1);
+}
+
+/**
+ * When regenerating a context file, carry over the operator-authored "## Notes"
+ * section from the existing file if the user filled it in. The freshly built
+ * content always contains an empty "## Notes" placeholder; if the existing file
+ * has a non-default Notes section, splice it into the new content so an add/
+ * remove-repo regeneration doesn't silently delete the operator's notes.
+ * Best-effort: on any read/parse issue we fall back to the new content.
+ */
+export async function preserveOperatorNotes(contextFile: string, newContent: string): Promise<string> {
+  try {
+    const existing = await fs.readFile(contextFile, 'utf-8');
+    const existingNotes = extractSection(existing, '## Notes');
+    if (!existingNotes) return newContent;
+    // Default placeholder the generator emits — treat as "no operator notes".
+    const isDefault = existingNotes.replace(/\s+/g, ' ').trim()
+      === '## Notes Add your own notes here: -';
+    if (isDefault) return newContent;
+    const newNotes = extractSection(newContent, '## Notes');
+    if (!newNotes) return newContent;
+    // Preserve the trailing separator style of the section being replaced.
+    const tail = newNotes.endsWith('\n\n') ? '\n\n' : (newNotes.endsWith('\n') ? '\n' : '');
+    const replacement = existingNotes.replace(/\s*$/, '') + tail;
+    // Use a function replacer so `$&`, `$$`, `$1`, etc. in the operator's notes
+    // are inserted literally rather than interpreted by String.replace.
+    return newContent.replace(newNotes, () => replacement);
+  } catch {
+    return newContent;
   }
 }
 

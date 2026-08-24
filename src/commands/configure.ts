@@ -194,11 +194,11 @@ function printSourceReminder(): void {
   console.log('');
   console.log(`     ${colorize(`source ${rcFile}`, 'cyan')}`);
   console.log('');
-  console.log(`  Or open a new terminal tab. Until then, ${colorize('w', 'cyan')} resolves to the`);
-  console.log(`  Unix ${colorize('w', 'gray')} command (shows logged-in users), not workspace manager.`);
+  console.log(`  Or open a new terminal tab. Until then the ${colorize('nemus', 'cyan')}/${colorize('nem', 'cyan')} shell`);
+  console.log(`  functions (which auto-cd into new workspaces) aren't active yet.`);
   console.log('');
-  console.log(`  Tip: ${colorize('workspace', 'cyan')} works immediately without sourcing:`);
-  console.log(`       ${colorize('workspace configure', 'cyan')}   ${colorize('# first-time setup', 'gray')}`);
-  console.log(`       ${colorize('workspace list', 'cyan')}        ${colorize('# list workspaces', 'gray')}`);
+  console.log(`  Tip: ${colorize('nemus', 'cyan')} works immediately without sourcing:`);
+  console.log(`       ${colorize('nemus configure', 'cyan')}   ${colorize('# first-time setup', 'gray')}`);
+  console.log(`       ${colorize('nemus list', 'cyan')}        ${colorize('# list workspaces', 'gray')}`);
   console.log('');
 }

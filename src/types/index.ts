@@ -49,7 +49,7 @@ export interface WorkspaceMetadata {
   createdAt: string;
   lastModified?: string;
   repositories: RepositoryMetadata[];
-  // Original prompt used to create the workspace (from 'w -- <prompt>')
+  // Original prompt used to create the workspace (from 'nemus -- <prompt>')
   prompt?: string;
   // Dependency information
   dependencies?: {

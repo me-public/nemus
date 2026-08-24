@@ -96,7 +96,7 @@ describe('looksEnvironmental', () => {
 
 describe('buildIssueTitle / buildIssueBody', () => {
   const err: CapturedError = {
-    command: `w update --workspace ${os.homedir()}/x`,
+    command: `nemus update --workspace ${os.homedir()}/x`,
     message: 'TypeError: cannot read foo of undefined',
     stack: `TypeError: cannot read foo\n  at run (${os.homedir()}/.local/pi/x.ts:10:3)`,
     timestamp: '2026-01-01T00:00:00.000Z',

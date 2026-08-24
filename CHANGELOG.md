@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-24
+
+### Added
+
+- **Investigate-first workspaces.** When `nemus -- "<prompt>"` doesn't name
+  concrete repos but asks the agent to figure out which repos are relevant (from
+  a trace, stack trace, or log search), Nemus now creates an **empty** workspace
+  and seeds the in-session agent with a discover-then-add workflow: it
+  investigates, maps services to repos (MCP `search-repos` when available, else
+  the `gh` CLI, honouring a configured org), adds them with `nemus update`, and
+  only then reads the code.
+- `nemus create --allow-empty` creates a zero-repo workspace that still writes
+  the agent context + `.mcp.json`, so the agent lands with the tools to discover
+  and add repos.
+
+### Changed
+
+- `nemus update` (CLI and MCP) regenerates the agent context after a successful
+  add, so a freshly-populated workspace stops reporting "0 repositories."
+- Context regeneration now **preserves operator-authored `## Notes`** instead of
+  overwriting them.
+- Shell integration probes installed agents (claude → pi → opencode → codex →
+  gemini) when `primaryAgent=auto`, instead of assuming `claude`.
+
+### Fixed
+
+- Extraction now coerces malformed model output (wrong field types) to safe
+  empties instead of throwing.
+- Corrected internal command references that still invoked the pre-rename `w`
+  binary; they now use `nemus`.
+
 ## [0.1.0] - 2026-08-24
 
 Initial open-source release of **Nemus**.
@@ -33,5 +64,6 @@ Initial open-source release of **Nemus**.
 - Automatic retries with backoff on flaky network operations.
 - Optional shell integration (auto-cd on create + quick-navigate helper).
 
-[Unreleased]: https://github.com/nemus-cli/nemus/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/nemus-cli/nemus/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/nemus-cli/nemus/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/nemus-cli/nemus/releases/tag/v0.1.0

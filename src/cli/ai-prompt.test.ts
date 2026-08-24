@@ -27,6 +27,7 @@ vi.mock('fs', () => ({
 
 vi.mock('../utils/config', () => ({
   WORKSPACES_DIR: '/test-workspaces',
+  getUserConfig: vi.fn().mockReturnValue({ installMcp: true, githubOrg: '' }),
 }));
 
 vi.mock('../utils/agent-config', () => ({
@@ -50,7 +51,7 @@ vi.mock('../utils/colors', () => ({
   colorize: (text: string) => text,
 }));
 
-import { main, run, buildExtractionPrompt, isClaudeAvailable, extractIntent, AI_PROMPT_FILE } from './ai-prompt';
+import { main, run, buildExtractionPrompt, buildInvestigationPreamble, isClaudeAvailable, extractIntent, AI_PROMPT_FILE } from './ai-prompt';
 import { logInfo, logError } from '../utils/logger';
 
 function setupSpawnMock(exitCode: number = 0) {
@@ -77,7 +78,7 @@ function setupExecMock(success: boolean) {
   });
 }
 
-function setupExtractMock(intent: { workspaceName: string; repos: string[]; remainingIntent: string }) {
+function setupExtractMock(intent: { workspaceName: string; repos: string[]; remainingIntent: string; investigateFirst?: boolean }) {
   mockExecFileSync.mockReturnValue(JSON.stringify({
     type: 'result',
     result: '',
@@ -95,6 +96,55 @@ describe('buildExtractionPrompt', () => {
     const prompt = buildExtractionPrompt('test');
     expect(prompt).toContain('workspace name');
     expect(prompt).toContain('repository names');
+  });
+
+  it('explains investigate-first extraction (investigateFirst + empty repos)', () => {
+    const prompt = buildExtractionPrompt('search logs and open the repos involved');
+    expect(prompt).toContain('investigateFirst');
+    expect(prompt.toLowerCase()).toContain('investigate');
+  });
+});
+
+describe('buildInvestigationPreamble', () => {
+  it('embeds the workspace name, task, and the add-repos workflow', () => {
+    const out = buildInvestigationPreamble('my-ws', 'look at trace abc and find the bug');
+    expect(out).toContain('my-ws');
+    expect(out).toContain('look at trace abc and find the bug');
+    // Tells the agent to discover then ADD repos to THIS workspace (CLI, always available)
+    expect(out).toContain('nemus update --workspace my-ws --repos');
+    expect(out.toLowerCase()).toContain('empty workspace');
+  });
+
+  it('is generic — mentions services and stripping env prefixes', () => {
+    const out = buildInvestigationPreamble('ws', 'task');
+    expect(out.toLowerCase()).toContain('service');
+    expect(out).toMatch(/production-|staging-|prefix/i);
+  });
+
+  it('defaults to the gh CLI for discovery (works for Pi / MCP-disabled agents)', () => {
+    const out = buildInvestigationPreamble('ws', 'task');
+    expect(out).toContain('gh search repos');
+    // Must NOT instruct MCP-only tools when MCP isn't available
+    expect(out).not.toContain('search-repos" tool');
+  });
+
+  it('uses the MCP discovery tools when useMcpTools is set', () => {
+    const out = buildInvestigationPreamble('ws', 'task', { useMcpTools: true });
+    expect(out).toContain('search-repos');
+    expect(out).toContain('list-org-repos');
+    expect(out).not.toContain('gh search repos');
+  });
+
+  it('omits --owner when no org is configured (default)', () => {
+    const out = buildInvestigationPreamble('ws', 'task');
+    expect(out).not.toContain('--owner');
+    expect(out).toContain('gh repo list --limit');
+  });
+
+  it('honours a configured githubOrg in the gh CLI discovery step', () => {
+    const out = buildInvestigationPreamble('ws', 'task', { githubOrg: 'acme-corp' });
+    expect(out).toContain('--owner acme-corp');
+    expect(out).toContain('gh repo list acme-corp');
   });
 });
 
@@ -117,6 +167,29 @@ describe('extractIntent', () => {
     expect(result.remainingIntent).toBe('set up feature branch');
   });
 
+  it('normalizes malformed field types instead of throwing (defensive coercion)', async () => {
+    // Model returns wrong types: numeric name, string (not array) repos, object remainingIntent.
+    mockExecFileSync.mockReturnValue(JSON.stringify({
+      type: 'result',
+      structured_output: { workspaceName: 123, repos: 'acme-app', remainingIntent: { x: 1 }, investigateFirst: 'yes' },
+    }));
+
+    const result = await extractIntent('do a thing');
+    expect(result.workspaceName).toBe('');            // non-string -> ''
+    expect(result.repos).toEqual([]);                  // non-array -> []
+    expect(result.remainingIntent).toBe('');           // non-string -> ''
+    expect(result.investigateFirst).toBe(false);       // non-true -> false
+  });
+
+  it('keeps only string entries in a mixed repos array', async () => {
+    mockExecFileSync.mockReturnValue(JSON.stringify({
+      type: 'result',
+      structured_output: { workspaceName: 'ws', repos: ['a', 5, null, 'b'], remainingIntent: 't' },
+    }));
+    const result = await extractIntent('x');
+    expect(result.repos).toEqual(['a', 'b']);
+  });
+
   it('throws an actionable error (not cryptic ETIMEDOUT) when the agent times out', async () => {
     const timeoutErr: any = new Error('spawnSync pi ETIMEDOUT');
     timeoutErr.code = 'ETIMEDOUT';
@@ -125,7 +198,7 @@ describe('extractIntent', () => {
 
     await expect(extractIntent('create test workspace')).rejects.toThrow(/did not respond within \d+s/);
     // Should include actionable guidance, not just ETIMEDOUT
-    await expect(extractIntent('create test workspace')).rejects.toThrow(/w create --workspace/);
+    await expect(extractIntent('create test workspace')).rejects.toThrow(/nemus create --workspace/);
   });
 
   it('surfaces agent stderr on a non-timeout failure', async () => {
@@ -340,7 +413,7 @@ describe('run', () => {
     expect(mockSpawn).not.toHaveBeenCalled();
   });
 
-  it('extracts intent then spawns w create with correct flags', async () => {
+  it('extracts intent then spawns nemus create with correct flags', async () => {
     setupExecMock(true);
     setupExtractMock({
       workspaceName: 'payments',
@@ -352,10 +425,84 @@ describe('run', () => {
     await run('create payments workspace with acme-app and partnerships-api');
 
     expect(mockSpawn).toHaveBeenCalledWith(
-      'w',
-      ['create', '--workspace', 'payments', '--repos', 'acme-app,partnerships-api', '--prompt', 'create payments workspace with acme-app and partnerships-api', '--yes'],
+      'nemus',      ['create', '--workspace', 'payments', '--repos', 'acme-app,partnerships-api', '--prompt', 'create payments workspace with acme-app and partnerships-api', '--yes'],
       { stdio: 'inherit' },
     );
+  });
+
+  it('investigate-first: spawns create --allow-empty (no --repos) when investigateFirst', async () => {
+    setupExecMock(true);
+    setupExtractMock({
+      workspaceName: 'ocr-bug',
+      repos: [],
+      investigateFirst: true,
+      remainingIntent: 'search the logs for the OCR error and open the repos involved',
+    });
+    setupSpawnMock(0);
+
+    await run('find which repos are behind the OCR errors');
+
+    const [, args] = mockSpawn.mock.calls[0];
+    expect(args).toContain('--allow-empty');
+    expect(args).not.toContain('--repos');
+    expect(args.slice(0, 4)).toEqual(['create', '--workspace', 'ocr-bug', '--allow-empty']);
+  });
+
+  it('does NOT go investigate-first (empty) when the model returned repos, even with investigateFirst set', async () => {
+    setupExecMock(true);
+    setupExtractMock({
+      workspaceName: 'ocr-bug',
+      repos: ['acme-app', 'ocr-service'],
+      investigateFirst: true,   // must NOT discard the repos it already found
+      remainingIntent: 'fix the OCR 500s',
+    });
+    setupSpawnMock(0);
+
+    await run('fix the OCR 500s in acme-app and ocr-service');
+
+    const [, args] = mockSpawn.mock.calls[0];
+    expect(args).not.toContain('--allow-empty');
+    expect(args).toContain('--repos');
+    expect(args).toContain('acme-app,ocr-service');
+  });
+
+  it('investigate-first: preamble + create use the SAME sanitized workspace name (no drift)', async () => {
+    setupExecMock(true);
+    setupExtractMock({
+      workspaceName: 'OCR Bug',              // needs sanitizing -> 'ocr-bug'
+      repos: [],
+      investigateFirst: true,
+      remainingIntent: 'trace the OCR 500s',
+    });
+    setupSpawnMock(0);
+
+    await run('investigate the OCR 500s');
+
+    const [, args] = mockSpawn.mock.calls[0];
+    const wsIdx = args.indexOf('--workspace');
+    const spawnedName = args[wsIdx + 1];
+    expect(spawnedName).toBe('ocr-bug');
+    const seeded = mockWriteFileSync.mock.calls.find((c) => c[0] === AI_PROMPT_FILE);
+    expect(seeded![1]).toContain(`nemus update --workspace ${spawnedName} --repos`);
+    expect(seeded![1]).not.toContain('OCR Bug');
+  });
+
+  it('investigate-first: seeds AI_PROMPT_FILE with the discover-then-add workflow', async () => {
+    setupExecMock(true);
+    setupExtractMock({
+      workspaceName: 'ocr-bug',
+      repos: [],
+      investigateFirst: true,
+      remainingIntent: 'trace the OCR 500s',
+    });
+    setupSpawnMock(0);
+
+    await run('investigate the OCR 500s and pull the code');
+
+    const seeded = mockWriteFileSync.mock.calls.find((c) => c[0] === AI_PROMPT_FILE);
+    expect(seeded).toBeDefined();
+    expect(seeded![1]).toContain('trace the OCR 500s');
+    expect(seeded![1]).toContain('nemus update --workspace ocr-bug --repos');
   });
 
   it('ensures WORKSPACES_DIR exists before extracting intent', async () => {
@@ -438,7 +585,7 @@ describe('run', () => {
     );
   });
 
-  it('propagates non-zero exit code from w create', async () => {
+  it('propagates non-zero exit code from nemus create', async () => {
     setupExecMock(true);
     setupExtractMock({ workspaceName: 'test', repos: ['repo'], remainingIntent: '' });
     setupSpawnMock(1);

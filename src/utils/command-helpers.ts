@@ -33,7 +33,7 @@ export async function resolveWorkspace(name?: string): Promise<string> {
   }
   const workspaces = await listWorkspaces();
   if (workspaces.length === 0) {
-    throw new Error('No workspaces found. Create one first with: w create');
+    throw new Error('No workspaces found. Create one first with: nemus create');
   }
   return promptWorkspaceSelection(workspaces);
 }

@@ -3,10 +3,11 @@ import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { WORKSPACES_DIR } from '../utils/config';
+import { WORKSPACES_DIR, getUserConfig } from '../utils/config';
 import { logInfo, logError, logStep } from '../utils/logger';
 import { colorize } from '../utils/colors';
 import { getPrimaryAgent } from '../utils/agent-config';
+import { sanitizeWorkspaceName, checkWorkspaceExists, resolveWorkspaceNameConflict } from '../utils/validation';
 
 const execAsync = promisify(exec);
 
@@ -19,14 +20,18 @@ const EXTRACT_SCHEMA = JSON.stringify({
     repos: {
       type: 'array',
       items: { type: 'string' },
-      description: 'Repository names to clone (e.g. ["api", "web"])',
+      description: 'Repository names to clone (e.g. ["api", "web"]). Empty array when the repos cannot be known without investigation first.',
+    },
+    investigateFirst: {
+      type: 'boolean',
+      description: 'True when the user does NOT name concrete repos and instead wants the agent to investigate first (e.g. "search the logs and figure out which repos") and add the relevant repos itself. When true, repos must be an empty array.',
     },
     remainingIntent: {
       type: 'string',
       description: 'What the user wants done AFTER workspace creation (empty string if nothing beyond creating the workspace)',
     },
   },
-  required: ['workspaceName', 'repos', 'remainingIntent'],
+  required: ['workspaceName', 'repos', 'investigateFirst', 'remainingIntent'],
 });
 
 /**
@@ -35,10 +40,55 @@ const EXTRACT_SCHEMA = JSON.stringify({
 export function buildExtractionPrompt(userPrompt: string): string {
   return `Extract the workspace name and repository names from this request. If the user didn't specify a workspace name, generate a short descriptive kebab-case name. Repository names should be exact GitHub repo names (without org prefix). If the user's request includes things to do AFTER creating the workspace (like fixing code, creating branches, etc.), put that in remainingIntent.
 
+IMPORTANT — investigate-first requests: if the user does NOT name concrete repositories and instead wants the agent to figure out which repos are relevant by investigating (e.g. "search the logs for X and open the repos involved", "look at this trace and pull the services' code", "find which repo owns this error"), then set "investigateFirst": true and "repos": [] (empty), and put the full investigation task in remainingIntent. Only list repos explicitly when the user actually names them or they're unambiguous.
+
 Respond with ONLY a raw JSON object (no markdown, no backticks, no explanation). The JSON must have exactly these fields:
-{"workspaceName": "short-kebab-name", "repos": ["repo-name-1", "repo-name-2"], "remainingIntent": "what to do after creation or empty string"}
+{"workspaceName": "short-kebab-name", "repos": ["repo-name-1", "repo-name-2"], "investigateFirst": false, "remainingIntent": "what to do after creation or empty string"}
 
 User request: ${userPrompt}`;
+}
+
+/**
+ * Build the in-session task for an investigate-first workspace: the workspace
+ * starts empty, and the agent must discover which repos are relevant and add
+ * them itself before reading any code.
+ *
+ * Deliberately GENERIC (works for log/trace searches, GitHub search, stack
+ * traces, etc.). The discovery step adapts to the active agent: MCP tools when
+ * available, otherwise the always-present `gh` CLI (honouring a configured org).
+ */
+export function buildInvestigationPreamble(
+  workspaceName: string,
+  task: string,
+  opts: { useMcpTools?: boolean; githubOrg?: string } = {}
+): string {
+  const org = (opts.githubOrg || '').trim();
+  const ownerFlag = org ? ` --owner ${org}` : '';
+  const repoListCmd = org ? `gh repo list ${org} --limit 200` : `gh repo list --limit 200`;
+  // Discovery differs by agent capability: "search-repos"/"list-org-repos" exist
+  // ONLY as Nemus MCP tools (there are no `nemus search-repos` CLI commands).
+  // When the active agent can't use MCP (e.g. Pi) or MCP is disabled, point it
+  // at the always-available `gh` CLI so we never name tools it doesn't have.
+  const discoveryStep = opts.useMcpTools
+    ? `3. Map each service to its GitHub repository using the Nemus MCP tools: try the "search-repos" tool (fuzzy) and "list-org-repos" to confirm the real repo name. Do not guess — verify the repo exists.`
+    : `3. Map each service to its GitHub repository using the \`gh\` CLI: \`gh search repos <name>${ownerFlag} --limit 20\` (or \`${repoListCmd}\`) to find and confirm the real repo name. Do not guess — verify the repo exists.`;
+  return [
+    `You are in a NEW, EMPTY workspace named "${workspaceName}" — it has no repositories cloned yet.`,
+    `Your job is to investigate first, then add the repositories you discover, and only then dig into the code.`,
+    ``,
+    `Follow this workflow:`,
+    `1. Investigate the request below using whatever sources it points to (e.g. logs/traces, a stack trace, GitHub search). Use your available tools/skills.`,
+    `2. From the investigation, identify the SERVICE / component names involved (e.g. from a trace's spans). Strip environment prefixes/suffixes like "production-", "-prod", "staging-" to get the base service name.`,
+    discoveryStep,
+    `4. Add the repositories you identified to THIS workspace by running: \`nemus update --workspace ${workspaceName} --repos <repo1,repo2,...> --yes\`. This clones them into the workspace.`,
+    `5. Briefly tell me which repos you added and why (which service/evidence pointed to each).`,
+    `6. THEN read the relevant code in those repos to complete the task.`,
+    ``,
+    `If the investigation points to no repos, say so instead of adding unrelated ones.`,
+    ``,
+    `--- Task ---`,
+    task,
+  ].join('\n');
 }
 
 /**
@@ -61,6 +111,8 @@ interface ExtractedIntent {
   workspaceName: string;
   repos: string[];
   remainingIntent: string;
+  /** True when repos aren't known yet and the agent should investigate then add them itself. */
+  investigateFirst?: boolean;
 }
 
 /**
@@ -138,7 +190,7 @@ function throwExtractionError(
       `  • Verify the agent itself responds quickly:  time ${testCmd}\n` +
       `  • If it's slow, your default model may be heavy (e.g. Opus) or the provider\n` +
       `    may be rate-limiting/refreshing credentials. Retry, or switch to a faster model.\n` +
-      `  • You can still create the workspace manually:  w create --workspace <name> --repos <repos>`;
+      `  • You can still create the workspace manually:  nemus create --workspace <name> --repos <repos>`;
     if (detail) msg += `\n  agent output: ${detail.slice(0, 500)}`;
     throw new Error(msg);
   }
@@ -147,7 +199,7 @@ function throwExtractionError(
     throw new Error(
       `${cmd} produced more output than expected while parsing your request ` +
       `(maxBuffer exceeded). Try a shorter request, or create the workspace ` +
-      `manually:  w create --workspace <name> --repos <repos>` +
+      `manually:  nemus create --workspace <name> --repos <repos>` +
       (detail ? `\n  agent output: ${detail.slice(0, 500)}` : ''),
     );
   }
@@ -155,7 +207,7 @@ function throwExtractionError(
   throw new Error(
     `${cmd} failed while parsing your request.\n` +
     `  • Verify the agent works:  ${testCmd}\n` +
-    `  • Or create the workspace manually:  w create --workspace <name> --repos <repos>` +
+    `  • Or create the workspace manually:  nemus create --workspace <name> --repos <repos>` +
     (detail ? `\n  agent output: ${detail.slice(0, 800)}` : ` (${c.message || 'unknown error'})`),
   );
 }
@@ -235,7 +287,21 @@ export async function extractIntent(prompt: string): Promise<ExtractedIntent> {
     throw new Error(`Could not extract intent from agent response. Parsed: ${JSON.stringify(parsed).slice(0, 200)}`);
   }
 
-  return intent;
+  // Coerce/validate field types so malformed model output can't crash the
+  // downstream .trim()/sanitize path (a stringly-typed workspaceName or a
+  // non-array repos would otherwise throw). Non-conforming values are dropped
+  // to their safe empty form, so run()'s existing "could not determine" guard
+  // handles them cleanly instead of an unhandled exception.
+  const normalized: ExtractedIntent = {
+    workspaceName: typeof intent.workspaceName === 'string' ? intent.workspaceName : '',
+    repos: Array.isArray(intent.repos)
+      ? intent.repos.filter((r): r is string => typeof r === 'string')
+      : [],
+    remainingIntent: typeof intent.remainingIntent === 'string' ? intent.remainingIntent : '',
+    investigateFirst: intent.investigateFirst === true,
+  };
+
+  return normalized;
 }
 
 /**
@@ -270,28 +336,61 @@ export async function run(prompt: string): Promise<number> {
   }
 
   const repos = Array.isArray(intent.repos) ? intent.repos : [];
-  if (!intent.workspaceName || repos.length === 0) {
+  // Investigate-first: no concrete repos yet — create an empty workspace and let
+  // the in-session agent discover + add the repos. This only applies when the
+  // model produced NO repos: if it already identified some, we must clone them
+  // (never silently discard them for an empty workspace), even if it also set
+  // the investigateFirst flag. An empty repo list with a real task is treated
+  // as investigate-mode too, even if the model forgot the flag.
+  const investigateFirst = repos.length === 0
+    && (intent.investigateFirst === true || !!(intent.remainingIntent || '').trim());
+
+  if (!intent.workspaceName || (repos.length === 0 && !investigateFirst)) {
     logError('Could not determine workspace name or repos from prompt');
     logInfo(`Parsed: name=${intent.workspaceName || '(none)'}, repos=${repos.join(', ') || '(none)'}`);
     return 1;
   }
 
-  logInfo(`Workspace: ${colorize(intent.workspaceName, 'cyan')}, Repos: ${colorize(repos.join(', '), 'cyan')}`);
+  // In investigate-first mode the preamble tells the agent to run
+  // `nemus update --workspace <name> ...`, so that name MUST match the workspace
+  // `nemus create` actually produces. Pre-resolve it here (same sanitize +
+  // conflict resolution create uses) and pass the SAME resolved name to both
+  // the preamble and create, so a sanitized/de-duplicated name can't drift.
+  let workspaceName = intent.workspaceName;
+  if (investigateFirst) {
+    workspaceName = sanitizeWorkspaceName(intent.workspaceName);
+    if (await checkWorkspaceExists(workspaceName)) {
+      workspaceName = await resolveWorkspaceNameConflict(workspaceName, []);
+    }
+  }
 
-  // Save remaining intent for the follow-up interactive session
-  const remaining = intent.remainingIntent || prompt;
+  if (investigateFirst) {
+    logInfo(`Workspace: ${colorize(workspaceName, 'cyan')} ${colorize('(investigate-first — no repos yet)', 'gray')}`);
+  } else {
+    logInfo(`Workspace: ${colorize(workspaceName, 'cyan')}, Repos: ${colorize(repos.join(', '), 'cyan')}`);
+  }
+
+  // Save the task for the follow-up interactive session. In investigate-first
+  // mode, wrap it with a workflow preamble so the agent discovers repos and
+  // adds them itself before reading code.
+  const baseTask = intent.remainingIntent || prompt;
+  // The "search-repos"/"list-org-repos" discovery helpers are MCP-only, so the
+  // preamble may reference them only when the active agent supports MCP AND MCP
+  // is enabled; otherwise it falls back to the `gh` CLI.
+  const cfg = getUserConfig();
+  const useMcpTools = getPrimaryAgent().supportsMcp && cfg.installMcp;
+  const remaining = investigateFirst
+    ? buildInvestigationPreamble(workspaceName, baseTask, { useMcpTools, githubOrg: cfg.githubOrg })
+    : baseTask;
   try { fs.writeFileSync(AI_PROMPT_FILE, remaining, 'utf-8'); } catch {}
 
   // Step 2: Create workspace using the CLI directly
   logStep(2, 2, 'Creating workspace...');
+  const createArgs = investigateFirst
+    ? ['create', '--workspace', workspaceName, '--allow-empty', '--prompt', prompt, '--yes']
+    : ['create', '--workspace', workspaceName, '--repos', repos.join(','), '--prompt', prompt, '--yes'];
   return new Promise<number>((resolve) => {
-    const child = spawn('w', [
-      'create',
-      '--workspace', intent.workspaceName,
-      '--repos', repos.join(','),
-      '--prompt', prompt,
-      '--yes',
-    ], {
+    const child = spawn('nemus', createArgs, {
       stdio: 'inherit',
     });
 
@@ -311,8 +410,8 @@ export async function main(): Promise<void> {
 
   if (!prompt) {
     logError('No prompt provided');
-    console.log(`\n  Usage: ${colorize('w -- <prompt>', 'green')}`);
-    console.log(`  Example: ${colorize('w -- create a workspace for the payments team', 'gray')}\n`);
+    console.log(`\n  Usage: ${colorize('nemus -- <prompt>', 'green')}`);
+    console.log(`  Example: ${colorize('nemus -- create a workspace for the payments team', 'gray')}\n`);
     process.exit(1);
     return;
   }

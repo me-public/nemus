@@ -21,7 +21,7 @@ vi.mock('./agent-config', () => ({
   getAllKnownContextFileNames: vi.fn().mockReturnValue(['AGENTS.md', 'CLAUDE.md', '.claude.md']),
 }));
 
-import { generateClaudeContext, loadClaudeConfig, backfillAgentRules, buildAgentRulesSection, AGENT_RULES_VERSION } from './claude-integration';
+import { generateClaudeContext, loadClaudeConfig, backfillAgentRules, buildAgentRulesSection, preserveOperatorNotes, AGENT_RULES_VERSION } from './claude-integration';
 import * as fs from 'fs/promises';
 import { getContextFileNames } from './agent-config';
 
@@ -323,5 +323,59 @@ describe('backfillAgentRules — versioned replace', () => {
     const written = vi.mocked(fs.writeFile).mock.calls[0][1] as string;
     expect(written.indexOf('## AI Agent Rules')).toBeLessThan(written.indexOf('## Notes'));
     expect(written).toContain('ONLY read code from repos in THIS workspace');
+  });
+});
+
+describe('preserveOperatorNotes', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const NEW_CONTENT =
+    '# Workspace\n\n## Notes\n\nAdd your own notes here:\n\n- \n\n## Saved Context\n\nsee CONTEXT.md\n';
+
+  it('carries over operator-authored notes when the existing file has them', async () => {
+    const existing =
+      '# Old\n\n## Notes\n\nAdd your own notes here:\n\n- deploy is flaky on fridays\n- ask @dana\n\n## Saved Context\n\nold\n';
+    vi.mocked(fs.readFile).mockResolvedValueOnce(existing as any);
+
+    const out = await preserveOperatorNotes('/ws/CLAUDE.md', NEW_CONTENT);
+
+    expect(out).toContain('deploy is flaky on fridays');
+    expect(out).toContain('ask @dana');
+    expect(out).toContain('## Saved Context');
+    expect(out.match(/## Notes/g)?.length).toBe(1);
+  });
+
+  it('leaves the default (empty) Notes placeholder untouched', async () => {
+    const existing =
+      '# Old\n\n## Notes\n\nAdd your own notes here:\n\n- \n\n## Saved Context\n\nold\n';
+    vi.mocked(fs.readFile).mockResolvedValueOnce(existing as any);
+
+    const out = await preserveOperatorNotes('/ws/CLAUDE.md', NEW_CONTENT);
+    expect(out).toBe(NEW_CONTENT);
+  });
+
+  it('returns new content unchanged when no existing file', async () => {
+    vi.mocked(fs.readFile).mockRejectedValueOnce(new Error('ENOENT'));
+    const out = await preserveOperatorNotes('/ws/CLAUDE.md', NEW_CONTENT);
+    expect(out).toBe(NEW_CONTENT);
+  });
+
+  it('does NOT treat a deeper "### Notes" subheading as the real Notes section', async () => {
+    const existing =
+      '# Old\n\n## Overview\n\n### Notes\n\nthis is a sub-note under overview\n\n## Notes\n\nAdd your own notes here:\n\n- real operator note\n\n## Saved Context\n\nold\n';
+    vi.mocked(fs.readFile).mockResolvedValueOnce(existing as any);
+
+    const out = await preserveOperatorNotes('/ws/CLAUDE.md', NEW_CONTENT);
+    expect(out).toContain('real operator note');
+    expect(out).not.toContain('this is a sub-note under overview');
+  });
+
+  it('preserves notes containing $ sequences literally (no String.replace corruption)', async () => {
+    const existing =
+      '# Old\n\n## Notes\n\nAdd your own notes here:\n\n- export PATH=$PATH:/x and use $& $$ $1 literally\n\n## Saved Context\n\nold\n';
+    vi.mocked(fs.readFile).mockResolvedValueOnce(existing as any);
+
+    const out = await preserveOperatorNotes('/ws/CLAUDE.md', NEW_CONTENT);
+    expect(out).toContain('export PATH=$PATH:/x and use $& $$ $1 literally');
   });
 });

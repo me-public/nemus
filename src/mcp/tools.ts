@@ -294,10 +294,28 @@ export async function handleUpdateWorkspace(workspace: string, repos: Array<stri
     }));
 
     metadata.repositories.push(...newRepoMetadata);
+    metadata.lastModified = new Date().toISOString();
     await saveMetadata(workspacePath, metadata);
 
     const successful = cloneResults.filter(r => r.status === 'success');
     const failed = cloneResults.filter(r => r.status === 'failed');
+
+    // Regenerate the agent context (CLAUDE.md/AGENTS.md) + .mcp.json so the
+    // newly added repos surface — otherwise an investigate-first workspace's
+    // context keeps saying "0 repositories". Resolve the FULL set (existing +
+    // new) from the catalog so pre-existing repos keep their descriptions/URLs
+    // on regenerate (matches the remove-repo path). Best-effort.
+    const contextRepoObjects = metadata.repositories
+      .filter(r => r.status === 'success')
+      .map(r => allRepos.find(ar => ar.name === r.name))
+      .filter((r): r is NonNullable<typeof r> => r != null);
+    // Only regenerate when this update actually added a repo — a failure-only
+    // update (all new clones failed) must not rewrite the existing context.
+    try {
+      if (successful.length > 0 && contextRepoObjects.length > 0) {
+        await generateClaudeContext(workspacePath, workspace, contextRepoObjects, metadata);
+      }
+    } catch { /* context regen is best-effort */ }
 
     return {
       workspace,
