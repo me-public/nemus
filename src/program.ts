@@ -1,0 +1,112 @@
+import { Command } from 'commander';
+import * as path from 'path';
+import * as fs from 'fs';
+import { colors } from './utils/colors';
+
+// Read version from package.json
+const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
+
+const g = colors.green;
+const d = colors.dim;
+const b = colors.bright;
+const r = colors.reset;
+
+const INNER = 38;
+const titleLine = `>_  Grove`;
+const titlePad = ' '.repeat(Math.max(0, INNER - 2 - titleLine.length));
+const versionLine = `v${pkg.version} · multi-repo workspaces`;
+const versionPad = ' '.repeat(Math.max(0, INNER - 7 - versionLine.length));
+const bar = '─'.repeat(INNER);
+const bannerText = `
+${d}    ╭${bar}╮${r}
+${d}    │${r}  ${g}>_${r}  ${b}Grove${r}${titlePad}${d}│${r}
+${d}    │${r}       ${d}${versionLine}${r}${versionPad}${d}│${r}
+${d}    ╰${bar}╯${r}
+`;
+
+export const program = new Command();
+
+program
+  .name('workspace')
+  .description('Multi-repo workspace manager')
+  .version(pkg.version, '-V, --version')
+  .option('-f, --force-refresh', 'Force refresh GitHub repos (skip cache)')
+  .option('-y, --yes', 'Skip confirmations')
+  .addHelpText('before', bannerText);
+
+// Register top-level commands
+import { registerCreateCommand } from './commands/create';
+import { registerListCommand } from './commands/list';
+import { registerUpdateCommand } from './commands/update';
+import { registerDeleteCommand } from './commands/delete';
+import { registerSyncCommand } from './commands/sync';
+import { registerStatusCommand } from './commands/status';
+import { registerDiffCommand } from './commands/diff';
+import { registerRunCommand } from './commands/run';
+import { registerGoCommand } from './commands/go';
+import { registerDoctorCommand } from './commands/doctor';
+import { registerAnalyzeDepsCommand } from './commands/analyze-deps';
+import { registerHistoryCommand } from './commands/history';
+import { registerCleanupCommand } from './commands/cleanup';
+import { registerRemoveRepoCommand } from './commands/remove-repo';
+import { registerArchiveCommand } from './commands/archive';
+import { registerSessionsCommand } from './commands/sessions';
+import { registerGenerateDocsCommand } from './commands/generate-docs';
+import { registerConfigureCommand } from './commands/configure';
+import { registerConfigureClaudeCommand } from './commands/configure-claude';
+import { registerGhqStatusCommand } from './commands/ghq-status';
+import { registerSaveContextCommand } from './commands/save-context';
+import { registerMigrateCommand } from './commands/migrate';
+import { registerReportBugCommand } from './commands/report-bug';
+
+registerCreateCommand(program);
+registerListCommand(program);
+registerUpdateCommand(program);
+registerDeleteCommand(program);
+registerSyncCommand(program);
+registerStatusCommand(program);
+registerDiffCommand(program);
+registerRunCommand(program);
+registerGoCommand(program);
+registerDoctorCommand(program);
+registerAnalyzeDepsCommand(program);
+registerHistoryCommand(program);
+registerCleanupCommand(program);
+registerRemoveRepoCommand(program);
+registerArchiveCommand(program);
+registerSessionsCommand(program);
+registerGenerateDocsCommand(program);
+registerConfigureCommand(program);
+registerConfigureClaudeCommand(program);
+registerGhqStatusCommand(program);
+registerSaveContextCommand(program);
+registerMigrateCommand(program);
+registerReportBugCommand(program);
+
+// Register TUI (delegates to existing Ink/React implementation)
+program
+  .command('tui')
+  .description('Launch interactive terminal UI')
+  .action(async () => {
+    const { main } = await import('./cli/tui');
+    await main();
+  });
+
+// Register dashboard command
+import { registerDashboardCommand } from './commands/dashboard';
+registerDashboardCommand(program);
+
+// Register grouped commands
+import { registerSuiteCommands } from './commands/suite';
+import { registerBranchCommands } from './commands/branch';
+import { registerCacheCommands } from './commands/cache';
+import { registerMcpCommands } from './commands/mcp';
+
+registerSuiteCommands(program);
+registerBranchCommands(program);
+registerCacheCommands(program);
+registerMcpCommands(program);
+
+// Register deprecated aliases
+import { registerDeprecatedAliases } from './commands/deprecated-aliases';
+registerDeprecatedAliases(program);

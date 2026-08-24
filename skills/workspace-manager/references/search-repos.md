@@ -1,0 +1,24 @@
+# Search Repos
+
+Search organization repositories by name or description using fuzzy matching.
+
+## Instructions
+
+1. Run:
+   ```bash
+   grove cache search <query>
+   ```
+
+2. Present matching repos with:
+   - Repository name
+   - Description
+   - URL
+
+3. If the user is looking for repos to add to a workspace, suggest:
+   - `grove create` to create a new workspace with selected repos
+   - `grove update` to add repos to an existing workspace
+
+## Success Criteria
+
+- Matching repos are listed with name, description, and URL.
+- Follow-up action (create or update workspace) is suggested if appropriate.

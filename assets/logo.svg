@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Grove">
+  <title>Grove</title>
+  <!-- A grove: three trees of different heights clustered together. -->
+  <!-- back-left tree -->
+  <g>
+    <rect x="85" y="150" width="12" height="50" rx="6" fill="#1B4332"/>
+    <circle cx="91" cy="110" r="46" fill="#2E7D48"/>
+    <circle cx="78" cy="98" r="16" fill="#3DA35D" opacity="0.55"/>
+  </g>
+  <!-- right short tree -->
+  <g>
+    <rect x="184" y="160" width="11" height="40" rx="5.5" fill="#1B4332"/>
+    <circle cx="189" cy="128" r="35" fill="#57C77E"/>
+    <circle cx="199" cy="119" r="12" fill="#A7E0BE" opacity="0.6"/>
+  </g>
+  <!-- front-center tallest tree -->
+  <g>
+    <rect x="132" y="138" width="14" height="62" rx="7" fill="#143728"/>
+    <circle cx="139" cy="92" r="56" fill="#F7FFF9"/>
+    <circle cx="139" cy="92" r="52" fill="#3DA35D"/>
+    <circle cx="122" cy="76" r="18" fill="#7CD79B" opacity="0.7"/>
+  </g>
+  <!-- terminal prompt baseline: trees grow from the command line -->
+  <path d="M56 214 l16 12 -16 12" fill="none" stroke="#1B4332" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="92" y="230" width="30" height="9" rx="4.5" fill="#1B4332"/>
+</svg>

@@ -1,0 +1,71 @@
+# Node modules
+node_modules/
+
+# Build output
+dist/
+
+# MDK synth artifacts (out/ is generated; template.yml is committed like nemala)
+out/
+cdk.out/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory
+coverage/
+.nyc_output
+
+# Dependency directories
+.pnp
+.pnp.js
+
+# Editor directories and files
+.idea
+.vscode
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Cache directories
+.cache/
+.workspace-manager-cache/
+
+# Temporary files
+*.tmp
+*.bak
+.workspace-last-created
+.workspace-last-go
+
+# Developer-specific / debug files
+.claude/settings.local.json
+
+# Agent workspace state (local only)
+.claude/
+.pi/
+.ralph/
+
+# OS files
+Thumbs.db
+/logs/
+
+# Generated React bundle (esbuild output; built into dist at publish)
+
+# CLI tarball staged into the docker build context by CI (npm pack output).
+# The image installs THIS commit rather than the last published release.
+infra/docker/workspace-manager.tgz
+*.tgz

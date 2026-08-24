@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Grove icon">
+  <title>Grove</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2E7D48"/>
+      <stop offset="1" stop-color="#1B4332"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="256" height="256" rx="58" fill="url(#bg)"/>
+  <!-- simplified grove mark on green, safe at small sizes -->
+  <g>
+    <rect x="83" y="150" width="12" height="46" rx="6" fill="#0F2C1E"/>
+    <circle cx="89" cy="116" r="38" fill="#57C77E"/>
+    <rect x="164" y="158" width="10" height="38" rx="5" fill="#0F2C1E"/>
+    <circle cx="169" cy="132" r="29" fill="#7CD79B"/>
+    <rect x="126" y="140" width="14" height="56" rx="7" fill="#0F2C1E"/>
+    <circle cx="133" cy="100" r="46" fill="#F7FFF9"/>
+    <circle cx="133" cy="100" r="42" fill="#3DA35D"/>
+    <circle cx="118" cy="86" r="14" fill="#A7E0BE" opacity="0.8"/>
+  </g>
+  <!-- prompt cursor -->
+  <rect x="96" y="206" width="64" height="10" rx="5" fill="#A7E0BE"/>
+</svg>
