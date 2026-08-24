@@ -1,7 +1,9 @@
 # Grove brand assets
 
-Original artwork for **Grove**. The mark is a *grove of three trees* growing out of
-a `>_` terminal prompt — repositories (trees) cultivated from the command line.
+Original artwork for **Grove**. The mark is a **branch/tree node graph** — a git-style
+DAG of nodes that reads at once as a *tree* (the name Grove), a *commit/branch graph*,
+and a set of *repositories* joined into one workspace. The hero imagery uses a
+terminal-window motif in a GitHub-dark palette for a developer-native feel.
 
 ## Files
 
@@ -15,15 +17,21 @@ a `>_` terminal prompt — repositories (trees) cultivated from the command line
 
 ## Color palette
 
+GitHub-familiar greens on a dark canvas.
+
 | Token | Hex | Use |
 |-------|-----|-----|
-| Canopy (primary) | `#3DA35D` | Primary brand green (main foliage) |
-| Forest | `#2E7D48` | Secondary foliage / accents |
-| Pine (dark) | `#1B4332` | Trunks, prompt, dark backgrounds, text on light |
-| Deep pine | `#0F2C1E` / `#143728` | Darkest shade (icon trunks, gradient base) |
-| Sprout | `#57C77E` | Lighter foliage / highlights |
-| Mint | `#A7E0BE` | Light accent, cursor, subtitle text on dark |
-| Paper | `#F7FFF9` | Near-white for separation rings / text on dark |
+| Green (primary) | `#3FB950` | Primary brand green (nodes) |
+| Green (deep) | `#238636` / `#2EA043` | Edges, gradients, wordmark on light/dark |
+| Green (bright) | `#56D364` | Node highlights |
+| Mint | `#7EE2A8` | Accent / subtitle text on dark |
+| Canvas | `#0D1117` / `#0A0E14` | Dark backgrounds (banner, icon) |
+| Panel | `#161B22` | Terminal window / tile surface |
+| Border | `#30363D` | Hairline borders |
+| Text | `#E6EDF3` | Primary text on dark |
+| Muted | `#7D8590` / `#8B949E` | Secondary text |
+
+Terminal traffic-light dots: `#FF5F56` `#FFBD2E` `#27C93F`.
 
 ## Regenerating the PNGs
 

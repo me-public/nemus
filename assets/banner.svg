@@ -2,36 +2,68 @@
   <title>Grove</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1B4332"/>
-      <stop offset="0.55" stop-color="#245B3B"/>
-      <stop offset="1" stop-color="#2E7D48"/>
+      <stop offset="0" stop-color="#0D1117"/>
+      <stop offset="1" stop-color="#0A0E14"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0.78" cy="0.28" r="0.6">
-      <stop offset="0" stop-color="#57C77E" stop-opacity="0.35"/>
-      <stop offset="1" stop-color="#57C77E" stop-opacity="0"/>
+    <radialGradient id="glow" cx="0.72" cy="0.30" r="0.55">
+      <stop offset="0" stop-color="#2EA043" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#2EA043" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3FB950"/>
+      <stop offset="1" stop-color="#238636"/>
+    </linearGradient>
+    <radialGradient id="node" cx="0.35" cy="0.3" r="0.85">
+      <stop offset="0" stop-color="#56D364"/>
+      <stop offset="0.55" stop-color="#3FB950"/>
+      <stop offset="1" stop-color="#2EA043"/>
     </radialGradient>
   </defs>
+
   <rect width="1280" height="640" fill="url(#bg)"/>
   <rect width="1280" height="640" fill="url(#glow)"/>
 
-  <!-- large mark on the right -->
-  <g transform="translate(830,150) scale(1.4)">
-    <rect x="85" y="150" width="12" height="50" rx="6" fill="#0F2C1E"/>
-    <circle cx="91" cy="110" r="46" fill="#2E7D48"/>
-    <circle cx="78" cy="98" r="16" fill="#57C77E" opacity="0.7"/>
-    <rect x="184" y="160" width="11" height="40" rx="5.5" fill="#0F2C1E"/>
-    <circle cx="189" cy="128" r="35" fill="#57C77E"/>
-    <circle cx="199" cy="119" r="12" fill="#A7E0BE" opacity="0.7"/>
-    <rect x="132" y="138" width="14" height="62" rx="7" fill="#0F2C1E"/>
-    <circle cx="139" cy="92" r="56" fill="#173D2B"/>
-    <circle cx="139" cy="92" r="52" fill="#3DA35D"/>
-    <circle cx="122" cy="76" r="18" fill="#A7E0BE" opacity="0.8"/>
-    <path d="M56 214 l16 12 -16 12" fill="none" stroke="#A7E0BE" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
-    <rect x="92" y="230" width="30" height="9" rx="4.5" fill="#A7E0BE"/>
+  <!-- wordmark + tagline -->
+  <text x="96" y="150" font-family="'SF Mono','JetBrains Mono','Fira Code',ui-monospace,Menlo,Consolas,monospace" font-size="112" font-weight="700" letter-spacing="-3" fill="#E6EDF3">Grove</text>
+  <text x="100" y="204" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="30" font-weight="500" fill="#7EE2A8">Multi-repo workspaces for the AI-agent era</text>
+
+  <!-- terminal window -->
+  <g transform="translate(96,258)">
+    <rect x="0" y="0" width="620" height="300" rx="16" fill="#161B22" stroke="#30363D" stroke-width="2"/>
+    <rect x="0" y="0" width="620" height="44" rx="16" fill="#0D1117"/>
+    <rect x="0" y="28" width="620" height="16" fill="#0D1117"/>
+    <circle cx="26" cy="22" r="7" fill="#FF5F56"/>
+    <circle cx="50" cy="22" r="7" fill="#FFBD2E"/>
+    <circle cx="74" cy="22" r="7" fill="#27C93F"/>
+    <text x="310" y="27" text-anchor="middle" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#7D8590">grove</text>
+
+    <g font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,Consolas,monospace" font-size="22">
+      <text x="30" y="98"  fill="#7EE2A8">$ <tspan fill="#E6EDF3">grove create payments</tspan></text>
+      <text x="30" y="140" fill="#7D8590">✓ cloned 12 repositories</text>
+      <text x="30" y="182" fill="#7D8590">✓ wrote AGENTS.md · installed skills</text>
+      <text x="30" y="224" fill="#7EE2A8">$ <tspan fill="#E6EDF3">grove -- "start the checkout refactor"</tspan></text>
+      <text x="30" y="266" fill="#3FB950">▸ launching agent<tspan fill="#3FB950">█</tspan></text>
+    </g>
   </g>
 
-  <!-- wordmark + tagline on the left -->
-  <text x="96" y="312" font-family="'SF Mono','JetBrains Mono','Fira Code',ui-monospace,Menlo,Consolas,monospace" font-size="150" font-weight="700" letter-spacing="-4" fill="#F7FFF9">Grove</text>
-  <text x="100" y="378" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="38" font-weight="500" fill="#A7E0BE">Multi-repo workspaces for the AI-agent era</text>
-  <text x="100" y="440" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,Consolas,monospace" font-size="26" fill="#7CD79B">$ npm install -g grove-cli</text>
+  <!-- mark on the right -->
+  <g transform="translate(880,150) scale(1.5)">
+    <g stroke="url(#edge)" stroke-width="11" stroke-linecap="round" fill="none">
+      <path d="M128 58 L78 130"/>
+      <path d="M128 58 L182 130"/>
+      <path d="M78 130 L46 202"/>
+      <path d="M78 130 L112 202"/>
+      <path d="M182 130 L146 202"/>
+      <path d="M182 130 L212 202"/>
+    </g>
+    <g fill="url(#node)">
+      <circle cx="128" cy="52" r="20"/>
+      <circle cx="78"  cy="130" r="16"/>
+      <circle cx="182" cy="130" r="16"/>
+      <circle cx="46"  cy="206" r="13"/>
+      <circle cx="112" cy="206" r="13"/>
+      <circle cx="146" cy="206" r="13"/>
+      <circle cx="212" cy="206" r="13"/>
+    </g>
+  </g>
 </svg>
