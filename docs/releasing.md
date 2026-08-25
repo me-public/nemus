@@ -1,6 +1,6 @@
 # Releasing Nemus
 
-Nemus publishes to npm as [`nemus`](https://www.npmjs.com/package/nemus).
+Nemus publishes to npm as [`@nemus-cli/nemus`](https://www.npmjs.com/package/@nemus-cli/nemus).
 Releases are **automated but gated by a manual approval**, so nothing reaches npm
 without a maintainer's explicit sign-off.
 

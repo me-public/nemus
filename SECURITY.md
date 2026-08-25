@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Nemus is distributed on npm as [`nemus`](https://www.npmjs.com/package/nemus).
+Nemus is distributed on npm as [`@nemus-cli/nemus`](https://www.npmjs.com/package/@nemus-cli/nemus).
 Security fixes are released against the **latest** published version. Please
 upgrade to the latest release before reporting an issue.
 

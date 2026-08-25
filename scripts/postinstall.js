@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * postinstall.js — runs after `npm install -g nemus`
+ * postinstall.js — runs after `npm install -g @nemus-cli/nemus`
  *
  * Installs the shell integration (nemus/nem shell functions) so that the
  * shell can auto-CD into a workspace after create / list / go commands.

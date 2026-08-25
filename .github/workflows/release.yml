@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: release
-      url: https://www.npmjs.com/package/nemus
+      url: https://www.npmjs.com/package/@nemus-cli/nemus
     permissions:
       contents: write   # create tag + GitHub Release
       id-token: write   # npm provenance
@@ -105,7 +105,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.detect.outputs.version }}
         run: |
-          NOTES=$(printf '## Nemus v%s\n\n```bash\nnpm install -g nemus@%s\n```\n\nSee the [CHANGELOG](https://github.com/%s/blob/main/CHANGELOG.md) for details.\n' "$VERSION" "$VERSION" "$GITHUB_REPOSITORY")
+          NOTES=$(printf '## Nemus v%s\n\n```bash\nnpm install -g @nemus-cli/nemus@%s\n```\n\nSee the [CHANGELOG](https://github.com/%s/blob/main/CHANGELOG.md) for details.\n' "$VERSION" "$VERSION" "$GITHUB_REPOSITORY")
           if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "v$VERSION" --repo "$GITHUB_REPOSITORY" \
               --title "Nemus v$VERSION" --notes "$NOTES" --draft=false --prerelease=false
