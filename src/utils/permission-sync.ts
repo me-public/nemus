@@ -419,7 +419,7 @@ function getSkillsSourceDir(): string {
 }
 
 /**
- * Install all workspace-manager skills from the skills/ directory.
+ * Install all nemus skills from the skills/ directory.
  * Each .md file becomes a skill under <skillsDir>/<skill-name>/SKILL.md.
  * Installs to all active agent skills directories.
  * Idempotent — safe to call multiple times.
@@ -471,7 +471,7 @@ export function installWorkspaceSkills(skillsDir?: string): void {
     }
 
     if (installed > 0) {
-      logSuccess(`Installed ${installed} workspace-manager skills in ${targetBase}`);
+      logSuccess(`Installed ${installed} nemus skills in ${targetBase}`);
     }
   }
 }
@@ -493,7 +493,7 @@ function copyDirRecursive(src: string, dest: string): void {
 }
 
 /**
- * Remove all workspace-manager skills from all possible agent directories.
+ * Remove all nemus skills from all possible agent directories.
  * Reads the skills/ source directory to know which skill names to remove.
  * Removes from both Claude and Pi dirs regardless of current config to avoid orphans.
  */
@@ -536,7 +536,7 @@ export function uninstallWorkspaceSkills(skillsDir?: string): void {
 // ─── Workspace status-line ────────────────────────────────────────────────────
 
 /** Absolute install path for the workspace-table Python script. */
-const WORKSPACE_TABLE_SCRIPT = path.join(os.homedir(), '.workspace-manager-table.py');
+const WORKSPACE_TABLE_SCRIPT = path.join(os.homedir(), '.nemus-table.py');
 
 /**
  * Resolve the bundled workspace-table.py path from the installed package.
@@ -558,7 +558,7 @@ function getWorkspaceTableSourcePath(): string {
  * Claude Code shows its default footer — the user's existing styling is
  * never affected.
  *
- * The script is copied to ~/.workspace-manager-table.py and registered in
+ * The script is copied to ~/.nemus-table.py and registered in
  * ~/.claude/settings.json only when no statusLine is already configured —
  * we never overwrite a custom status line the user already has.
  *
@@ -570,7 +570,7 @@ export function installWorkspaceStatusLine(settingsPath?: string): void {
 
   if ((settings as any).statusLine) {
     logInfo('statusLine already configured in ~/.claude/settings.json — skipping workspace-table install');
-    logInfo(`  To use workspace-manager\'s table, replace your statusLine command with: ${WORKSPACE_TABLE_SCRIPT}`);
+    logInfo(`  To use nemus\'s table, replace your statusLine command with: ${WORKSPACE_TABLE_SCRIPT}`);
     return;
   }
 
@@ -597,7 +597,7 @@ export function installWorkspaceStatusLine(settingsPath?: string): void {
 
 /**
  * Remove the workspace status-line from Claude Code\'s settings.json.
- * Only removes it if the command points to workspace-manager\'s own script.
+ * Only removes it if the command points to nemus\'s own script.
  *
  * @param settingsPath Override ~/.claude/settings.json (for testing).
  */
@@ -612,8 +612,8 @@ export function uninstallWorkspaceStatusLine(settingsPath?: string): void {
   }
 
   const cmd: string = existing.command ?? '';
-  if (!cmd.includes('workspace-manager-table')) {
-    logInfo('statusLine is not managed by workspace-manager — leaving it unchanged');
+  if (!cmd.includes('nemus-table')) {
+    logInfo('statusLine is not managed by nemus — leaving it unchanged');
     return;
   }
 
@@ -639,7 +639,7 @@ function extractScriptPath(command: string): string | null {
 }
 
 /**
- * Detect and repair workspace-manager hook commands in ~/.claude/settings.json
+ * Detect and repair nemus hook commands in ~/.claude/settings.json
  * that point to script paths which no longer exist on disk.
  *
  * This happens when the package is installed via a manager (e.g. Volta) whose

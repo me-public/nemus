@@ -18,6 +18,3 @@ Or for the current workspace:
 nemus analyze-deps
 ```
 
-## Presenting Results
-
-Report dependency relationships between repos (which repos depend on which via package.json).

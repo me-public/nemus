@@ -16,7 +16,7 @@ Save a progress summary or important context to the workspace. This persists in 
 
 ## Using the MCP Tool (Claude Code)
 
-Call `mcp__workspace-manager__save-context` with:
+Call `mcp__nemus__save-context` with:
 - `workspace` (string): the workspace name
 - `content` (string): markdown content to save
 - `append` (boolean, optional): true to append, false to replace (default: false)
@@ -49,20 +49,8 @@ Good context summaries include:
 ## Example
 
 ```markdown
-## Progress
-
-- Refactored auth service to use JWT tokens (PR #42 merged)
-- Updated partnerships-api to call new auth endpoints
-- Fixed rate limiting bug in payment-gateway
-
 ## Current State
 
 All services passing CI. Auth migration is complete for internal services.
 External API consumers still use legacy tokens (tracked in JIRA PAY-123).
 
-## Next Steps
-
-1. Migrate external consumers to JWT (need coordination with partners team)
-2. Add monitoring dashboard for token refresh failures
-3. Remove legacy token support after 30-day deprecation window
-```

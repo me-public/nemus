@@ -186,7 +186,7 @@ function throwExtractionError(
     const secs = Math.round(EXTRACTION_TIMEOUT_MS / 1000);
     let msg =
       `${cmd} did not respond within ${secs}s while parsing your request.\n` +
-      `  This is usually a transient model/provider stall, not a workspace-manager bug.\n` +
+      `  This is usually a transient model/provider stall, not a nemus bug.\n` +
       `  • Verify the agent itself responds quickly:  time ${testCmd}\n` +
       `  • If it's slow, your default model may be heavy (e.g. Opus) or the provider\n` +
       `    may be rate-limiting/refreshing credentials. Retry, or switch to a faster model.\n` +

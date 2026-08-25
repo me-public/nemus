@@ -9,7 +9,7 @@ const repos = [
   { name: 'payments-service' },
   { name: 'analytics-service' },
   { name: 'notifications-service' },
-  { name: 'workspace-manager' },
+  { name: 'nemus' },
   { name: 'casper' },
 ];
 

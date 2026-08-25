@@ -18,10 +18,3 @@ Note: This command opens an interactive picker. To just see the output without s
 nemus list 2>&1 | cat
 ```
 
-## Presenting Results
-
-Show each workspace with:
-- Name
-- Number of repositories
-- Creation date
-- Last active session (if any)

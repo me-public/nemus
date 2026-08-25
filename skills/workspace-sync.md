@@ -18,6 +18,3 @@ Or for the current workspace:
 nemus sync
 ```
 
-## Presenting Results
-
-Report which repos were updated and any that had conflicts or errors.

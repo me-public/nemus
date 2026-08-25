@@ -18,9 +18,3 @@ If the cache is empty or stale:
 nemus cache refresh
 ```
 
-## Presenting Results
-
-Show repo names. Can be filtered by searching:
-```bash
-nemus cache search <keyword>
-```

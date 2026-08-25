@@ -13,6 +13,3 @@ Create a new branch across all repos in a workspace.
 nemus branch create <workspace-name> <branch-name>
 ```
 
-## Presenting Results
-
-Report which repos had the branch created successfully and any that failed.

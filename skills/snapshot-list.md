@@ -13,6 +13,3 @@ List all saved workspace snapshots.
 nemus history
 ```
 
-## Presenting Results
-
-Show snapshot entries with timestamps and operation types.

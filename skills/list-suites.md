@@ -13,10 +13,6 @@ List all saved suites (reusable collections of repos).
 nemus suite list
 ```
 
-## Presenting Results
-
-Show each suite's name and the repos it contains.
-
 ## Related
 
 - `nemus suite create` to create a new suite

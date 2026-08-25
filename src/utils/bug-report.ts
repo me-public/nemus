@@ -165,7 +165,7 @@ export function buildIssueBody(err: CapturedError, env: BugReportEnv): string {
   const sig = errorSignature(err.message, err.stack);
   const stack = err.stack ? sanitize(err.stack).slice(0, 4000) : '(no stack captured)';
   return [
-    `**Auto-reported by workspace-manager.**`,
+    `**Auto-reported by nemus.**`,
     ``,
     `**Signature:** \`${sig}\``,
     `**Command:** \`${sanitize(err.command)}\``,
@@ -184,7 +184,7 @@ export function buildIssueBody(err: CapturedError, env: BugReportEnv): string {
     `### Environment`,
     `| | |`,
     `|---|---|`,
-    `| workspace-manager | ${env.version} |`,
+    `| nemus | ${env.version} |`,
     `| node | ${env.node} |`,
     `| os | ${env.os} |`,
     `| arch | ${env.arch} |`,
@@ -261,7 +261,7 @@ function ensureLabel(): void {
       'label', 'create', BUG_LABEL,
       '--repo', BUG_REPORT_REPO,
       '--color', 'B60205',
-      '--description', 'Auto-reported by workspace-manager',
+      '--description', 'Auto-reported by nemus',
     ], { encoding: 'utf-8', timeout: 15_000, stdio: 'ignore' });
   } catch {
     /* may already exist or no perms — ignore */
