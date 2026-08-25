@@ -97,21 +97,19 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Create tag & GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ needs.detect.outputs.version }}
-          name: Nemus v${{ needs.detect.outputs.version }}
-          generate_release_notes: true
-          body: |
-            ## Nemus v${{ needs.detect.outputs.version }}
-
-            ```bash
-            npm install -g nemus@${{ needs.detect.outputs.version }}
-            ```
-
-            See the [CHANGELOG](https://github.com/me-public/nemus/blob/main/CHANGELOG.md) for details.
-          draft: false
-          prerelease: false
+      # Use the pre-installed GitHub CLI instead of a third-party action, so this
+      # stays within the org's "GitHub-owned actions only" policy. Idempotent:
+      # creates the release, or updates notes if the tag/release already exists.
+      - name: Create / update GitHub Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.detect.outputs.version }}
+        run: |
+          NOTES=$(printf '## Nemus v%s\n\n```bash\nnpm install -g nemus@%s\n```\n\nSee the [CHANGELOG](https://github.com/%s/blob/main/CHANGELOG.md) for details.\n' "$VERSION" "$VERSION" "$GITHUB_REPOSITORY")
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "v$VERSION" --repo "$GITHUB_REPOSITORY" \
+              --title "Nemus v$VERSION" --notes "$NOTES" --draft=false --prerelease=false
+          else
+            gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" \
+              --title "Nemus v$VERSION" --notes "$NOTES" --latest
+          fi
