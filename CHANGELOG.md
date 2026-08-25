@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-08-25
+
+### Changed
+
+- **Simplified the bundled skills.** Removed repetitive ceremony sections
+  (`Success Criteria`, `Suggested Follow-ups`, `Presenting Results`, etc.) and
+  slimmed the routing `SKILL.md`, cutting the skills corpus ~20% with no loss of
+  actual guidance.
+- **Removed the `workspace-manager` name from the code.** The bundled skill
+  folder is now `skills/nemus/`, the MCP server registers as **`nemus`** (tools
+  are `mcp__nemus__*`, `.mcp.json` key `nemus`), and internal state paths moved
+  to `~/.nemus/*` / `~/.nemus-*`. The legacy `WORKSPACE_MANAGER_DIR` /
+  `WORKSPACE_MANAGER_CACHE_DIR` env vars and the `~/.workspace-manager-cache`
+  migration source are kept for backward compatibility.
+
+### Security
+
+- Hardened the CI version-bump reminder to skip fork PRs (whose read-only token
+  can't post), confirming the workflows never expose secrets to forks:
+  CI runs on `pull_request` (not `pull_request_target`) and `NPM_TOKEN` lives
+  only in the push/dispatch-triggered, approval-gated release workflow.
+
 ## [0.2.4] - 2026-08-25
 
 ### Changed
@@ -125,7 +147,8 @@ Initial open-source release of **Nemus**.
 - Automatic retries with backoff on flaky network operations.
 - Optional shell integration (auto-cd on create + quick-navigate helper).
 
-[Unreleased]: https://github.com/me-public/nemus/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/me-public/nemus/compare/v0.2.5...HEAD
+[0.2.5]: https://github.com/me-public/nemus/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/me-public/nemus/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/me-public/nemus/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/me-public/nemus/compare/v0.2.1...v0.2.2

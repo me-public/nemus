@@ -21,7 +21,7 @@ describe('isReusablePermission', () => {
   });
 
   it('keeps mcp tool permissions', () => {
-    expect(isReusablePermission('mcp__workspace-manager__list-workspaces')).toBe(true);
+    expect(isReusablePermission('mcp__nemus__list-workspaces')).toBe(true);
   });
 
   it('keeps Skill and WebFetch permissions', () => {
@@ -480,7 +480,7 @@ describe('uninstallWorkspaceSkills', () => {
     expect(() => uninstallWorkspaceSkills(targetDir)).not.toThrow();
   });
 
-  it('does not remove non-workspace-manager skills', () => {
+  it('does not remove non-nemus skills', () => {
     const targetDir = path.join(tmpDir, 'skills');
     fs.mkdirSync(targetDir, { recursive: true });
 
@@ -520,7 +520,7 @@ describe('repairStaleHooks', () => {
     expect(repairStaleHooks(missing)).toBe(0);
   });
 
-  it('returns 0 when there are no workspace-manager hooks', () => {
+  it('returns 0 when there are no nemus hooks', () => {
     const settingsPath = path.join(tmpDir, 'settings.json');
     fs.writeFileSync(settingsPath, JSON.stringify({
       hooks: { Stop: [{ hooks: [{ type: 'command', command: 'echo hi' }] }] },
@@ -544,7 +544,7 @@ describe('repairStaleHooks', () => {
         Stop: [{
           hooks: [{
             type: 'command',
-            command: 'bash "/Users/x/.volta/tmp/image/packages/.tmpABC/lib/node_modules/@acme/workspace-manager/sync-permissions.sh"',
+            command: 'bash "/Users/x/.volta/tmp/image/packages/.tmpABC/lib/node_modules/@acme/nemus/sync-permissions.sh"',
           }],
         }],
       },

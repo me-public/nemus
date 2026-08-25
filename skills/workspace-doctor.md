@@ -18,6 +18,3 @@ Or for the current workspace:
 nemus doctor
 ```
 
-## Presenting Results
-
-Report any issues found (missing repos, broken git state, etc.) and suggestions for fixes.

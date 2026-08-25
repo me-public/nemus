@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { AgentState, DASHBOARD_DEFAULTS } from '../types/dashboard';
 
-export const AGENTS_STATE_DIR = path.join(os.homedir(), '.workspace-manager', 'agents');
+export const AGENTS_STATE_DIR = path.join(os.homedir(), '.nemus', 'agents');
 
 export function ensureStateDir(): void {
   fs.mkdirSync(AGENTS_STATE_DIR, { recursive: true });

@@ -56,7 +56,7 @@ async function handleGhqStatus() {
       if (showInfo) { displayGhqInfo(); }
     }
 
-    console.log(colorize('Workspace Manager Behavior:', 'cyan'));
+    console.log(colorize('Nemus Behavior:', 'cyan'));
     console.log('  • Auto-detects ghq installation');
     console.log('  • Uses ghq when available');
     console.log('  • Falls back to git clone if needed');

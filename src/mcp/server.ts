@@ -46,7 +46,7 @@ import {
 import { getPackageVersion } from '../utils/config';
 
 const server = new McpServer({
-  name: 'workspace-manager',
+  name: 'nemus',
   version: getPackageVersion(),
 });
 
@@ -570,7 +570,7 @@ server.tool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  process.stderr.write('workspace-manager MCP server started\n');
+  process.stderr.write('nemus MCP server started\n');
 }
 
 main().catch((error) => {

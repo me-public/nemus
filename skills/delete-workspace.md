@@ -32,6 +32,3 @@ nemus delete
 - There is no undo — repos will need to be re-cloned
 - Always confirm with the user before deleting
 
-## Suggested Follow-ups
-
-- `nemus list` to verify the workspace is gone

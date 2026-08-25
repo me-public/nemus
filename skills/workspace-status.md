@@ -18,9 +18,3 @@ Or for the current workspace:
 nemus status
 ```
 
-## Presenting Results
-
-The command shows per-repo git status (branch, uncommitted changes, ahead/behind). Report:
-- Which repos have uncommitted changes
-- Which repos are on non-default branches
-- Any repos that are ahead/behind remote

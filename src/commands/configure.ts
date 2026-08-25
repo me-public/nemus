@@ -20,7 +20,7 @@ export function registerConfigureCommand(parent: Command) {
 
 async function handleConfigure() {
   console.log('\n' + '='.repeat(60));
-  console.log(colorize('Workspace Manager Configuration', 'bright'));
+  console.log(colorize('Nemus Configuration', 'bright'));
   console.log('='.repeat(60) + '\n');
 
   const current = getUserConfig();

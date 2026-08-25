@@ -10,7 +10,7 @@ export const main = async () => {
   try {
     logInfo('Interactive TUI mode');
     console.log(colorize('\n╔══════════════════════════════════════════╗', 'cyan'));
-    console.log(colorize('║    Workspace Manager - Interactive UI   ║', 'cyan'));
+    console.log(colorize('║    Nemus - Interactive UI   ║', 'cyan'));
     console.log(colorize('╚══════════════════════════════════════════╝\n', 'cyan'));
 
     const workspaces = await listWorkspaces();

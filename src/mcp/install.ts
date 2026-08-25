@@ -114,11 +114,11 @@ function installHooksAndSkills() {
     }
   }
 
-  // Install workspace-manager skills (MCP + CLI command skills) — always for all active agents
+  // Install nemus skills (MCP + CLI command skills) — always for all active agents
   try {
     installWorkspaceSkills();
   } catch (error) {
-    logError('Failed to install workspace-manager skills');
+    logError('Failed to install nemus skills');
     if (error instanceof Error) {
       logError(error.message);
     }
@@ -143,7 +143,7 @@ function installHooksAndSkills() {
 
 /**
  * Backfill .mcp.json for all existing workspaces that don't have the
- * workspace-manager entry yet.
+ * nemus entry yet.
  */
 async function backfillMcpJson() {
   const { installMcp } = getUserConfig();
@@ -265,11 +265,11 @@ async function install() {
 
     try {
       execSync(
-        `claude mcp add workspace-manager -s user -- node "${serverPath}"`,
+        `claude mcp add nemus -s user -- node "${serverPath}"`,
         { stdio: 'pipe' }
       );
       logSuccess('MCP server registered globally with Claude Code');
-      console.log('\nYou can now use workspace-manager tools in any Claude Code session.');
+      console.log('\nYou can now use nemus tools in any Claude Code session.');
       console.log('Try asking: "list my workspaces" or "what\'s the status of my-workspace"');
     } catch (error) {
       const stderr = error instanceof Error && 'stderr' in error
@@ -341,12 +341,12 @@ async function upgrade() {
 }
 
 function uninstall() {
-  // Remove workspace-manager skills (from all agent directories)
+  // Remove nemus skills (from all agent directories)
   try {
     uninstallWorkspaceSkills();
     logSuccess('Workspace-manager skills removed from all agents');
   } catch (error) {
-    logError('Failed to remove workspace-manager skills');
+    logError('Failed to remove nemus skills');
     if (error instanceof Error) {
       logError(error.message);
     }
@@ -384,7 +384,7 @@ function uninstall() {
   // Unregister MCP from Claude (if available)
   if (isAgentCliAvailable('claude')) {
     try {
-      execSync('claude mcp remove workspace-manager -s user', { stdio: 'inherit' });
+      execSync('claude mcp remove nemus -s user', { stdio: 'inherit' });
       logSuccess('MCP server unregistered from Claude Code');
     } catch (error) {
       logError('Failed to unregister MCP server');
@@ -427,10 +427,10 @@ function status() {
     if (agent.supportsMcp) {
       try {
         const output = execSync('claude mcp list', { encoding: 'utf-8' });
-        const isRegistered = output.includes('workspace-manager');
+        const isRegistered = output.includes('nemus');
         if (isRegistered) {
           logSuccess('  MCP server registered');
-          const lines = output.split('\n').filter(l => l.includes('workspace-manager'));
+          const lines = output.split('\n').filter(l => l.includes('nemus'));
           if (lines.length > 0) {
             console.log(`    ${lines[0].trim()}`);
           }
@@ -473,7 +473,7 @@ function syncPermissions() {
 }
 
 function updateSkills() {
-  logInfo('Updating workspace-manager skills...');
+  logInfo('Updating nemus skills...');
   try {
     installWorkspaceSkills();
   } catch (error) {
@@ -512,7 +512,7 @@ export async function main(subCommandArg?: string) {
 MCP Integration
 
 Usage:
-  w mcp install             Register workspace-manager MCP server with Claude Code
+  w mcp install             Register nemus MCP server with Claude Code
   w mcp uninstall           Unregister the MCP server
   w mcp upgrade             Update hooks and skills without re-registering the MCP server
   w mcp update-skills       Update only the Claude Code skills (faster than full upgrade)

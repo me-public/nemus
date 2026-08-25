@@ -18,6 +18,3 @@ Or for the current workspace:
 nemus diff
 ```
 
-## Presenting Results
-
-Report per-repo diff stats (files changed, insertions, deletions).

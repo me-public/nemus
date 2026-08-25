@@ -112,7 +112,7 @@ export async function backfillAgentRules(workspacePath: string, workspaceName: s
 
 
 export async function loadClaudeConfig(): Promise<ClaudeConfig> {
-  const configFile = path.join(process.env.HOME || '~', '.workspace-manager-claude-config.json');
+  const configFile = path.join(process.env.HOME || '~', '.nemus-claude-config.json');
 
   try {
     const content = await fs.readFile(configFile, 'utf-8');
@@ -126,7 +126,7 @@ export async function loadClaudeConfig(): Promise<ClaudeConfig> {
  * Save Claude integration config
  */
 export async function saveClaudeConfig(config: ClaudeConfig): Promise<void> {
-  const configFile = path.join(process.env.HOME || '~', '.workspace-manager-claude-config.json');
+  const configFile = path.join(process.env.HOME || '~', '.nemus-claude-config.json');
 
   try {
     await fs.writeFile(configFile, JSON.stringify(config, null, 2), 'utf-8');
@@ -184,7 +184,7 @@ export async function generateClaudeContext(
 
     let content = `# Workspace: ${workspaceName}
 
-This workspace was created with [Workspace Manager](https://github.com/${githubOrg}/workspace-manager).
+This workspace was created with [Nemus](https://github.com/${githubOrg}/nemus).
 
 ## Organization
 
@@ -328,7 +328,7 @@ This workspace contains ${entries.length} repositories for focused development w
       logSuccess(`Generated ${colorize(fileName, 'cyan')} with workspace context`);
     }
 
-    // Generate .mcp.json with workspace-manager MCP server (if enabled)
+    // Generate .mcp.json with nemus MCP server (if enabled)
     const { installMcp } = getUserConfig();
     if (installMcp) {
       await generateMcpConfig(workspacePath);
@@ -408,9 +408,9 @@ function resolveMcpServerPath(): string | null {
 }
 
 /**
- * Generate .mcp.json with workspace-manager MCP server config.
+ * Generate .mcp.json with nemus MCP server config.
  * This ensures Claude Code sessions in the workspace have access to
- * workspace-manager tools even without global MCP registration.
+ * nemus tools even without global MCP registration.
  */
 export async function generateMcpConfig(workspacePath: string): Promise<boolean> {
   try {
@@ -434,7 +434,7 @@ export async function generateMcpConfig(workspacePath: string): Promise<boolean>
       ...existingConfig,
       mcpServers: {
         ...(existingConfig.mcpServers || {}),
-        'workspace-manager': {
+        'nemus': {
           command: 'node',
           args: [serverPath],
         },
@@ -442,7 +442,7 @@ export async function generateMcpConfig(workspacePath: string): Promise<boolean>
     };
 
     await fs.writeFile(mcpFile, JSON.stringify(mcpConfig, null, 2) + '\n', 'utf-8');
-    logSuccess(`Generated ${colorize('.mcp.json', 'cyan')} with workspace-manager MCP server`);
+    logSuccess(`Generated ${colorize('.mcp.json', 'cyan')} with nemus MCP server`);
     return true;
   } catch (error) {
     logWarning('Failed to generate .mcp.json file');

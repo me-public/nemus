@@ -53,14 +53,3 @@ nemus update --workspace <name> --repos casper:cas-101 --yes   # -> casper-cas-1
 Suffix = letters, numbers, hyphens, underscores. Each instance is tracked
 independently by `nemus status`/`nemus sync`.
 
-## Presenting Results
-
-The command output shows which repos were added and which were skipped. Report:
-- Successfully added repos
-- Skipped repos (already exist in workspace) - this is not an error
-- Any failures with their error reason
-
-## Suggested Follow-ups
-
-- `nemus status <workspace>` to verify the new repos
-- `nemus sync <workspace>` to pull latest on all repos

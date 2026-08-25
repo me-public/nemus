@@ -26,14 +26,3 @@ Or interactively (prompts for workspace name and repos):
 nemus create
 ```
 
-## Presenting Results
-
-Report:
-- Workspace created at path
-- Successfully cloned repos
-- Any failures with their error reason
-
-## Suggested Follow-ups
-
-- `nemus status <name>` to verify
-- `nemus update --workspace <name> --repos <more-repos>` to add more repos later
