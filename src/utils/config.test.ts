@@ -236,6 +236,19 @@ describe('config', () => {
       expect(fs.existsSync(path.join(tempDir, '.workspace-manager-cache', 'suites.json'))).toBe(true);
     });
 
+    it('does not migrate last-version-check.json (avoids inheriting a foreign latest)', async () => {
+      delete process.env.NEMUS_CACHE_DIR;
+      delete process.env.WORKSPACE_MANAGER_CACHE_DIR;
+      const legacy = path.join(tempDir, '.workspace-manager-cache');
+      fs.writeFileSync(path.join(legacy, 'suites.json'), '{"x":1}');
+      fs.writeFileSync(path.join(legacy, 'last-version-check.json'), '{"latestVersion":"99.0.0"}');
+      vi.resetModules();
+      await loadModule();
+      // other state migrates, but the version-check cache is left behind
+      expect(fs.existsSync(path.join(tempDir, '.nemus', 'suites.json'))).toBe(true);
+      expect(fs.existsSync(path.join(tempDir, '.nemus', 'last-version-check.json'))).toBe(false);
+    });
+
     it('does not migrate when the new dir already exists', async () => {
       delete process.env.NEMUS_CACHE_DIR;
       delete process.env.WORKSPACE_MANAGER_CACHE_DIR;
