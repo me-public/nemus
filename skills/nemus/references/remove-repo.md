@@ -1,9 +1,5 @@
 # Remove Repo
 
-Remove a repository instance from a workspace.
-
-## Instructions
-
 1. Warn the user about any uncommitted changes before removing.
 
 2. Run the command:
@@ -20,4 +16,3 @@ Remove a repository instance from a workspace.
 | `--workspace <name>` | `-w` | Target workspace |
 | `--repos <dir,...>` | `-r` | Comma-separated directory names to remove |
 | `--yes` | `-y` | Skip confirmation prompt |
-

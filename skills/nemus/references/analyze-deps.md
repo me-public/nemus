@@ -1,9 +1,5 @@
 # Analyze Dependencies
 
-Analyze inter-repository dependencies within a workspace and detect circular dependencies.
-
-## Instructions
-
 ```bash
 nemus analyze-deps <workspace>
 ```
@@ -18,8 +14,6 @@ Without a workspace name, prompts interactively:
 nemus analyze-deps
 ```
 
-## What It Analyzes
-
 - `package.json` dependencies (npm packages that match workspace repo names)
 - `Dockerfile` references
 - `docker-compose.yml` service references
@@ -31,4 +25,3 @@ nemus analyze-deps
 - **Missing dependencies** — repos referenced but not in the workspace
 - **Mermaid diagram** — visual dependency graph
 - Optionally saves analysis to workspace metadata
-

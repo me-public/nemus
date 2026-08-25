@@ -1,9 +1,5 @@
 # Workspace Sync
 
-Pull latest changes for all repositories in a workspace. Skips repos with uncommitted changes.
-
-## Instructions
-
 ```bash
 nemus sync <workspace>
 ```
@@ -19,4 +15,3 @@ Report results per repo:
 - Any repos that failed
 
 If some repos were skipped, suggest committing or stashing changes first, then re-run `nemus sync <name>`.
-

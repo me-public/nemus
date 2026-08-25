@@ -1,9 +1,5 @@
 # Workspace Doctor
 
-Run comprehensive health checks on a workspace and return a health score (0-100).
-
-## Instructions
-
 1. If no workspace is specified, run `nemus list` and ask which one.
 
 2. Run:
@@ -20,4 +16,3 @@ Run comprehensive health checks on a workspace and return a health score (0-100)
    - `nemus sync` for outdated repos
    - `nemus cleanup` for disk space issues
    - `nemus branch create` or `nemus branch switch` for branch inconsistencies
-

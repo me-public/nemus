@@ -1,11 +1,5 @@
 # MCP Server
 
-Manage the MCP (Model Context Protocol) server integration with Claude Code.
-
-## Commands
-
-### Install
-
 Register the Nemus MCP server with Claude Code:
 ```bash
 nemus mcp install
@@ -13,14 +7,10 @@ nemus mcp install
 
 This also installs shell integration, permission sync hooks, and workspace skills.
 
-### Uninstall
-
 Remove the MCP server registration:
 ```bash
 nemus mcp uninstall
 ```
-
-### Upgrade
 
 Update hooks and skills without re-registering the MCP server:
 ```bash
@@ -28,8 +18,6 @@ nemus mcp upgrade
 ```
 
 Use after updating the Nemus package.
-
-### Status
 
 Check if the MCP server is registered:
 ```bash
@@ -41,4 +29,3 @@ nemus mcp status
 When installed, Claude Code gains access to Nemus tools:
 - `create-workspace`, `list-workspaces`, `workspace-status`, etc.
 - Enables natural language workspace management via `nemus -- <prompt>`
-

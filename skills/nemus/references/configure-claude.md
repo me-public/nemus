@@ -1,9 +1,5 @@
 # Configure Claude
 
-Configure Claude Code integration settings.
-
-## Instructions
-
 ```bash
 nemus configure-claude
 ```
@@ -25,4 +21,3 @@ w cc
 - This is interactive-only — there are no non-interactive flags.
 - The `.claude.md` file provides workspace context to Claude Code sessions.
 - Auto-launch requires the Claude Code CLI to be installed.
-

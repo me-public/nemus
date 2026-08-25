@@ -1,9 +1,5 @@
 # Branch Create
 
-Create a new branch across all repositories in a workspace.
-
-## Instructions
-
 ```bash
 nemus branch create --workspace <name> --branch <branch-name>
 nemus branch create --workspace <name> --branch <branch-name> --base <base-branch>
@@ -25,4 +21,3 @@ nemus branch create <workspace> <branch-name> --base <base-branch> --force
 | `--force` | | Force create even if branch exists |
 
 After creation, run `nemus status <name>` to verify all repos are on the new branch.
-

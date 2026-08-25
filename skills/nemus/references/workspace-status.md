@@ -1,9 +1,5 @@
 # Workspace Status
 
-Show git status (branch, clean/dirty, ahead/behind) for all repositories in a workspace.
-
-## Instructions
-
 ```bash
 nemus status <workspace>
 ```
@@ -28,4 +24,3 @@ Displays a table per repository showing:
 - **Modified files** count
 
 Plus a summary: clean repos, dirty repos, needs push, needs pull.
-

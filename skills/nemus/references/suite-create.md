@@ -1,9 +1,5 @@
 # Suite Create
 
-Create a new suite (reusable collection of repositories) that can be used to quickly set up workspaces.
-
-## Instructions
-
 1. In interactive mode:
    ```bash
    nemus suite create
@@ -15,4 +11,3 @@ Create a new suite (reusable collection of repositories) that can be used to qui
    ```
 
 3. After creation, confirm with the suite name and repo count.
-

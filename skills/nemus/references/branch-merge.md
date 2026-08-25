@@ -1,9 +1,5 @@
 # Branch Merge
 
-Merge a source branch into a target branch across all repositories in a workspace.
-
-## Instructions
-
 1. Run:
    ```bash
    nemus branch merge <workspace> <source-branch> <target-branch> [--no-ff|--ff-only|--squash]
@@ -15,4 +11,3 @@ Merge a source branch into a target branch across all repositories in a workspac
    - Summary count
 
 3. If there are merge conflicts, suggest the user resolve them manually in the affected repos.
-

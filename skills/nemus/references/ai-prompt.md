@@ -1,9 +1,5 @@
 # AI Prompt
 
-Use natural language to manage workspaces via Claude Code with MCP tools.
-
-## Instructions
-
 ```bash
 nemus -- <prompt>
 ```
@@ -20,14 +16,10 @@ nemus -- "Show me the status of my platform workspace"
 nemus -- "Set up a workspace for the billing migration"
 ```
 
-## How It Works
-
 1. Launches Claude Code CLI with a system prompt describing all available MCP tools
 2. Claude interprets the natural language request
 3. Claude uses MCP tools (create-workspace, search-repos, etc.) to fulfill the request
 4. Results are presented conversationally
-
-## Prerequisites
 
 - Claude Code CLI must be installed (`claude` command available)
 - MCP server should be installed (`nemus mcp install`)

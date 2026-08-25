@@ -1,9 +1,5 @@
 # Workspace Cleanup
 
-Remove node_modules and build artifacts from all repos in a workspace to free disk space.
-
-## Instructions
-
 ```bash
 nemus cleanup <workspace> --all --yes
 ```
@@ -26,4 +22,3 @@ nemus cleanup <workspace> --git-clean --yes
 | `--yes` / `-y` | Skip confirmation prompt |
 
 Remind the user they'll need to run `npm install` before building again.
-

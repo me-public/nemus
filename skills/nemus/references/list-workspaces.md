@@ -1,9 +1,5 @@
 # List Workspaces
 
-List all existing workspaces managed by Nemus.
-
-## Instructions
-
 1. Run:
    ```bash
    nemus list
@@ -20,4 +16,3 @@ List all existing workspaces managed by Nemus.
    - Archived status (if applicable)
 
 3. If no workspaces exist, suggest creating one with `nemus create`.
-

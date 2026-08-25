@@ -1,9 +1,5 @@
 # List Org Repos
 
-List all organization repositories from GitHub.
-
-## Instructions
-
 1. Run:
    ```bash
    nemus cache list
@@ -19,4 +15,3 @@ List all organization repositories from GitHub.
    - Asking the user to narrow down with `nemus cache search <query>` if needed
 
 3. If the cache is stale, suggest `nemus cache refresh` to update it.
-

@@ -1,9 +1,5 @@
 # Cache Info
 
-View cache statistics including repo count, age, and size.
-
-## Instructions
-
 1. Run:
    ```bash
    nemus cache info
@@ -16,4 +12,3 @@ View cache statistics including repo count, age, and size.
    - Cache size
 
 3. If cache is stale or missing, suggest `nemus cache refresh`.
-

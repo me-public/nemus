@@ -1,9 +1,5 @@
 # Suite Delete
 
-Delete a saved suite.
-
-## Instructions
-
 1. In interactive mode:
    ```bash
    nemus suite delete
@@ -15,4 +11,3 @@ Delete a saved suite.
    ```
 
 3. Confirm deletion.
-

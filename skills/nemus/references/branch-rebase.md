@@ -1,9 +1,5 @@
 # Branch Rebase
 
-Rebase all repositories in a workspace onto a target branch.
-
-## Instructions
-
 1. Run:
    ```bash
    nemus branch rebase <workspace> <target-branch>
@@ -15,4 +11,3 @@ Rebase all repositories in a workspace onto a target branch.
    - Summary count
 
 3. If there are rebase conflicts, suggest the user resolve them manually in the affected repos.
-

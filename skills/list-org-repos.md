@@ -3,12 +3,6 @@ name: list-org-repos
 description: List all organization repositories from GitHub
 ---
 
-# List Org Repos
-
-List all repositories in the GitHub organization.
-
-## Running
-
 ```bash
 nemus cache list
 ```
@@ -17,4 +11,3 @@ If the cache is empty or stale:
 ```bash
 nemus cache refresh
 ```
-

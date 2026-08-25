@@ -1,9 +1,5 @@
 # Configure
 
-Configure Nemus global settings interactively.
-
-## Instructions
-
 ```bash
 nemus configure
 ```
@@ -29,4 +25,3 @@ w cfg
 - Changing the GitHub org clears the repo cache automatically.
 - Enabling MCP after disabling it triggers an automatic install.
 - This is interactive-only — there are no non-interactive flags.
-

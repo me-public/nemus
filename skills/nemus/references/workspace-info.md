@@ -1,9 +1,5 @@
 # Workspace Info
 
-Get detailed metadata for a workspace including all repository info and status.
-
-## Instructions
-
 There is no dedicated `nemus info` CLI command. To get workspace information, combine:
 
 1. **List workspaces** to see all available:
@@ -27,4 +23,3 @@ There is no dedicated `nemus info` CLI command. To get workspace information, co
    ```
 
 The MCP tool `workspace-info` provides detailed metadata programmatically.
-
