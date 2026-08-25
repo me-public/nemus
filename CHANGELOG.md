@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-08-25
+
+### Changed
+
+- Dependencies: `commander` 14 → 15 (runtime); dev tooling `@types/node` 22 → 26
+  and `vitest` 3 → 4.
+- CI: pinned `actions/checkout` → v7, `actions/setup-node` → v7, and
+  `actions/github-script` → v9, which clears the "Node.js 20 is deprecated"
+  warnings on every run.
+
+### Deferred
+
+- `react` 18 → 19 is held: `ink` 5's bundled `react-reconciler` targets React 18
+  internals, so React 19 needs the `ink` 7 major (a TUI-tested change).
+- `inquirer` 8 → 14 and `inquirer-autocomplete-prompt` 2 → 3 are held: inquirer
+  v9+ split into `@inquirer/prompts`, so this is a code migration, not a bump.
+- `typescript` 7 is held: it removes `moduleResolution: node10`, requiring a
+  `tsconfig` migration.
+
 ## [0.2.3] - 2026-08-25
 
 ### Fixed
@@ -106,7 +125,8 @@ Initial open-source release of **Nemus**.
 - Automatic retries with backoff on flaky network operations.
 - Optional shell integration (auto-cd on create + quick-navigate helper).
 
-[Unreleased]: https://github.com/me-public/nemus/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/me-public/nemus/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/me-public/nemus/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/me-public/nemus/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/me-public/nemus/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/me-public/nemus/compare/v0.2.0...v0.2.1
