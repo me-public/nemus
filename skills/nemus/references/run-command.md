@@ -1,9 +1,5 @@
 # Run Command
 
-Run a shell command across all repositories in a workspace (3 concurrent, 5 minute timeout per repo).
-
-## Instructions
-
 ```bash
 nemus run <workspace> <command>
 ```
@@ -37,4 +33,3 @@ Shows per-repo results:
 - Summary count of successes and failures
 
 Exits with code 1 if any repo failed.
-

@@ -3,17 +3,9 @@ name: archive-workspace
 description: Archive or unarchive a workspace
 ---
 
-# Archive Workspace
-
-Archive or unarchive a workspace.
-
-## Archiving
-
 ```bash
 nemus archive <workspace-name>
 ```
-
-## Unarchiving
 
 ```bash
 nemus archive --unarchive <workspace-name>

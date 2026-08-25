@@ -3,12 +3,6 @@ name: list-suites
 description: List all saved suites (reusable repo collections)
 ---
 
-# List Suites
-
-List all saved suites (reusable collections of repos).
-
-## Running
-
 ```bash
 nemus suite list
 ```

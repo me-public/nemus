@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-08-25
+
+### Changed
+
+- **Skills are now command-first ("one shot").** Each skill's body no longer
+  restates its frontmatter `description` under a heading before the command — it
+  leads straight with the command(s). Cut the skills corpus a further ~25%
+  (~1724 → ~1300 lines) with no loss of actual guidance.
+- Fixed an unclosed code fence in the `save-context` skill.
+
+### Added
+
+- `assets/social-preview.png` (1280×640) and `assets/avatar-500.png` (500×500)
+  for the GitHub repo social preview and org/profile avatar.
+
 ## [0.2.5] - 2026-08-25
 
 ### Changed
@@ -147,7 +162,8 @@ Initial open-source release of **Nemus**.
 - Automatic retries with backoff on flaky network operations.
 - Optional shell integration (auto-cd on create + quick-navigate helper).
 
-[Unreleased]: https://github.com/me-public/nemus/compare/v0.2.5...HEAD
+[Unreleased]: https://github.com/me-public/nemus/compare/v0.2.6...HEAD
+[0.2.6]: https://github.com/me-public/nemus/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/me-public/nemus/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/me-public/nemus/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/me-public/nemus/compare/v0.2.2...v0.2.3

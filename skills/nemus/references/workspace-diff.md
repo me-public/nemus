@@ -1,9 +1,5 @@
 # Workspace Diff
 
-Show diff summary (staged/unstaged file counts, insertions, deletions) for all repos in a workspace.
-
-## Instructions
-
 1. If no workspace is specified, run `nemus list` and ask which one.
 
 2. Run:
@@ -21,4 +17,3 @@ Show diff summary (staged/unstaged file counts, insertions, deletions) for all r
    - Which files changed
 
 4. If the user wants full diff content, they can pipe through `less` or redirect to a file.
-

@@ -3,10 +3,6 @@ name: refresh-workspace-docs
 description: Refresh the per-repo documentation embedded in a workspace's context file (AGENTS.md / .claude.md). Use when a workspace was created a while ago and its repos have since received updates to their README, AGENTS.md, or CLAUDE.md files, so the embedded copies in the workspace context are stale.
 ---
 
-# Refresh Workspace Docs
-
-Each repo's `AGENTS.md`/`CLAUDE.md` is embedded into the workspace context file's `## Per-Repository Context` section at creation time — a snapshot that does **not** auto-update. Refresh it in two steps:
-
 ```bash
 nemus sync <workspace>       # 1. git pull every repo so on-disk docs are current
 nemus migrate                # 2. rebuild the Per-Repository Context section from disk

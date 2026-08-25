@@ -1,9 +1,5 @@
 # Delete Workspace
 
-Permanently delete one or more workspaces and all their cloned repositories.
-
-## Instructions
-
 1. **Confirm with the user before deleting.** This is a destructive, irreversible operation.
 
 2. Warn the user about any uncommitted changes — run `nemus status <name>` to check first.
@@ -26,4 +22,3 @@ Permanently delete one or more workspaces and all their cloned repositories.
 |---|---|---|
 | `--workspace <name>` | `-w` | Workspace name(s), comma-separated for multiple |
 | `--yes` | `-y` | Skip confirmation prompt |
-

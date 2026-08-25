@@ -1,9 +1,5 @@
 # Create Workspace
 
-Create a new workspace with specified repositories.
-
-## Instructions
-
 1. If the user hasn't specified which repos they want, help them discover repos:
    - Run `nemus cache search <query>` to search by name or description.
    - Run `nemus cache list` to browse all available repos.
@@ -38,4 +34,3 @@ Create a new workspace with specified repositories.
 nemus create --workspace payments --repos partnerships-api,payments-db --yes
 nemus suite use --suite platform --workspace platform-ws --yes
 ```
-

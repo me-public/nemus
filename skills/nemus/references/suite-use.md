@@ -1,9 +1,5 @@
 # Suite Use
 
-Create a new workspace from a saved suite.
-
-## Instructions
-
 1. In interactive mode:
    ```bash
    nemus suite use
@@ -20,4 +16,3 @@ Create a new workspace from a saved suite.
    - Set up Claude Code integration
 
 4. After creation, suggest `nemus status <workspace>` to verify.
-

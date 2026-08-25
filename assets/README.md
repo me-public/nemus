@@ -51,3 +51,8 @@ rsvg-convert -w 1280 -h 640 banner.svg -o banner.png
 ```
 
 All artwork is original and released under the project's [MIT license](../LICENSE).
+
+## GitHub images
+
+- `social-preview.png` (1280×640) — upload at **Repo → Settings → General → Social preview** (shown in link unfurls).
+- `avatar-500.png` (500×500) — square icon for use as an **org/profile avatar** if desired.
