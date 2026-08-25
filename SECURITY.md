@@ -11,7 +11,7 @@ upgrade to the latest release before reporting an issue.
 **Please do not open a public issue for security vulnerabilities.**
 
 Instead, report it privately using GitHub's
-[private vulnerability reporting](https://github.com/nemus-cli/nemus/security/advisories/new)
+[private vulnerability reporting](https://github.com/me-public/nemus/security/advisories/new)
 ("Report a vulnerability" under the repository's **Security** tab). This creates a
 confidential advisory visible only to maintainers.
 

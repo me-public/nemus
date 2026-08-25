@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/nemus-cli/nemus/actions/workflows/ci.yml"><img src="https://github.com/nemus-cli/nemus/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/me-public/nemus/actions/workflows/ci.yml"><img src="https://github.com/me-public/nemus/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://www.npmjs.com/package/nemus"><img src="https://img.shields.io/npm/v/nemus.svg" alt="npm" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg" alt="Node >= 22" />
@@ -102,7 +102,7 @@ workspaces + a quick-navigate helper).
 ### From source
 
 ```bash
-git clone https://github.com/nemus-cli/nemus.git
+git clone https://github.com/me-public/nemus.git
 cd nemus
 npm install
 npm run build

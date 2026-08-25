@@ -80,7 +80,7 @@ Initial open-source release of **Nemus**.
 - Automatic retries with backoff on flaky network operations.
 - Optional shell integration (auto-cd on create + quick-navigate helper).
 
-[Unreleased]: https://github.com/nemus-cli/nemus/compare/v0.2.1...HEAD
-[0.2.1]: https://github.com/nemus-cli/nemus/compare/v0.2.0...v0.2.1
-[0.2.0]: https://github.com/nemus-cli/nemus/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/nemus-cli/nemus/releases/tag/v0.1.0
+[Unreleased]: https://github.com/me-public/nemus/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/me-public/nemus/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/me-public/nemus/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/me-public/nemus/releases/tag/v0.1.0

@@ -110,7 +110,7 @@ jobs:
             npm install -g nemus@${{ needs.detect.outputs.version }}
             ```
 
-            See the [CHANGELOG](https://github.com/nemus-cli/nemus/blob/main/CHANGELOG.md) for details.
+            See the [CHANGELOG](https://github.com/me-public/nemus/blob/main/CHANGELOG.md) for details.
           draft: false
           prerelease: false
         env:
