@@ -19,12 +19,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nemus-cli/nemus.git"
+    "url": "git+https://github.com/me-public/nemus.git"
   },
   "bugs": {
-    "url": "https://github.com/nemus-cli/nemus/issues"
+    "url": "https://github.com/me-public/nemus/issues"
   },
-  "homepage": "https://github.com/nemus-cli/nemus#readme",
+  "homepage": "https://github.com/me-public/nemus#readme",
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=9.0.0"

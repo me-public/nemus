@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Question / Discussion
-    url: https://github.com/nemus-cli/nemus/discussions
+    url: https://github.com/me-public/nemus/discussions
     about: Ask questions and share ideas with the community.
   - name: Security vulnerability
-    url: https://github.com/nemus-cli/nemus/security/advisories/new
+    url: https://github.com/me-public/nemus/security/advisories/new
     about: Please report security issues privately (see SECURITY.md).

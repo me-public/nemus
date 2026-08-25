@@ -85,7 +85,7 @@ Conventional-commit-style prefixes are appreciated but not required:
 
 ## Reporting bugs & requesting features
 
-Use the [issue templates](https://github.com/nemus-cli/nemus/issues/new/choose).
+Use the [issue templates](https://github.com/me-public/nemus/issues/new/choose).
 Include your OS, Node version (`node --version`), Nemus version (`nemus --version`),
 and clear reproduction steps.
 

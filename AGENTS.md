@@ -81,7 +81,7 @@ the GitHub CLI (`gh`) at runtime, and optionally uses `ghq` for faster clones.
   - Use generic, illustrative names in docs and examples (e.g. `your-org`,
     `payments`, `api`), never real internal org or repo names.
 - **User-facing text says "Nemus".** The npm package is `nemus`; the commands
-  are `nemus` and `nem`; the repo is `nemus-cli/nemus`.
+  are `nemus` and `nem`; the repo is `me-public/nemus`.
 
 ## How agents should work here
 
