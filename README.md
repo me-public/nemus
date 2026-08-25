@@ -17,6 +17,13 @@
 
 ---
 
+## The name
+
+**Nemus** (_NEH-mus_) is Latin for a **grove** — a small wood of trees sharing
+soil and roots. It's a fitting picture of what the tool manages: a cluster of
+repositories, each its own tree, growing together in one workspace. It also nods
+to the branch-and-commit shape of Git itself.
+
 ## Why Nemus?
 
 Modern products span many repositories. Nemus keeps a **workspace** — a named folder
