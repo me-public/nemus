@@ -27,7 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 # ─── Cache ───────────────────────────────────────────────────────────────────
-CACHE_FILE = Path.home() / ".workspace-manager-cache" / "pr-status.json"
+CACHE_FILE = Path.home() / ".nemus" / "pr-status.json"
 CACHE_TTL = 300  # seconds
 
 # ─── ANSI helpers ─────────────────────────────────────────────────────────────

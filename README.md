@@ -225,13 +225,17 @@ Run `nemus --help` for the full command reference.
 
 ## Configuration
 
-`nemus configure` writes `~/.workspace-manager-cache/config.json`. Environment
+`nemus configure` writes `~/.nemus/config.json`. Environment
 variables override it:
 
 ```bash
-export WORKSPACE_MANAGER_DIR="$HOME/my-workspaces"      # default: ~/workspaces
-export WORKSPACE_MANAGER_CACHE_DIR="$HOME/.cache/nemus" # default: ~/.workspace-manager-cache
+export NEMUS_DIR="$HOME/my-workspaces"        # default: ~/workspaces
+export NEMUS_CACHE_DIR="$HOME/.cache/nemus"   # default: ~/.nemus
 ```
+
+(The legacy `WORKSPACE_MANAGER_DIR` / `WORKSPACE_MANAGER_CACHE_DIR` names still
+work as fallbacks. On first run, state from the old `~/.workspace-manager-cache`
+location is migrated to `~/.nemus` automatically.)
 
 Key settings: `githubOrg` (which org's repos to list — leave empty to list your
 own), `cloneProtocol` (`ssh`|`https`), `aiAgent`, `primaryAgent`, `installMcp`.

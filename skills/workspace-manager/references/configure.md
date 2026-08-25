@@ -32,4 +32,4 @@ w cfg
 
 ## Success Criteria
 
-- User's settings are saved to `~/.workspace-manager-cache/config.json`.
+- User's settings are saved to `~/.nemus/config.json`.

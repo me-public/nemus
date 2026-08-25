@@ -29,7 +29,7 @@ Notable commands: `create`, `list`, `update`, `delete`, `sync`, `status`, `diff`
 
 The shared engine. Highlights:
 
-- **`config.ts`** — user config (`~/.workspace-manager-cache/config.json`) +
+- **`config.ts`** — user config (`~/.nemus/config.json`) +
   environment overrides, and the agent-type unions.
 - **`agent-config.ts`** — the **agent registry**. Each supported agent (Claude
   Code, pi, OpenCode, Codex, Gemini) is an `AgentPaths` entry describing its

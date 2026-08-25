@@ -1,8 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as os from 'os';
+import { CACHE_DIR } from './config';
 
-const CACHE_DIR = path.join(os.homedir(), '.workspace-manager-cache');
 const HISTORY_FILE = path.join(CACHE_DIR, 'history.jsonl');
 
 export interface OperationRecord {
