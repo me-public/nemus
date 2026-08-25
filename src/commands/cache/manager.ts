@@ -16,7 +16,7 @@ export async function cacheInfo() {
     console.log(`  Repositories: ${colorize(String(stats.repoCount), 'cyan')}`);
     console.log(`  Last updated: ${stats.age}`);
     console.log(`  Cache size: ${colorize(String(Math.round((stats.size || 0) / 1024)) + ' KB', 'yellow')}`);
-    console.log(`  Location: ${colorize('~/.workspace-manager-cache/repos-cache.json', 'gray')}`);
+    console.log(`  Location: ${colorize('~/.nemus/repos-cache.json', 'gray')}`);
   } else {
     console.log('\n' + colorize('Cache Status:', 'yellow'));
     console.log('  No cache found. Cache will be created on next repository fetch.\n');

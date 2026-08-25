@@ -4,8 +4,35 @@ import * as fs from 'fs';
 
 const HOME_DIR = os.homedir();
 
-// Config file lives outside CACHE_DIR so we can read it to determine CACHE_DIR
-const CONFIG_FILE = path.join(HOME_DIR, '.workspace-manager-cache', 'config.json');
+// Cache/config/state directory. Prefer the branded NEMUS_* env vars; fall back
+// to the legacy WORKSPACE_MANAGER_* names for backward compatibility; else the
+// default ~/.nemus home.
+const DEFAULT_CACHE_DIR = path.join(HOME_DIR, '.nemus');
+const LEGACY_CACHE_DIR = path.join(HOME_DIR, '.workspace-manager-cache');
+
+/**
+ * One-time, best-effort migration of state from the pre-0.2.2 cache location
+ * (~/.workspace-manager-cache) to ~/.nemus. Runs only when using the default
+ * location (no env override) and the new dir doesn't exist yet. Copies rather
+ * than moves, so any other tool that happened to share the old path is left
+ * untouched; a failure is harmless because a fresh dir is created on first write.
+ */
+function migrateLegacyCacheDir(targetDir: string): void {
+  try {
+    if (targetDir === DEFAULT_CACHE_DIR && !fs.existsSync(targetDir) && fs.existsSync(LEGACY_CACHE_DIR)) {
+      fs.cpSync(LEGACY_CACHE_DIR, targetDir, { recursive: true });
+    }
+  } catch {
+    // best-effort — ignore and let the dir be created lazily
+  }
+}
+
+const CACHE_DIR_RESOLVED =
+  process.env.NEMUS_CACHE_DIR || process.env.WORKSPACE_MANAGER_CACHE_DIR || DEFAULT_CACHE_DIR;
+migrateLegacyCacheDir(CACHE_DIR_RESOLVED);
+
+// Config file lives inside the cache dir.
+const CONFIG_FILE = path.join(CACHE_DIR_RESOLVED, 'config.json');
 
 /** Coding-agent CLIs Nemus can integrate with. */
 export type ConcreteAgentType = 'claude' | 'pi' | 'opencode' | 'codex' | 'gemini';
@@ -78,8 +105,9 @@ export function getUserConfig(): UserConfig {
 // Bootstrap constants from initial config read (env vars take precedence)
 const initialConfig = getUserConfig();
 
-export const WORKSPACES_DIR = process.env.WORKSPACE_MANAGER_DIR || initialConfig.workspacesDir;
-export const CACHE_DIR = process.env.WORKSPACE_MANAGER_CACHE_DIR || path.join(HOME_DIR, '.workspace-manager-cache');
+export const WORKSPACES_DIR =
+  process.env.NEMUS_DIR || process.env.WORKSPACE_MANAGER_DIR || initialConfig.workspacesDir;
+export const CACHE_DIR = CACHE_DIR_RESOLVED;
 export const HISTORY_FILE = path.join(CACHE_DIR, 'history.jsonl');
 export const SUITES_FILE = path.join(CACHE_DIR, 'suites.json');
 export const META_FILENAME = '.workspace-meta.json';

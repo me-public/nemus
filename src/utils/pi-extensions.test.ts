@@ -62,7 +62,7 @@ describe('Pi extensions', () => {
         path.join(extensionsDir, 'ws-review-reminder.ts'),
         'utf-8'
       );
-      expect(content).toContain('.workspace-manager-cache');
+      expect(content).toContain('.nemus');
       expect(content).toContain('last-permission-review');
     });
 

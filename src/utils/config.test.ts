@@ -200,4 +200,50 @@ describe('config', () => {
       expect(getUserConfig().aiAgent).toBe('auto');
     });
   });
+
+  describe('cache dir location + legacy migration', () => {
+    it('defaults CACHE_DIR to ~/.nemus when no env override is set', async () => {
+      delete process.env.NEMUS_CACHE_DIR;
+      delete process.env.WORKSPACE_MANAGER_CACHE_DIR;
+      vi.resetModules();
+      const { CACHE_DIR } = await loadModule();
+      expect(CACHE_DIR).toBe(path.join(tempDir, '.nemus'));
+    });
+
+    it('prefers NEMUS_CACHE_DIR, then legacy WORKSPACE_MANAGER_CACHE_DIR', async () => {
+      const nemusCache = path.join(tempDir, 'custom-nemus-cache');
+      process.env.NEMUS_CACHE_DIR = nemusCache;
+      vi.resetModules();
+      expect((await loadModule()).CACHE_DIR).toBe(nemusCache);
+
+      delete process.env.NEMUS_CACHE_DIR;
+      process.env.WORKSPACE_MANAGER_CACHE_DIR = path.join(tempDir, '.workspace-manager-cache');
+      vi.resetModules();
+      expect((await loadModule()).CACHE_DIR).toBe(path.join(tempDir, '.workspace-manager-cache'));
+    });
+
+    it('migrates state from ~/.workspace-manager-cache to ~/.nemus on first run', async () => {
+      delete process.env.NEMUS_CACHE_DIR;
+      delete process.env.WORKSPACE_MANAGER_CACHE_DIR;
+      // legacy dir (created by beforeEach) holds prior state; new dir absent
+      fs.writeFileSync(path.join(tempDir, '.workspace-manager-cache', 'suites.json'), '{"x":1}');
+      expect(fs.existsSync(path.join(tempDir, '.nemus'))).toBe(false);
+      vi.resetModules();
+      const { CACHE_DIR } = await loadModule();
+      expect(CACHE_DIR).toBe(path.join(tempDir, '.nemus'));
+      // copied, not moved: file exists in the new dir AND the legacy dir survives
+      expect(fs.readFileSync(path.join(tempDir, '.nemus', 'suites.json'), 'utf-8')).toBe('{"x":1}');
+      expect(fs.existsSync(path.join(tempDir, '.workspace-manager-cache', 'suites.json'))).toBe(true);
+    });
+
+    it('does not migrate when the new dir already exists', async () => {
+      delete process.env.NEMUS_CACHE_DIR;
+      delete process.env.WORKSPACE_MANAGER_CACHE_DIR;
+      fs.mkdirSync(path.join(tempDir, '.nemus'), { recursive: true });
+      fs.writeFileSync(path.join(tempDir, '.workspace-manager-cache', 'suites.json'), '{"x":1}');
+      vi.resetModules();
+      await loadModule();
+      expect(fs.existsSync(path.join(tempDir, '.nemus', 'suites.json'))).toBe(false);
+    });
+  });
 });

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-08-25
+
+### Changed
+
+- **Namespaced all cache/config/state under `~/.nemus`** (was
+  `~/.workspace-manager-cache`). This avoids collisions with other tools that
+  used the old generic path — which could, for example, make the update check
+  report a wrong "latest" version.
+- Environment overrides are now **`NEMUS_DIR`** and **`NEMUS_CACHE_DIR`**; the
+  legacy `WORKSPACE_MANAGER_DIR` / `WORKSPACE_MANAGER_CACHE_DIR` names still work
+  as fallbacks.
+- On first run, existing state is **migrated automatically** from
+  `~/.workspace-manager-cache` to `~/.nemus` (a non-destructive copy — the old
+  directory is left intact).
+- Published as the scoped package **`@nemus-cli/nemus`** (npm's similarity guard
+  blocks the bare name `nemus`). The `nemus` / `nem` CLI commands are unchanged.
+
 ## [0.2.1] - 2026-08-24
 
 ### Security
@@ -80,7 +97,8 @@ Initial open-source release of **Nemus**.
 - Automatic retries with backoff on flaky network operations.
 - Optional shell integration (auto-cd on create + quick-navigate helper).
 
-[Unreleased]: https://github.com/me-public/nemus/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/me-public/nemus/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/me-public/nemus/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/me-public/nemus/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/me-public/nemus/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/me-public/nemus/releases/tag/v0.1.0
