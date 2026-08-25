@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-08-25
+
+### Fixed
+
+- The one-time `~/.workspace-manager-cache` → `~/.nemus` migration no longer
+  copies `last-version-check.json`. If the old (shared) path held another tool's
+  update-check cache, inheriting it could make nemus report a wrong "latest"
+  version until the entry expired; skipping it forces one fresh lookup instead.
+
 ## [0.2.2] - 2026-08-25
 
 ### Changed
@@ -97,7 +106,8 @@ Initial open-source release of **Nemus**.
 - Automatic retries with backoff on flaky network operations.
 - Optional shell integration (auto-cd on create + quick-navigate helper).
 
-[Unreleased]: https://github.com/me-public/nemus/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/me-public/nemus/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/me-public/nemus/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/me-public/nemus/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/me-public/nemus/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/me-public/nemus/compare/v0.1.0...v0.2.0

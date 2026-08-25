@@ -16,11 +16,20 @@ const LEGACY_CACHE_DIR = path.join(HOME_DIR, '.workspace-manager-cache');
  * location (no env override) and the new dir doesn't exist yet. Copies rather
  * than moves, so any other tool that happened to share the old path is left
  * untouched; a failure is harmless because a fresh dir is created on first write.
+ *
+ * `last-version-check.json` is deliberately NOT migrated: the old path could be
+ * shared by another tool whose "latest version" is unrelated to nemus, and
+ * copying it would make the update check report a wrong version until the entry
+ * expires. Skipping it just forces one fresh lookup.
  */
+const MIGRATION_SKIP = new Set(['last-version-check.json']);
 function migrateLegacyCacheDir(targetDir: string): void {
   try {
     if (targetDir === DEFAULT_CACHE_DIR && !fs.existsSync(targetDir) && fs.existsSync(LEGACY_CACHE_DIR)) {
-      fs.cpSync(LEGACY_CACHE_DIR, targetDir, { recursive: true });
+      fs.cpSync(LEGACY_CACHE_DIR, targetDir, {
+        recursive: true,
+        filter: (src) => !MIGRATION_SKIP.has(path.basename(src)),
+      });
     }
   } catch {
     // best-effort — ignore and let the dir be created lazily
