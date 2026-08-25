@@ -72,7 +72,7 @@
     "ink-select-input": "^6.0.0",
     "ink-spinner": "^5.0.0",
     "inquirer": "^8.0.0",
-    "inquirer-autocomplete-prompt": "^2.0.0",
+    "inquirer-autocomplete-prompt": "^3.0.1",
     "markdown-table": "^3.0.3",
     "react": "^18.2.0",
     "zod": "^4.3.6"
@@ -80,7 +80,7 @@
   "devDependencies": {
     "@types/cli-progress": "^3.11.0",
     "@types/inquirer": "^9.0.3",
-    "@types/inquirer-autocomplete-prompt": "^2.0.0",
+    "@types/inquirer-autocomplete-prompt": "^3.0.3",
     "@types/node": "^22.14.0",
     "@types/react": "^18.2.0",
     "ts-node": "^10.9.1",
