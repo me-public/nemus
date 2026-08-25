@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/me-public/nemus/actions/workflows/ci.yml"><img src="https://github.com/me-public/nemus/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://www.npmjs.com/package/nemus"><img src="https://img.shields.io/npm/v/nemus.svg" alt="npm" /></a>
+  <a href="https://www.npmjs.com/package/@nemus-cli/nemus"><img src="https://img.shields.io/npm/v/@nemus-cli/nemus.svg" alt="npm" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg" alt="Node >= 22" />
 </p>
@@ -72,7 +72,7 @@ different problem of *many* repos in *many* independent workspaces.
 
 ```bash
 # Install globally
-npm install -g nemus
+npm install -g @nemus-cli/nemus
 
 # One-time setup (choose your GitHub org, agent, clone protocol…)
 nemus configure
@@ -93,7 +93,7 @@ After creation you're dropped into the workspace directory with all repos cloned
 ### From npm (recommended)
 
 ```bash
-npm install -g nemus
+npm install -g @nemus-cli/nemus
 ```
 
 The postinstall step sets up optional shell integration (auto-cd into new
