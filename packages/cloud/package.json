@@ -1,0 +1,33 @@
+{
+  "name": "@nemus-cli/cloud",
+  "version": "0.1.0",
+  "description": "Optional cloud/IaC runners for Nemus — run a workspace + coding agent on your own infrastructure. Vendor-neutral and provider-pluggable. Not required for local Nemus.",
+  "keywords": [
+    "nemus",
+    "cloud",
+    "iac",
+    "terraform",
+    "opentofu",
+    "agent",
+    "ci"
+  ],
+  "author": "Nemus contributors",
+  "license": "MIT",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist"
+  }
+}
