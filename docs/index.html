@@ -57,6 +57,10 @@
     border-left:1px solid var(--border); min-width:34px; text-align:center; font-variant-numeric:tabular-nums}
   .star .s-count:empty{display:none}
   .star svg{width:14px; height:14px; color:var(--green)}
+  .xlink{display:inline-flex; align-items:center; justify-content:center; width:34px; height:32px;
+    border:1px solid var(--border); border-radius:8px; background:var(--panel); color:var(--muted)}
+  .xlink:hover{color:var(--text); border-color:var(--muted); text-decoration:none}
+  .xlink svg{width:15px; height:15px}
 
   /* hero */
   .hero{position:relative; overflow:hidden; padding:96px 0 60px}
@@ -157,6 +161,9 @@
       <a class="txt hide" href="#features">Features</a>
       <a class="txt hide" href="#quickstart">Quick start</a>
       <a class="txt hide" href="llms.txt">llms.txt</a>
+      <a class="xlink" href="https://x.com/nemus_cli" aria-label="Nemus on X">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      </a>
       <a class="star" href="https://github.com/me-public/nemus" aria-label="Star Nemus on GitHub">
         <span class="s-label">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>
@@ -340,6 +347,7 @@ npm install -g @nemus-cli/nemus
       <a href="https://github.com/me-public/nemus">GitHub</a>
       <a href="https://www.npmjs.com/package/@nemus-cli/nemus">npm</a>
       <a href="llms.txt">llms.txt</a>
+      <a href="https://x.com/nemus_cli">X (@nemus_cli)</a>
       <a href="https://github.com/me-public/nemus/blob/main/CHANGELOG.md">Changelog</a>
       <a href="https://github.com/me-public/nemus/blob/main/CONTRIBUTING.md">Contributing</a>
     </div>

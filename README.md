@@ -15,10 +15,11 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <a href="https://www.npmjs.com/package/@nemus-cli/nemus"><img src="https://img.shields.io/npm/dm/@nemus-cli/nemus.svg" alt="npm downloads" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg" alt="Node >= 22" />
+  <a href="https://x.com/nemus_cli"><img src="https://img.shields.io/badge/follow-%40nemus__cli-000000.svg?logo=x&logoColor=white" alt="Follow @nemus_cli on X" /></a>
 </p>
 
 <p align="center">
-  🌐 <b><a href="https://me-public.github.io/nemus/">me-public.github.io/nemus</a></b> &nbsp;—&nbsp; 📦 <b><a href="https://www.npmjs.com/package/@nemus-cli/nemus">@nemus-cli/nemus</a></b> on npm &nbsp;—&nbsp; <code>npm install -g @nemus-cli/nemus</code>
+  🌐 <b><a href="https://me-public.github.io/nemus/">me-public.github.io/nemus</a></b> &nbsp;—&nbsp; 📦 <b><a href="https://www.npmjs.com/package/@nemus-cli/nemus">@nemus-cli/nemus</a></b> on npm &nbsp;—&nbsp; 𝕏 <b><a href="https://x.com/nemus_cli">@nemus_cli</a></b> &nbsp;—&nbsp; <code>npm install -g @nemus-cli/nemus</code>
 </p>
 
 ---
