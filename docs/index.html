@@ -104,6 +104,8 @@
   .term .p{color:var(--mint)} .term .w{color:var(--text)} .term .m{color:#7D8590} .term .g{color:var(--green)}
   .cursor{display:inline-block; width:8px; height:15px; background:var(--green); vertical-align:-2px; animation:blink 1.1s steps(1) infinite}
   @keyframes blink{50%{opacity:0}}
+  .demo{width:100%; height:auto; border-radius:14px; border:1px solid var(--border);
+    box-shadow:0 24px 60px -24px rgba(0,0,0,.7), 0 0 0 1px rgba(63,185,80,.06)}
 
   /* sections */
   section{padding:64px 0; border-top:1px solid var(--border2)}
@@ -199,20 +201,9 @@
       </div>
     </div>
 
-    <div class="term" aria-hidden="true">
-      <div class="bar"><i style="background:#FF5F56"></i><i style="background:#FFBD2E"></i><i style="background:#27C93F"></i><span class="t">nemus</span></div>
-      <div class="body">
-<div><span class="p">$</span> <span class="w">nemus create payments</span></div>
-<div><span class="m">✓ cloned 12 repositories in parallel</span></div>
-<div><span class="m">✓ wrote AGENTS.md · installed skills · started MCP</span></div>
-<div>&nbsp;</div>
-<div><span class="p">$</span> <span class="w">nemus run payments "npm test"</span></div>
-<div><span class="m">✓ 12/12 repos green</span></div>
-<div>&nbsp;</div>
-<div><span class="p">$</span> <span class="w">nemus -- "start the checkout refactor"</span></div>
-<div><span class="g">▸ launching agent</span><span class="cursor"></span></div>
-      </div>
-    </div>
+    <img class="demo" src="assets/nemus-demo.gif"
+         alt="Nemus terminal demo: nemus create payments → clones 12 repos and writes AGENTS.md → nemus run payments &quot;npm test&quot; → 12/12 repos green → nemus -- launches the agent"
+         width="1000" height="600" loading="eager" decoding="async" />
   </div>
 </div>
 
