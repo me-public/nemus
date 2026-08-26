@@ -9,9 +9,13 @@
 
 Concretely, with Nemus you can:
 
-- `nemus create payments` — clone the 6 payments repos into one workspace folder.
-- `nemus run payments "npm test"` — run the same command in all 6 repos at once.
-- `nemus -- "add idempotency keys to the payments flow"` — an agent works across all 6.
+- `nemus create -w payments -r api,web,ledger,gateway,workers` — clone those 5 repos
+  into one workspace folder (or `nemus create` for an interactive fuzzy picker).
+- `nemus run payments "npm test"` — run the same command in all 5 repos at once.
+- `nemus -- "add idempotency keys to the payments flow"` — an agent works across all 5.
+
+Command shapes: `create` takes options (`-w/--workspace <name>`, `-r/--repos <csv>`),
+not a positional; `run [workspace] "<command>"` runs a shell command across every repo.
 
 It connects a workspace to a coding agent (Claude Code, pi, OpenCode, Codex, Gemini)
 via generated context files, installable skills, and an MCP server — so a task that

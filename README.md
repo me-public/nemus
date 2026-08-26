@@ -48,16 +48,19 @@ single project:**
 
 ### Before vs. after
 
-**Without Nemus** — clone six repos by hand, `cd` into each, pull, branch, run tests,
-repeat six times. Your agent only sees whichever repo you opened.
+**Without Nemus** — clone each repo by hand, `cd` into every one, pull, branch, run
+tests, and repeat. Your agent only sees whichever repo you opened.
 
 **With Nemus:**
 
 ```bash
-nemus create payments          # clones the 6 payments repos into one workspace
-nemus run payments "npm test"  # runs the tests in all 6 at once
-nemus -- "add idempotency keys to the payments flow"   # the agent works across all 6
+nemus create -w payments -r api,web,ledger,gateway,workers   # clone all 5 into one workspace
+nemus run payments "npm test"                                # run the tests in all 5 at once
+nemus -- "add idempotency keys to the payments flow"         # let an agent work across all 5
 ```
+
+> Prefer to point-and-pick? Just run `nemus create` for an interactive repo picker with
+> fuzzy search, or `nemus -- "create a workspace with the payments repos"` in plain English.
 
 ## What you get
 
