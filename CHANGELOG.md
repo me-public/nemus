@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.9] - 2026-08-26
+
+### Fixed
+
+- Synced `package-lock.json` to the current version (it had drifted to 0.2.7
+  while package.json was 0.2.8, because the ink/React upgrade regenerated the
+  lockfile before the version bump).
+
+### Added
+
+- CI guard `scripts/check-lock-version.js` — fails PR CI (and the release verify
+  step) if `package-lock.json`'s `version` / `packages[""]` drift from
+  package.json, so a stale lockfile can't reach `npm ci` at release time.
+
 ## [0.2.8] - 2026-08-26
 
 ### Changed
@@ -181,7 +195,8 @@ Initial open-source release of **Nemus**.
 - Automatic retries with backoff on flaky network operations.
 - Optional shell integration (auto-cd on create + quick-navigate helper).
 
-[Unreleased]: https://github.com/me-public/nemus/compare/v0.2.8...HEAD
+[Unreleased]: https://github.com/me-public/nemus/compare/v0.2.9...HEAD
+[0.2.9]: https://github.com/me-public/nemus/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/me-public/nemus/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/me-public/nemus/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/me-public/nemus/compare/v0.2.5...v0.2.6

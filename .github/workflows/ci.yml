@@ -62,6 +62,9 @@ jobs:
             if (!p.bin || !p.bin.nemus) throw new Error('missing nemus bin');
             console.log('package.json OK');"
 
+      - name: Check package-lock.json version matches package.json
+        run: node scripts/check-lock-version.js
+
       - name: Check required files
         run: |
           for f in README.md LICENSE CONTRIBUTING.md CHANGELOG.md install.sh bin/workspace.js; do
