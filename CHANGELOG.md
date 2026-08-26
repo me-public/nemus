@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-08-25
+
+### Changed
+
+- Removed two **unused** runtime dependencies (`ink-select-input`, `ink-spinner`)
+  — they were only referenced in an ambient type-declaration file, never
+  imported or rendered. Trims the production dependency tree (322 → 314
+  packages), reducing supply-chain surface. No user-facing change.
+
 ## [0.2.6] - 2026-08-25
 
 ### Changed
@@ -162,7 +171,8 @@ Initial open-source release of **Nemus**.
 - Automatic retries with backoff on flaky network operations.
 - Optional shell integration (auto-cd on create + quick-navigate helper).
 
-[Unreleased]: https://github.com/me-public/nemus/compare/v0.2.6...HEAD
+[Unreleased]: https://github.com/me-public/nemus/compare/v0.2.7...HEAD
+[0.2.7]: https://github.com/me-public/nemus/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/me-public/nemus/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/me-public/nemus/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/me-public/nemus/compare/v0.2.3...v0.2.4
