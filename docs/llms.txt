@@ -1,10 +1,21 @@
 # Nemus
 
-> Nemus is a command-line tool for managing multi-repository development workspaces.
-> It creates, syncs, and operates across dozens of Git repositories at once, then
-> connects a workspace to a coding agent (Claude Code, pi, OpenCode, Codex, Gemini)
-> via generated context files, installable skills, and an MCP server — so a task
-> that spans many repos becomes a single prompt.
+> Nemus is a command-line tool that lets you work on many separate Git repositories
+> as if they were one project. Your product's code is split across many repos
+> (frontend, backend, auth, payments, shared libraries); Nemus pulls the repos you're
+> working on into a single folder (a "workspace"), runs any git or shell command
+> across all of them at once, and gives your AI coding agent the whole set at once.
+> It is, in short, a monorepo-style workflow across many repos — without merging them.
+
+Concretely, with Nemus you can:
+
+- `nemus create payments` — clone the 6 payments repos into one workspace folder.
+- `nemus run payments "npm test"` — run the same command in all 6 repos at once.
+- `nemus -- "add idempotency keys to the payments flow"` — an agent works across all 6.
+
+It connects a workspace to a coding agent (Claude Code, pi, OpenCode, Codex, Gemini)
+via generated context files, installable skills, and an MCP server — so a task that
+spans many repos becomes a single prompt.
 
 Key ideas an LLM should know:
 
