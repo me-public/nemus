@@ -3,9 +3,9 @@
 </p>
 
 <p align="center">
-  <b>Multi-repo workspaces for the AI-agent era.</b><br/>
-  Create, sync, and operate across dozens of Git repositories with a single command —
-  and wire them up to your favorite coding agent.
+  <b>Work on many Git repos as if they were one project.</b><br/>
+  Nemus pulls the repos you're working on into a single folder, runs commands across
+  all of them at once, and gives your AI coding agent the whole picture.
 </p>
 
 <p align="center">
@@ -28,26 +28,55 @@
 
 ---
 
+## What is Nemus?
+
+Your product's code is probably split across **many separate Git repos** — frontend,
+backend, auth, payments, shared libraries. Working on one feature means cloning,
+pulling, branching, and testing each repo by hand, one at a time — and your AI coding
+agent only ever sees the single repo you happened to open.
+
+**Nemus lets you pull the repos you're working on into one folder and treat them as a
+single project:**
+
+- **One command clones them all** — and keeps them in sync.
+- **Run any git or shell command across every repo at once** — `status`, `pull`,
+  `branch`, `npm test`, anything.
+- **Your AI agent sees the whole set at once** — so a prompt like *"add idempotency
+  keys to the payments flow"* works even when that flow spans five repos, not one.
+
+> **In short:** a **monorepo-style workflow across your many repos — without merging them.**
+
+### Before vs. after
+
+**Without Nemus** — clone each repo by hand, `cd` into every one, pull, branch, run
+tests, and repeat. Your agent only sees whichever repo you opened.
+
+**With Nemus:**
+
+```bash
+nemus create -w payments -r api,web,ledger,gateway,workers   # clone all 5 into one workspace
+nemus run payments "npm test"                                # run the tests in all 5 at once
+nemus -- "add idempotency keys to the payments flow"         # let an agent work across all 5
+```
+
+> Prefer to point-and-pick? Just run `nemus create` for an interactive repo picker with
+> fuzzy search, or `nemus -- "create a workspace with the payments repos"` in plain English.
+
+## What you get
+
+- 🌳 **Workspaces** — group repos, clone them all in parallel, jump in.
+- 🔁 **Operate in bulk** — status, sync, diff, run, branch across every repo.
+- 📦 **Suites & snapshots** — save reusable repo collections and exact states.
+- 🤖 **Agent-native** — first-class integration with multiple coding agents
+  (Claude Code, pi, OpenCode, Codex, Gemini) via context files, skills, and an MCP server.
+- 🩺 **Healthy by default** — health checks, dependency analysis, retries.
+
 ## The name
 
 **Nemus** (_NEH-mus_) is Latin for a **grove** — a small wood of trees sharing
 soil and roots. It's a fitting picture of what the tool manages: a cluster of
 repositories, each its own tree, growing together in one workspace. It also nods
 to the branch-and-commit shape of Git itself.
-
-## Why Nemus?
-
-Modern products span many repositories. Nemus keeps a **workspace** — a named folder
-of related repos — in sync and lets you act across all of them at once: clone, pull,
-branch, run commands, check status, and diff. Then it connects that workspace to a
-coding agent (Claude Code, pi, OpenCode, Codex, Gemini) with generated context files,
-skills, and an MCP server, so "work on the payments stack" becomes a single prompt.
-
-- 🌳 **Workspaces** — group repos, clone them all, jump in.
-- 🔁 **Operate in bulk** — status, sync, diff, run, branch across every repo.
-- 📦 **Suites & snapshots** — save reusable repo collections and exact states.
-- 🤖 **Agent-native** — first-class integration with multiple coding agents.
-- 🩺 **Healthy by default** — health checks, dependency analysis, retries.
 
 ## A full clone per workspace — on purpose
 
