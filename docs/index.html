@@ -361,16 +361,32 @@ npm install -g @nemus-cli/nemus
     a.target = '_blank'; a.rel = 'noopener noreferrer';
   });
 
-  // Live GitHub star count.
-  fetch('https://api.github.com/repos/me-public/nemus')
-    .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(d){
-      if (!d || typeof d.stargazers_count !== 'number') return;
-      var n = d.stargazers_count;
-      var txt = n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n);
-      document.querySelectorAll('[data-stars]').forEach(function(el){ el.textContent = txt; });
-    })
-    .catch(function(){});
+  // Mark purely-decorative icons as hidden from assistive tech.
+  document.querySelectorAll('.card .ico svg, .btn svg').forEach(function(s){
+    s.setAttribute('aria-hidden', 'true'); s.setAttribute('focusable', 'false');
+  });
+
+  // Live GitHub star count — cached in localStorage (1h) to avoid hammering the
+  // unauthenticated API (60 req/hr/IP) and to survive rate limits / offline.
+  (function(){
+    var KEY = 'nemus-stars', TTL = 3600000;
+    function paint(n){
+      var t = n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n);
+      document.querySelectorAll('[data-stars]').forEach(function(el){ el.textContent = t; });
+    }
+    try {
+      var c = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (c && typeof c.n === 'number' && (Date.now() - c.t) < TTL) paint(c.n);
+    } catch (e) {}
+    fetch('https://api.github.com/repos/me-public/nemus')
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        if (!d || typeof d.stargazers_count !== 'number') return;
+        paint(d.stargazers_count);
+        try { localStorage.setItem(KEY, JSON.stringify({ n: d.stargazers_count, t: Date.now() })); } catch (e) {}
+      })
+      .catch(function(){});
+  })();
 </script>
 </body>
 </html>
