@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <a href="https://me-public.github.io/nemus/"><img src="https://img.shields.io/badge/website-nemus-3FB950.svg" alt="Website" /></a>
   <a href="https://github.com/me-public/nemus/actions/workflows/ci.yml"><img src="https://github.com/me-public/nemus/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://www.npmjs.com/package/@nemus-cli/nemus"><img src="https://img.shields.io/npm/v/@nemus-cli/nemus.svg" alt="npm" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
@@ -17,7 +18,7 @@
 </p>
 
 <p align="center">
-  📦 <b><a href="https://www.npmjs.com/package/@nemus-cli/nemus">@nemus-cli/nemus</a></b> on npm &nbsp;—&nbsp; <code>npm install -g @nemus-cli/nemus</code>
+  🌐 <b><a href="https://me-public.github.io/nemus/">me-public.github.io/nemus</a></b> &nbsp;—&nbsp; 📦 <b><a href="https://www.npmjs.com/package/@nemus-cli/nemus">@nemus-cli/nemus</a></b> on npm &nbsp;—&nbsp; <code>npm install -g @nemus-cli/nemus</code>
 </p>
 
 ---
