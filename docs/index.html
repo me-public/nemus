@@ -9,10 +9,14 @@
 
 <!-- Open Graph / social -->
 <meta property="og:type" content="website" />
+<meta property="og:url" content="https://me-public.github.io/nemus/" />
 <meta property="og:title" content="Nemus — Multi-repo workspaces for the AI-agent era" />
 <meta property="og:description" content="Create, sync, and operate across dozens of Git repos with a single command — and wire them up to your favorite coding agent." />
-<meta property="og:image" content="assets/social-preview.png" />
+<meta property="og:image" content="https://me-public.github.io/nemus/assets/social-preview.png" />
 <meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Nemus — Multi-repo workspaces for the AI-agent era" />
+<meta name="twitter:description" content="Create, sync, and operate across dozens of Git repos with a single command — and wire them up to your favorite coding agent." />
+<meta name="twitter:image" content="https://me-public.github.io/nemus/assets/social-preview.png" />
 
 <!-- Point LLMs at the machine-readable overview -->
 <link rel="alternate" type="text/markdown" title="llms.txt" href="llms.txt" />
@@ -117,7 +121,7 @@
 
 <header class="nav">
   <div class="wrap">
-    <img src="assets/logo-wordmark.svg" alt="Nemus" />
+    <a href="." aria-label="Nemus — home"><img src="assets/logo-wordmark.svg" alt="Nemus" /></a>
     <nav class="links">
       <a href="#features" class="hide">Features</a>
       <a href="#quickstart" class="hide">Quick start</a>
@@ -253,6 +257,11 @@ npm install -g @nemus-cli/nemus
 
 <script>
   document.getElementById('yr').textContent = new Date().getFullYear();
+  // Open external links in a new tab, safely (no tabnabbing).
+  document.querySelectorAll('a[href^="http"]').forEach(function(a){
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+  });
   function copyInstall(btn){
     const t = document.getElementById('installcmd').textContent;
     navigator.clipboard.writeText(t).then(()=>{
