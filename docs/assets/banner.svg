@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="Nemus — multi-repo workspaces for the AI-agent era">
+  <title>Nemus</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0D1117"/>
+      <stop offset="1" stop-color="#0A0E14"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.72" cy="0.32" r="0.55">
+      <stop offset="0" stop-color="#2EA043" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#2EA043" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3FB950"/>
+      <stop offset="1" stop-color="#1F7A34"/>
+    </linearGradient>
+    <radialGradient id="node" cx="0.34" cy="0.28" r="0.9">
+      <stop offset="0" stop-color="#7EE2A8"/>
+      <stop offset="0.5" stop-color="#3FB950"/>
+      <stop offset="1" stop-color="#2EA043"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#glow)"/>
+
+  <!-- wordmark + tagline -->
+  <text x="96" y="150" font-family="'SF Mono','JetBrains Mono','Fira Code',ui-monospace,Menlo,Consolas,monospace" font-size="112" font-weight="700" letter-spacing="-3" fill="#E6EDF3">Nemus</text>
+  <text x="100" y="204" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="30" font-weight="500" fill="#7EE2A8">Multi-repo workspaces for the AI-agent era</text>
+
+  <!-- terminal window -->
+  <g transform="translate(96,258)">
+    <rect x="0" y="0" width="620" height="300" rx="16" fill="#161B22" stroke="#30363D" stroke-width="2"/>
+    <rect x="0" y="0" width="620" height="44" rx="16" fill="#0D1117"/>
+    <rect x="0" y="28" width="620" height="16" fill="#0D1117"/>
+    <circle cx="26" cy="22" r="7" fill="#FF5F56"/>
+    <circle cx="50" cy="22" r="7" fill="#FFBD2E"/>
+    <circle cx="74" cy="22" r="7" fill="#27C93F"/>
+    <text x="310" y="27" text-anchor="middle" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#7D8590">nemus</text>
+
+    <g font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,Consolas,monospace" font-size="22">
+      <text x="30" y="98"  fill="#7EE2A8">$ <tspan fill="#E6EDF3">nemus create payments</tspan></text>
+      <text x="30" y="140" fill="#7D8590">✓ cloned 12 repositories</text>
+      <text x="30" y="182" fill="#7D8590">✓ wrote AGENTS.md · installed skills</text>
+      <text x="30" y="224" fill="#7EE2A8">$ <tspan fill="#E6EDF3">nemus -- "start the checkout refactor"</tspan></text>
+      <text x="30" y="266" fill="#3FB950">▸ launching agent<tspan fill="#3FB950">█</tspan></text>
+    </g>
+  </g>
+
+  <!-- mark on the right -->
+  <g transform="translate(858,150) scale(1.5)">
+    <g fill="none" stroke-linecap="round">
+      <path d="M120 210 L120 150 Q120 140 128 132 L150 108" stroke="url(#edge)" stroke-width="20"/>
+      <path d="M122 158 Q108 140 86 128 L70 118" stroke="url(#edge)" stroke-width="13"/>
+      <path d="M128 132 L128 78" stroke="url(#edge)" stroke-width="13"/>
+      <path d="M86 128 L70 92" stroke="#238636" stroke-width="9"/>
+    </g>
+    <g>
+      <circle cx="150" cy="104" r="15" fill="url(#node)"/>
+      <circle cx="150" cy="104" r="15" fill="none" stroke="#7EE2A8" stroke-width="2.5" opacity="0.9"/>
+      <circle cx="128" cy="74"  r="13" fill="url(#node)"/>
+      <circle cx="70"  cy="114" r="12" fill="url(#node)"/>
+      <circle cx="70"  cy="88"  r="9"  fill="url(#node)"/>
+      <circle cx="120" cy="212" r="10" fill="#2EA043"/>
+    </g>
+  </g>
+</svg>

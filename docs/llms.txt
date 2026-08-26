@@ -1,0 +1,49 @@
+# Nemus
+
+> Nemus is a command-line tool for managing multi-repository development workspaces.
+> It creates, syncs, and operates across dozens of Git repositories at once, then
+> connects a workspace to a coding agent (Claude Code, pi, OpenCode, Codex, Gemini)
+> via generated context files, installable skills, and an MCP server — so a task
+> that spans many repos becomes a single prompt.
+
+Key ideas an LLM should know:
+
+- A **workspace** is a named folder of related repositories. Every workspace gets its
+  own independent, full `git clone` of each repo (separate `.git`, index, stash,
+  hooks, config, branches, and build artifacts) — deliberately *not* `git worktree`,
+  because Nemus targets many repos worked on in parallel (often by agents) where total
+  isolation matters more than shared object storage.
+- Core verbs operate across **all** repos in a workspace: `create`, `sync`, `status`,
+  `diff`, `run`, `branch`, plus **suites** (reusable repo collections) and
+  **snapshots** (exact saved states).
+- **Agent-native**: `nemus configure` wires up a coding agent; `nemus -- "<prompt>"`
+  runs a task; **investigate-first** creates an empty workspace and lets the agent
+  discover and add the repos it needs.
+- Install: `npm install -g @nemus-cli/nemus`. Binaries: `nemus` (and the short alias
+  `nem`). MCP server: `nemus-mcp`. Requires Node.js >= 22.
+- License: MIT. Repository: https://github.com/me-public/nemus
+
+## Docs
+
+- [README](https://github.com/me-public/nemus/blob/main/README.md): full overview — why Nemus, the clone-per-workspace design, quick start, connecting agents, usage, configuration, and workspace layout.
+- [Architecture](https://github.com/me-public/nemus/blob/main/docs/architecture.md): how the CLI, workspace metadata, agent integration, and MCP server fit together.
+- [Releasing](https://github.com/me-public/nemus/blob/main/docs/releasing.md): the version-bump → tag → npm publish (with provenance) release flow.
+- [CHANGELOG](https://github.com/me-public/nemus/blob/main/CHANGELOG.md): notable changes per release.
+
+## Getting started
+
+- [Quick start](https://github.com/me-public/nemus/blob/main/README.md#quick-start): install, `nemus configure`, `nemus create`, or `nemus -- "<plain-English task>"`.
+- [Installation](https://github.com/me-public/nemus/blob/main/README.md#installation): from npm (recommended) or from source; prerequisites.
+- [Connecting AI agents](https://github.com/me-public/nemus/blob/main/README.md#connecting-ai-agents): supported agents, primary-agent selection, and model providers.
+- [Configuration](https://github.com/me-public/nemus/blob/main/README.md#configuration): GitHub org, agent, clone protocol, and where config/cache live (`~/.nemus`).
+
+## Contributing
+
+- [Contributing guide](https://github.com/me-public/nemus/blob/main/CONTRIBUTING.md): dev setup, tests, and the PR workflow.
+- [Code of Conduct](https://github.com/me-public/nemus/blob/main/CODE_OF_CONDUCT.md)
+- [Security policy](https://github.com/me-public/nemus/blob/main/SECURITY.md): supported versions and how to report a vulnerability.
+
+## Optional
+
+- [npm package](https://www.npmjs.com/package/@nemus-cli/nemus): `@nemus-cli/nemus`, published with provenance.
+- [llms-full.txt](https://me-public.github.io/nemus/llms-full.txt): the full README inlined as a single document for deeper context.
