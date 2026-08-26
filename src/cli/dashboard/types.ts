@@ -1,7 +1,7 @@
 /**
  * Shared types for ink dashboard components.
  * ink components are passed as props to avoid direct ESM imports
- * (ink v5 is ESM-only; the project uses CJS).
+ * (ink v7 is ESM-only; the project uses CJS).
  */
 import { FC } from 'react';
 import { BoxProps, TextProps, Key } from 'ink';

@@ -4,7 +4,7 @@
  *
  * This is a plain .js file (not .ts) to preserve the real dynamic import().
  * TypeScript compiles `await import('ink')` into `require('ink')` in CJS mode,
- * which fails because ink v5 is ESM-only with top-level await.
+ * which fails because ink v7 is ESM-only with top-level await.
  *
  * By keeping this as .js, tsc copies it as-is to dist/ and the real
  * import() call is preserved at runtime.

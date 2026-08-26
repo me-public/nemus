@@ -1,5 +1,5 @@
 /**
- * Type declarations for ink v5 (ESM package used via dynamic import).
+ * Type declarations for ink v7 (ESM package used via dynamic import).
  * Provides basic types for the components and hooks we use.
  * Full types live in node_modules/ink/build/index.d.ts but can't be
  * resolved with moduleResolution: "node".
