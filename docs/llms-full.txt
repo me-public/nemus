@@ -1,0 +1,292 @@
+# Nemus — full documentation
+
+> Multi-repo workspaces for the AI-agent era. This file inlines the full
+> project README for LLM consumption. Canonical source:
+> https://github.com/me-public/nemus
+
+---
+
+<p align="center">
+  <img src="assets/logo-wordmark.svg" alt="Nemus" width="320" />
+</p>
+
+<p align="center">
+  <b>Multi-repo workspaces for the AI-agent era.</b><br/>
+  Create, sync, and operate across dozens of Git repositories with a single command —
+  and wire them up to your favorite coding agent.
+</p>
+
+<p align="center">
+  <a href="https://github.com/me-public/nemus/actions/workflows/ci.yml"><img src="https://github.com/me-public/nemus/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://www.npmjs.com/package/@nemus-cli/nemus"><img src="https://img.shields.io/npm/v/@nemus-cli/nemus.svg" alt="npm" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
+  <a href="https://www.npmjs.com/package/@nemus-cli/nemus"><img src="https://img.shields.io/npm/dm/@nemus-cli/nemus.svg" alt="npm downloads" /></a>
+  <img src="https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg" alt="Node >= 22" />
+</p>
+
+<p align="center">
+  📦 <b><a href="https://www.npmjs.com/package/@nemus-cli/nemus">@nemus-cli/nemus</a></b> on npm &nbsp;—&nbsp; <code>npm install -g @nemus-cli/nemus</code>
+</p>
+
+---
+
+## The name
+
+**Nemus** (_NEH-mus_) is Latin for a **grove** — a small wood of trees sharing
+soil and roots. It's a fitting picture of what the tool manages: a cluster of
+repositories, each its own tree, growing together in one workspace. It also nods
+to the branch-and-commit shape of Git itself.
+
+## Why Nemus?
+
+Modern products span many repositories. Nemus keeps a **workspace** — a named folder
+of related repos — in sync and lets you act across all of them at once: clone, pull,
+branch, run commands, check status, and diff. Then it connects that workspace to a
+coding agent (Claude Code, pi, OpenCode, Codex, Gemini) with generated context files,
+skills, and an MCP server, so "work on the payments stack" becomes a single prompt.
+
+- 🌳 **Workspaces** — group repos, clone them all, jump in.
+- 🔁 **Operate in bulk** — status, sync, diff, run, branch across every repo.
+- 📦 **Suites & snapshots** — save reusable repo collections and exact states.
+- 🤖 **Agent-native** — first-class integration with multiple coding agents.
+- 🩺 **Healthy by default** — health checks, dependency analysis, retries.
+
+## A full clone per workspace — on purpose
+
+This is the core design decision, so it's worth being explicit: **every workspace
+gets its own independent, full `git clone` of each repo.** Two workspaces that both
+contain `api` hold two separate clones — each with its own `.git`, index, stash,
+hooks, config, branches, and build artifacts.
+
+A reasonable question is *"why not `git worktree`?"* Worktrees attach multiple
+working directories to **one shared repository**, which is great for flipping
+between branches of a **single** repo. But Nemus is built for **many repos worked
+on in parallel — often by AI agents — at the same time**, and there full clones win:
+
+| | **Nemus: clone per workspace** | **`git worktree`** |
+|---|---|---|
+| **Scope** | Spans **many repos** per workspace uniformly | A **single-repo** feature (`git worktree add` lives inside one repo) |
+| **Isolation** | Total: separate `.git`, index, stash, config, **hooks**, and build outputs (`node_modules/`, `target/`, `dist/`) | Partial: worktrees **share** the object store, config, and hooks |
+| **Same branch, twice** | ✅ Two workspaces can both sit on `main` (e.g. stable vs. experiment) | ❌ Git refuses to check out the same branch in two worktrees |
+| **Parallel agents** | Safe: one agent's rebase/branch-switch/`gc`/dirty tree can't touch another's | Risky: aggressive concurrent ops share one object DB + refs |
+| **Per-workspace remotes/creds** | ✅ Each clone can point at a different fork/remote | ❌ Remotes are shared |
+| **Disposable** | It's just a directory — `rm -rf` is safe | Needs `git worktree remove`; a stale/broken worktree can corrupt the parent's list |
+| **Tooling** | Every dir is a normal repo — IDEs, scripts, and git tools "just work" | Some tools mishandle the `.git`-file pointer / shared hooks |
+
+**The honest trade-off:** full clones use more disk and take longer to set up than a
+worktree that shares the object store. Nemus leans into that on purpose and softens
+it — clones run **in parallel**, retry on flaky networks, and the repo list is
+cached. For juggling many repos across several workspaces (and several agents), the
+bulletproof isolation is worth the extra gigabytes. If you're switching branches
+within one repo, plain `git worktree` is still the right tool — Nemus solves the
+different problem of *many* repos in *many* independent workspaces.
+
+## Quick Start
+
+```bash
+# Install globally
+npm install -g @nemus-cli/nemus
+
+# One-time setup (choose your GitHub org, agent, clone protocol…)
+nemus configure
+
+# Create your first workspace (interactive repo picker with fuzzy search)
+nemus create
+
+# Or let an agent do it — describe what you need in plain English
+nemus -- create a workspace with all payments-related repos
+```
+
+After creation you're dropped into the workspace directory with all repos cloned.
+
+> `nemus` and the shorter `nem` are equivalent. Use whichever you like.
+
+## Installation
+
+### From npm (recommended)
+
+```bash
+npm install -g @nemus-cli/nemus
+```
+
+The postinstall step sets up optional shell integration (auto-cd into new
+workspaces + a quick-navigate helper).
+
+### From source
+
+```bash
+git clone https://github.com/me-public/nemus.git
+cd nemus
+npm install
+npm run build
+npm link   # makes `nemus` / `nem` available on your PATH
+```
+
+### Prerequisites
+
+- **Node.js 22+**
+- Git
+- [GitHub CLI](https://cli.github.com/) (`gh`), authenticated via `gh auth login`
+- SSH keys configured for GitHub (recommended; HTTPS also supported)
+
+## Connecting AI agents
+
+Nemus is agent-agnostic. It detects installed agent CLIs and, for each active
+agent, writes the right context file, installs skills, and (where supported)
+registers its MCP server and hooks.
+
+| Agent | CLI | Context file | MCP | Notes |
+|-------|-----|--------------|-----|-------|
+| **Claude Code** | `claude` | `CLAUDE.md` | ✅ | Hooks + status line supported |
+| **pi** | `pi` | `AGENTS.md` | — | |
+| **OpenCode** | `opencode` | `AGENTS.md` | ✅ | Reads `~/.claude/skills` natively |
+| **Codex** (OpenAI) | `codex` | `AGENTS.md` | ✅ | Reads `~/.codex/config.toml` |
+| **Gemini** (Google) | `gemini` | `GEMINI.md` | ✅ | |
+
+Choose your agent(s) during `nemus configure`, or set them any time:
+
+```bash
+nemus configure          # interactive
+# aiAgent:      claude | pi | opencode | codex | gemini | both | auto
+# primaryAgent: claude | pi | opencode | codex | gemini | auto
+```
+
+- `auto` detects installed CLIs and picks sensibly.
+- `both` means **every** installed agent (context files + skills written for all).
+
+### Model providers
+
+The agent CLIs own model/provider auth, so Nemus works with **any provider your
+agent supports** — Anthropic, OpenAI, Google, or **Amazon Bedrock** — with no extra
+configuration in Nemus. For example, Claude Code and pi both run against Bedrock via
+their own environment (`CLAUDE_CODE_USE_BEDROCK=1`, or pi's `amazon-bedrock`
+provider); Codex and Gemini authenticate to OpenAI and Google respectively. Point
+your agent at whichever provider you like — Nemus just drives the agent.
+
+## Usage
+
+Every command has a short alias (shown in parentheses).
+
+### Create & manage workspaces
+
+```bash
+nemus create           # (c) interactive create
+nemus list             # (l) list workspaces
+nemus update           # (u) add repos to a workspace
+nemus delete           # (del) delete a workspace
+nemus go [name]        # jump to a workspace directory
+```
+
+### Operate across all repos
+
+```bash
+nemus status my-workspace     # (st) git status for every repo
+nemus sync my-workspace       # (s) git pull every repo (auto-retries on flaky network)
+nemus diff my-workspace       # (d) combined diff summary  (--full for raw diffs)
+nemus run my-workspace "npm install"   # (r) run a command in every repo
+nemus doctor my-workspace     # (doc) health checks + score
+```
+
+```
+Repo             Branch       Status        Ahead/Behind   Modified
+─────────────────────────────────────────────────────────────────────
+api              main         ✓ Clean       Up to date     -
+web              feature/x    ⚠ 2 modified  ↑1             2 files
+shared-lib       main         ✓ Clean       ↓3             -
+```
+
+### Suites (reusable repo collections)
+
+```bash
+nemus suite create            # (sc) save a set of repos (+ optional post-clone hooks)
+nemus suite list              # (sls)
+nemus suite use               # (fs) create a workspace from a suite
+nemus suite export my-suite -o my-suite.json
+nemus suite import my-suite.json
+```
+
+### Branches & snapshots
+
+```bash
+nemus branch switch           # (sb) switch every repo to a branch
+nemus branch create ws feature/new-thing   # (bc)
+nemus snapshot save ws        # (ss) capture exact branches/commits/dirty state
+nemus snapshot restore <id>   # (sr)
+```
+
+### AI assistant
+
+```bash
+nemus -- create a workspace for the payments team
+nemus -- list my workspaces and show their status
+
+# Investigate-first: create an EMPTY workspace and let the agent discover the repos
+nemus -- search the logs for the OCR 500s, find the services in the trace, and open those repos
+```
+
+**Investigate-first workspaces:** when your prompt doesn't name concrete repos but
+asks the agent to *figure out* which repos are relevant (from a trace, a stack
+trace, or a log search), Nemus creates an **empty** workspace and hands the agent a
+discover-then-add workflow: it investigates, maps the services it finds to repos
+(fuzzy `search-repos`, or the `gh` CLI), adds them with `nemus update`, and only
+then digs into the code.
+
+Nemus exposes an **MCP server** (`nemus-mcp`) so MCP-capable agents can search
+repos, create/update workspaces, check status, and more directly from a prompt.
+
+Run `nemus --help` for the full command reference.
+
+## Configuration
+
+`nemus configure` writes `~/.nemus/config.json`. Environment
+variables override it:
+
+```bash
+export NEMUS_DIR="$HOME/my-workspaces"        # default: ~/workspaces
+export NEMUS_CACHE_DIR="$HOME/.cache/nemus"   # default: ~/.nemus
+```
+
+(The legacy `WORKSPACE_MANAGER_DIR` / `WORKSPACE_MANAGER_CACHE_DIR` names still
+work as fallbacks. On first run, state from the old `~/.workspace-manager-cache`
+location is migrated to `~/.nemus` automatically.)
+
+Key settings: `githubOrg` (which org's repos to list — leave empty to list your
+own), `cloneProtocol` (`ssh`|`https`), `aiAgent`, `primaryAgent`, `installMcp`.
+
+## Workspace layout
+
+```
+~/workspaces/
+└── my-workspace/
+    ├── .workspace-meta.json    # repos, timestamps, health
+    ├── AGENTS.md / CLAUDE.md    # generated agent context
+    ├── api/                     # cloned repos
+    ├── web/
+    └── shared-lib/
+```
+
+## Development
+
+```bash
+npm run build        # compile TypeScript
+npm test             # run the test suite (vitest)
+npm run typecheck    # tsc --noEmit
+npm link             # use your local build globally
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines and
+[docs/architecture.md](docs/architecture.md) for a tour of the codebase.
+
+## Releasing
+
+Releases are automated and gated by a manual approval. Bump the version, merge to
+`main`, and approve the deployment — see [docs/releasing.md](docs/releasing.md).
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) and our
+[Code of Conduct](CODE_OF_CONDUCT.md). Security issues: see [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE) © Nemus contributors

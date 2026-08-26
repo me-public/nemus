@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Nemus — Multi-repo workspaces for the AI-agent era</title>
+<meta name="description" content="Nemus is a CLI for managing multi-repository workspaces. Create, sync, and operate across dozens of Git repos with a single command — and wire them up to your favorite coding agent (Claude Code, pi, OpenCode, Codex, Gemini)." />
+<link rel="icon" type="image/png" href="assets/favicon-64.png" />
+
+<!-- Open Graph / social -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Nemus — Multi-repo workspaces for the AI-agent era" />
+<meta property="og:description" content="Create, sync, and operate across dozens of Git repos with a single command — and wire them up to your favorite coding agent." />
+<meta property="og:image" content="assets/social-preview.png" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<!-- Point LLMs at the machine-readable overview -->
+<link rel="alternate" type="text/markdown" title="llms.txt" href="llms.txt" />
+
+<style>
+  :root{
+    --bg:#0D1117; --bg2:#010409; --panel:#161B22; --panel2:#0f141b;
+    --border:#30363D; --text:#E6EDF3; --muted:#8B949E;
+    --green:#3FB950; --green2:#2EA043; --green3:#238636;
+    --radius:14px; --maxw:1080px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--green); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 20px}
+  code,kbd,pre{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace}
+
+  /* nav */
+  header.nav{position:sticky; top:0; z-index:10; backdrop-filter:blur(10px);
+    background:rgba(13,17,23,.72); border-bottom:1px solid var(--border)}
+  .nav .wrap{display:flex; align-items:center; gap:18px; height:60px}
+  .nav img{height:26px}
+  .nav .links{margin-left:auto; display:flex; gap:22px; align-items:center; font-size:15px}
+  .nav .links a{color:var(--muted)}
+  .nav .links a:hover{color:var(--text); text-decoration:none}
+  .badge{background:var(--panel); border:1px solid var(--border); border-radius:999px;
+    padding:5px 12px; color:var(--text)!important; font-size:13px}
+
+  /* hero */
+  .hero{position:relative; overflow:hidden; text-align:center; padding:88px 0 64px}
+  .hero::before{content:""; position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 50% -40px, rgba(63,185,80,.18), transparent 70%),
+      radial-gradient(800px 400px at 50% 120%, rgba(35,134,54,.10), transparent 70%);
+    pointer-events:none}
+  .hero img.mark{height:64px; margin-bottom:22px; filter:drop-shadow(0 6px 24px rgba(63,185,80,.25))}
+  .hero h1{font-size:clamp(30px,5vw,50px); line-height:1.1; margin:.2em 0 .3em; letter-spacing:-.02em}
+  .hero h1 .accent{color:var(--green)}
+  .hero p.sub{max-width:680px; margin:0 auto 30px; color:var(--muted); font-size:clamp(16px,2.4vw,20px)}
+  .cta{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:26px}
+  .btn{display:inline-flex; align-items:center; gap:8px; padding:12px 20px; border-radius:10px;
+    font-weight:600; font-size:15px; border:1px solid transparent; cursor:pointer}
+  .btn.primary{background:var(--green3); color:#fff}
+  .btn.primary:hover{background:var(--green2); text-decoration:none}
+  .btn.ghost{background:var(--panel); border-color:var(--border); color:var(--text)}
+  .btn.ghost:hover{border-color:var(--muted); text-decoration:none}
+
+  .install{display:inline-flex; align-items:center; gap:14px; margin:0 auto;
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:12px 16px; font-size:15px}
+  .install code{color:var(--text)}
+  .install .prompt{color:var(--green); user-select:none}
+  .copy{background:transparent; border:1px solid var(--border); color:var(--muted);
+    border-radius:8px; padding:5px 10px; font-size:12px; cursor:pointer}
+  .copy:hover{color:var(--text); border-color:var(--muted)}
+
+  /* sections */
+  section{padding:56px 0; border-top:1px solid var(--border)}
+  section h2{font-size:clamp(22px,3.4vw,30px); margin:0 0 8px; letter-spacing:-.01em}
+  section .lead{color:var(--muted); margin:0 0 30px; max-width:720px}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px; transition:border-color .15s, transform .15s}
+  .card:hover{border-color:var(--green3); transform:translateY(-2px)}
+  .card .ico{font-size:24px; margin-bottom:10px}
+  .card h3{margin:0 0 6px; font-size:17px}
+  .card p{margin:0; color:var(--muted); font-size:14.5px}
+
+  pre.code{background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px; overflow-x:auto; font-size:14px; line-height:1.7}
+  pre.code .c{color:var(--muted)}
+  pre.code .g{color:var(--green)}
+
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:start}
+  @media(max-width:760px){.two{grid-template-columns:1fr} .nav .links a.hide{display:none}}
+
+  .agents{display:flex; flex-wrap:wrap; gap:10px; margin-top:8px}
+  .chip{background:var(--panel); border:1px solid var(--border); border-radius:999px;
+    padding:8px 16px; font-size:14px; font-weight:600}
+  .chip .dot{display:inline-block; width:8px; height:8px; border-radius:50%;
+    background:var(--green); margin-right:8px; vertical-align:middle}
+
+  .note{background:linear-gradient(180deg, rgba(63,185,80,.07), rgba(63,185,80,0));
+    border:1px solid var(--border); border-left:3px solid var(--green); border-radius:10px; padding:18px 20px}
+  .note strong{color:var(--green)}
+
+  footer{border-top:1px solid var(--border); padding:40px 0; color:var(--muted); font-size:14px}
+  footer .wrap{display:flex; flex-wrap:wrap; gap:20px; align-items:center; justify-content:space-between}
+  footer .flinks{display:flex; gap:20px; flex-wrap:wrap}
+  footer a{color:var(--muted)} footer a:hover{color:var(--text)}
+  .kbd{background:var(--panel); border:1px solid var(--border); border-radius:6px; padding:1px 7px; font-size:12px; color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <img src="assets/logo-wordmark.svg" alt="Nemus" />
+    <nav class="links">
+      <a href="#features" class="hide">Features</a>
+      <a href="#quickstart" class="hide">Quick start</a>
+      <a href="#agents" class="hide">Agents</a>
+      <a href="llms.txt">llms.txt</a>
+      <a class="badge" href="https://github.com/me-public/nemus">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <img class="mark" src="assets/icon.svg" alt="" />
+    <h1>Multi-repo workspaces<br/>for the <span class="accent">AI-agent era</span></h1>
+    <p class="sub">Create, sync, and operate across dozens of Git repositories with a single
+      command — then wire them up to your favorite coding agent so “work on the payments stack”
+      becomes one prompt.</p>
+
+    <div class="cta">
+      <a class="btn primary" href="#quickstart">Get started</a>
+      <a class="btn ghost" href="https://www.npmjs.com/package/@nemus-cli/nemus">View on npm ↗</a>
+    </div>
+
+    <div class="install">
+      <span class="prompt">$</span>
+      <code id="installcmd">npm install -g @nemus-cli/nemus</code>
+      <button class="copy" onclick="copyInstall(this)">Copy</button>
+    </div>
+  </div>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <h2>Why Nemus?</h2>
+    <p class="lead">Modern products span many repositories. Nemus keeps a <em>workspace</em> —
+      a named folder of related repos — in sync and lets you act across all of them at once.</p>
+    <div class="grid">
+      <div class="card"><div class="ico">🌳</div><h3>Workspaces</h3><p>Group repos, clone them all in parallel, and jump straight in.</p></div>
+      <div class="card"><div class="ico">🔁</div><h3>Operate in bulk</h3><p>status, sync, diff, run, and branch across every repo in one command.</p></div>
+      <div class="card"><div class="ico">📦</div><h3>Suites &amp; snapshots</h3><p>Save reusable repo collections and capture exact workspace states.</p></div>
+      <div class="card"><div class="ico">🤖</div><h3>Agent-native</h3><p>First-class integration with multiple coding agents, context files, skills &amp; an MCP server.</p></div>
+      <div class="card"><div class="ico">🩺</div><h3>Healthy by default</h3><p>Health checks, dependency analysis, and retries on flaky networks.</p></div>
+      <div class="card"><div class="ico">🔎</div><h3>Investigate-first</h3><p>Create an empty workspace and let an agent discover and add the repos it needs.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="quickstart">
+  <div class="wrap">
+    <h2>Quick start</h2>
+    <p class="lead">Install globally, configure once, then create your first workspace.</p>
+    <pre class="code"><span class="c"># Install globally</span>
+npm install -g @nemus-cli/nemus
+
+<span class="c"># One-time setup (choose your GitHub org, agent, clone protocol…)</span>
+<span class="g">nemus</span> configure
+
+<span class="c"># Create your first workspace (interactive repo picker with fuzzy search)</span>
+<span class="g">nemus</span> create
+
+<span class="c"># …or let an agent do it — describe what you need in plain English</span>
+<span class="g">nemus</span> -- "set up a workspace for the payments stack and start on the refund bug"</pre>
+  </div>
+</section>
+
+<section id="agents">
+  <div class="wrap">
+    <h2>Connect any coding agent</h2>
+    <p class="lead">Nemus generates context files, installs skills, and runs an MCP server so your
+      agent understands the whole workspace — not just one repo.</p>
+    <div class="agents">
+      <span class="chip"><span class="dot"></span>Claude Code</span>
+      <span class="chip"><span class="dot"></span>pi</span>
+      <span class="chip"><span class="dot"></span>OpenCode</span>
+      <span class="chip"><span class="dot"></span>Codex</span>
+      <span class="chip"><span class="dot"></span>Gemini</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap two">
+    <div>
+      <h2>A full clone per workspace — on purpose</h2>
+      <p class="lead">Every workspace gets its own independent, full <code>git clone</code> of each
+        repo: separate <code>.git</code>, index, stash, hooks, config, branches, and build outputs.</p>
+      <div class="note">
+        <strong>Why not <code>git worktree</code>?</strong> Worktrees share one object store and are
+        great for one repo. Nemus is built for <em>many</em> repos worked on in parallel — often by
+        AI agents — where total isolation wins: two workspaces can both sit on <code>main</code>, and
+        one agent’s rebase, <code>gc</code>, or dirty tree can’t touch another’s.
+      </div>
+    </div>
+    <div>
+      <pre class="code"><span class="c"># Operate across every repo at once</span>
+<span class="g">nemus</span> status   my-stack
+<span class="g">nemus</span> sync     my-stack
+<span class="g">nemus</span> run      my-stack "npm test"
+<span class="g">nemus</span> branch   my-stack feature/x
+
+<span class="c"># Save &amp; reuse a set of repos</span>
+<span class="g">nemus</span> suite create payments
+<span class="g">nemus</span> create --suite payments</pre>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>For humans and for machines</h2>
+    <p class="lead">This site ships an <a href="llms.txt"><code>llms.txt</code></a> — a concise,
+      structured overview of Nemus in the <a href="https://llmstxt.org">llmstxt.org</a> format, so an
+      LLM can read the project at a glance and follow links to the full docs.</p>
+    <div class="cta" style="justify-content:flex-start">
+      <a class="btn ghost" href="llms.txt">Read llms.txt →</a>
+      <a class="btn ghost" href="https://github.com/me-public/nemus#readme">Full README ↗</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>© <span id="yr"></span> Nemus · MIT License</div>
+    <div class="flinks">
+      <a href="https://github.com/me-public/nemus">GitHub</a>
+      <a href="https://www.npmjs.com/package/@nemus-cli/nemus">npm</a>
+      <a href="llms.txt">llms.txt</a>
+      <a href="https://github.com/me-public/nemus/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/me-public/nemus/blob/main/CONTRIBUTING.md">Contributing</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('yr').textContent = new Date().getFullYear();
+  function copyInstall(btn){
+    const t = document.getElementById('installcmd').textContent;
+    navigator.clipboard.writeText(t).then(()=>{
+      const o = btn.textContent; btn.textContent = 'Copied!';
+      setTimeout(()=>btn.textContent=o, 1400);
+    });
+  }
+</script>
+</body>
+</html>
