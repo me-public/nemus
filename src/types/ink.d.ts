@@ -135,37 +135,4 @@ declare module 'ink' {
   export function measureElement(ref: { current: any }): { width: number; height: number };
 }
 
-declare module 'ink-select-input' {
-  import { FC } from 'react';
 
-  export interface Item<V> {
-    key?: string;
-    label: string;
-    value: V;
-  }
-
-  export interface Props<V> {
-    items?: Array<Item<V>>;
-    isFocused?: boolean;
-    initialIndex?: number;
-    limit?: number;
-    indicatorComponent?: FC<{ isSelected: boolean }>;
-    itemComponent?: FC<{ isSelected: boolean; label: string }>;
-    onSelect?: (item: Item<V>) => void;
-    onHighlight?: (item: Item<V>) => void;
-  }
-
-  function SelectInput<V>(props: Props<V>): JSX.Element;
-  export default SelectInput;
-}
-
-declare module 'ink-spinner' {
-  import { FC } from 'react';
-
-  export interface Props {
-    type?: string;
-  }
-
-  const Spinner: FC<Props>;
-  export default Spinner;
-}
