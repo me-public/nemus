@@ -22,6 +22,10 @@
   🌐 <b><a href="https://me-public.github.io/nemus/">me-public.github.io/nemus</a></b> &nbsp;—&nbsp; 📦 <b><a href="https://www.npmjs.com/package/@nemus-cli/nemus">@nemus-cli/nemus</a></b> on npm &nbsp;—&nbsp; 𝕏 <b><a href="https://x.com/nemus_cli">@nemus_cli</a></b> &nbsp;—&nbsp; <code>npm install -g @nemus-cli/nemus</code>
 </p>
 
+<p align="center">
+  <a href="https://me-public.github.io/nemus/"><img src="https://raw.githubusercontent.com/me-public/nemus/main/docs/assets/nemus-demo.gif" alt="Nemus terminal demo — create a workspace, run across every repo, hand it to your agent" width="760" /></a>
+</p>
+
 ---
 
 ## The name
