@@ -126,6 +126,31 @@ describe('GitHubAppTokenSource', () => {
     expect(calls.length).toBeGreaterThan(n);
   });
 
+  it('coalesces concurrent refreshes into a single mint', async () => {
+    let tokenPosts = 0;
+    const { fetchImpl } = routeFetch({
+      installations: () => ok([{ id: 222, account: { login: 'acme' } }]),
+      token: () => {
+        tokenPosts++;
+        return ok({ token: 'tok', expires_at: '2030-01-01T00:00:00Z' });
+      },
+    });
+    const src = new GitHubAppTokenSource({ ...base, fetchImpl });
+    // Fire many in parallel on a cold cache.
+    const results = await Promise.all(Array.from({ length: 5 }, () => src.getToken()));
+    expect(results.every((r) => r.token === 'tok')).toBe(true);
+    expect(tokenPosts).toBe(1); // one mint, not five
+  });
+
+  it('rejects a malformed mint response instead of caching garbage', async () => {
+    const { fetchImpl } = routeFetch({
+      installations: () => ok([{ id: 222, account: { login: 'acme' } }]),
+      token: () => ok({ token: 'tok', expires_at: 'not-a-date' }),
+    });
+    const src = new GitHubAppTokenSource({ ...base, fetchImpl });
+    await expect(src.getToken()).rejects.toThrow(/invalid expires_at/);
+  });
+
   it('surfaces a helpful error when the owner has no installation', async () => {
     const { fetchImpl } = routeFetch({
       installations: () => ok([{ id: 1, account: { login: 'someone-else' } }]),

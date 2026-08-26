@@ -68,16 +68,13 @@ export function mintAppJwt(
   return `${signingInput}.${signature}`;
 }
 
-interface CachedToken {
-  token: string;
-  expiresAtMs: number;
-  scopeKey: string;
-}
-
 export class GitHubAppTokenSource implements ForgeTokenSource {
   readonly id = 'github-app';
 
-  private cached?: CachedToken;
+  /** Cached tokens, keyed by scope, so distinct scopes don't evict each other. */
+  private readonly cache = new Map<string, { token: string; expiresAtMs: number }>();
+  /** In-flight mints, keyed by scope, to coalesce concurrent refreshes. */
+  private readonly inflight = new Map<string, Promise<ForgeToken>>();
   private readonly api: string;
   private readonly now: () => number;
   private readonly fetchImpl: typeof fetch;
@@ -96,17 +93,26 @@ export class GitHubAppTokenSource implements ForgeTokenSource {
 
   async getToken(scope?: TokenScope): Promise<ForgeToken> {
     const scopeKey = this.scopeKey(scope);
-    const nowMs = this.now();
 
-    if (
-      this.cached &&
-      this.cached.scopeKey === scopeKey &&
-      this.cached.expiresAtMs - this.skewMs > nowMs
-    ) {
-      return { token: this.cached.token, expiresAt: new Date(this.cached.expiresAtMs) };
+    const hit = this.cache.get(scopeKey);
+    if (hit && hit.expiresAtMs - this.skewMs > this.now()) {
+      return { token: hit.token, expiresAt: new Date(hit.expiresAtMs) };
     }
 
-    const jwt = mintAppJwt(this.cfg.appId, this.cfg.privateKey, nowMs);
+    // Coalesce concurrent refreshes for the same scope so parallel callers mint
+    // one token, not N (the thundering-herd lesson from workspace-manager).
+    const pending = this.inflight.get(scopeKey);
+    if (pending) return pending;
+
+    const promise = this.mint(scope, scopeKey).finally(() => {
+      this.inflight.delete(scopeKey);
+    });
+    this.inflight.set(scopeKey, promise);
+    return promise;
+  }
+
+  private async mint(scope: TokenScope | undefined, scopeKey: string): Promise<ForgeToken> {
+    const jwt = mintAppJwt(this.cfg.appId, this.cfg.privateKey, this.now());
     const installationId = await this.resolveInstallationId(jwt);
 
     // Least privilege: narrow to specific repos + minimal permissions when asked.
@@ -130,9 +136,15 @@ export class GitHubAppTokenSource implements ForgeTokenSource {
         `github-app: minting installation token failed (${res.status}) ${detail}`.trim(),
       );
     }
-    const json = (await res.json()) as { token: string; expires_at: string };
-    const expiresAtMs = new Date(json.expires_at).getTime();
-    this.cached = { token: json.token, expiresAtMs, scopeKey };
+    const json = (await res.json()) as { token?: unknown; expires_at?: unknown };
+    if (typeof json.token !== 'string' || !json.token) {
+      throw new Error('github-app: response contained no token');
+    }
+    const expiresAtMs = new Date(String(json.expires_at)).getTime();
+    if (!Number.isFinite(expiresAtMs)) {
+      throw new Error(`github-app: response had invalid expires_at "${String(json.expires_at)}"`);
+    }
+    this.cache.set(scopeKey, { token: json.token, expiresAtMs });
     return { token: json.token, expiresAt: new Date(expiresAtMs) };
   }
 
