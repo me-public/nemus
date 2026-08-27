@@ -5,9 +5,10 @@
 > own* infrastructure (local Docker, Fly, Fargate, k8s, …), headlessly, and open
 > a PR.
 
-**Status: scaffold (Phase 0/1).** The first concrete piece is the forge-auth
-seam. Runners, Provisioners, the Target Descriptor and the CI-loop land in later
-phases. See [`docs/plans/2026-08-26-cloud-iac.md`](../../docs/plans/2026-08-26-cloud-iac.md)
+**Status: P1 in progress.** The forge-auth seam and the execution seam (runners,
+with the in-box Docker runner) are in; the agent OCI image, Provisioners and the
+CI-loop land in later phases. See
+[`docs/plans/2026-08-26-cloud-iac.md`](../../docs/plans/2026-08-26-cloud-iac.md)
 for the full design.
 
 ## Why a separate package
@@ -38,6 +39,28 @@ const { token, expiresAt } = await src.getToken({
   *installation* tokens (dependency-free RS256 via Node `crypto`); auto-discovers
   the installation by owner. Where the App private key lives (client-side / in
   task / broker) is a **deployment policy**, not baked in — see the plan.
+
+## The execution seam: runners
+
+Core orchestration talks only to a `Runner` (+ `Provisioner`) with a neutral
+`TaskSpec`/`TargetDescriptor` — never a cloud SDK. Backends declare
+`Capabilities` and features degrade on what's missing. Ship `docker` in-box;
+other backends are opt-in `@nemus-cli/cloud-<name>` plugins resolved by name.
+
+```ts
+import { createRunner } from '@nemus-cli/cloud';
+
+const runner = createRunner('docker'); // in-box; needs no cloud account
+const handle = await runner.launch(
+  { image: 'ghcr.io/acme/agent:latest', env: { NEMUS_TASK: '…', GIT_TOKEN: token } },
+  { version: 1, runner: 'docker' },
+);
+for await (const { stream, line } of runner.logs(handle)) process[stream].write(line + '\n');
+await runner.status(handle); // { state: 'succeeded' | 'failed' | … }
+```
+
+The **`docker` runner is the portability boundary's proof**: if a feature can't
+work against a local Docker socket, it doesn't belong in core.
 
 ## Develop
 

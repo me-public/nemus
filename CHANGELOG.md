@@ -12,10 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Monorepo (npm workspaces).** The repo is now an npm-workspaces monorepo:
   the published CLI stays at the root (`@nemus-cli/nemus`, unchanged) and new
   packages live under `packages/*`.
-- **`@nemus-cli/cloud` (scaffold, private).** An optional, vendor-neutral
-  cloud/IaC package — not required for local Nemus. First piece: the forge-auth
+- **`@nemus-cli/cloud` (private, P1).** An optional, vendor-neutral cloud/IaC
+  package — not required for local Nemus. Two seams so far: the **forge-auth**
   seam (`ForgeTokenSource`) with `pat` and a dependency-free `github-app` source
-  that mints least-privilege, auto-refreshing installation tokens. Design:
+  that mints least-privilege, auto-refreshing installation tokens; and the
+  **execution** seam (`Runner`/`Provisioner` + neutral `TaskSpec`/
+  `TargetDescriptor`/`Capabilities` + a name registry) with an in-box
+  **Docker runner** (needs no cloud account). Design:
   `docs/plans/2026-08-26-cloud-iac.md`.
 
 ## [0.2.9] - 2026-08-26

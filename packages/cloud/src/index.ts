@@ -12,6 +12,13 @@ export { PatTokenSource } from './forge/pat';
 export { GitHubAppTokenSource, mintAppJwt } from './forge/github-app';
 export type { GitHubAppConfig } from './forge/github-app';
 
+// Execution seam: Runner/Provisioner interfaces + the in-box Docker runner.
+export * from './runner/types';
+export { DockerRunner } from './runner/docker';
+export type { DockerRunnerOptions, CommandRunner, LogStreamer } from './runner/docker';
+export { createRunner, registerRunner, runnerNames } from './runner/registry';
+export type { RunnerFactory } from './runner/registry';
+
 import { ForgeTokenSource } from './forge/types';
 import { PatTokenSource } from './forge/pat';
 import { GitHubAppTokenSource, GitHubAppConfig } from './forge/github-app';
