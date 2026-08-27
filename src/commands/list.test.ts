@@ -196,6 +196,36 @@ describe('list-workspaces main', () => {
     expect(messages).toContainEqual(expect.stringContaining('ws-a'));
   });
 
+  it('--json: writes one valid JSON document to stdout and does not prompt', async () => {
+    const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    process.argv = ['node', 'list-workspaces.js', '--json'];
+    mockListWorkspaces.mockResolvedValueOnce(makeWorkspaceList('ws-a', 'ws-b'));
+
+    await main();
+
+    expect(mockPrompt).not.toHaveBeenCalled();
+    expect(writeSpy).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(writeSpy.mock.calls[0][0] as string);
+    expect(payload.count).toBe(2);
+    expect(payload.workspaces.map((w: any) => w.name).sort()).toEqual(['ws-a', 'ws-b']);
+    expect(payload.workspaces[0]).toMatchObject({ repoCount: 1, hasSession: false });
+    writeSpy.mockRestore();
+  });
+
+  it('--json: empty list emits count 0, no prompt, no log noise', async () => {
+    const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    process.argv = ['node', 'list-workspaces.js', '--json'];
+    mockListWorkspaces.mockResolvedValueOnce([]);
+
+    await main();
+
+    expect(logInfo).not.toHaveBeenCalled();
+    expect(mockPrompt).not.toHaveBeenCalled();
+    const payload = JSON.parse(writeSpy.mock.calls[0][0] as string);
+    expect(payload).toEqual({ archived: false, count: 0, workspaces: [] });
+    writeSpy.mockRestore();
+  });
+
   it('sorts workspaces with sessions before those without', async () => {
     mockListWorkspaces.mockResolvedValueOnce(makeWorkspaceList('no-session', 'has-session'));
     mockGetWorkspaceSessions.mockResolvedValueOnce([{

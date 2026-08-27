@@ -4,6 +4,7 @@ import { WORKSPACES_DIR } from '../utils/config';
 import { loadMetadata } from '../utils/workspace-meta';
 import { getAllReposStatus } from '../utils/git-status';
 import { logError, logInfo, logStep } from '../utils/logger';
+import { outputJson } from '../utils/output';
 import { colorize } from '../utils/colors';
 import { resolveWorkspace } from '../utils/command-helpers';
 
@@ -78,13 +79,19 @@ export function registerStatusCommand(parent: Command) {
     .alias('st')
     .description('Show git status across all repos')
     .argument('[workspace]', 'Workspace name')
-    .action(async (workspace) => {
-      await handleStatus(workspace);
+    .option('--json', 'Output as JSON')
+    .action(async (workspace, opts) => {
+      await handleStatus(workspace, opts);
     });
 }
 
-async function handleStatus(workspaceArg?: string) {
+async function handleStatus(workspaceArg?: string, opts: { json?: boolean } = {}) {
   try {
+    // JSON mode is non-interactive: require an explicit workspace rather than prompt.
+    if (opts.json && !workspaceArg) {
+      logError('status --json requires a workspace name');
+      process.exit(1);
+    }
     const selectedWorkspace = await resolveWorkspace(workspaceArg);
     const workspacePath = path.join(WORKSPACES_DIR, selectedWorkspace);
     const metadata = await loadMetadata(workspacePath);
@@ -94,10 +101,23 @@ async function handleStatus(workspaceArg?: string) {
       process.exit(1);
     }
 
+    const repoDirectoryNames = metadata.repositories.map(r => r.directoryName);
+
+    if (opts.json) {
+      const statuses = await getAllReposStatus(workspacePath, repoDirectoryNames, 3);
+      outputJson({
+        workspace: selectedWorkspace,
+        path: workspacePath,
+        repoCount: statuses.length,
+        clean: statuses.every(s => s.clean),
+        repositories: statuses,
+      });
+      return;
+    }
+
     logStep(`Checking status for workspace: ${colorize(selectedWorkspace, 'cyan')}`);
     logInfo(`Found ${metadata.repositories.length} repositories`);
 
-    const repoDirectoryNames = metadata.repositories.map(r => r.directoryName);
     const statuses = await getAllReposStatus(workspacePath, repoDirectoryNames, 3);
 
     displayStatusTable(statuses);

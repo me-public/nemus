@@ -1,5 +1,10 @@
 import { colors, colorize } from './colors';
 
+// Diagnostics (info/success/error/warn/step) go to STDERR so stdout carries only
+// a command's actual data — required for clean `--json` piping (nemus list
+// --json | jq …) and for non-TTY consumers. Use `outputJson`/stdout for data.
+const logStream = (line: string): void => console.error(line);
+
 const getTimestamp = (): string => {
   const now = new Date();
   return now.toLocaleTimeString('en-US', {
@@ -11,27 +16,27 @@ const getTimestamp = (): string => {
 };
 
 export const logInfo = (message: string): void => {
-  console.log(`${colors.gray}[${getTimestamp()}]${colors.reset} ${message}`);
+  logStream(`${colors.gray}[${getTimestamp()}]${colors.reset} ${message}`);
 };
 
 export const logSuccess = (message: string): void => {
-  console.log(`${colors.gray}[${getTimestamp()}]${colors.reset} ${colorize('✓', 'green')} ${message}`);
+  logStream(`${colors.gray}[${getTimestamp()}]${colors.reset} ${colorize('✓', 'green')} ${message}`);
 };
 
 export const logError = (message: string): void => {
-  console.log(`${colors.gray}[${getTimestamp()}]${colors.reset} ${colorize('✗', 'red')} ${message}`);
+  logStream(`${colors.gray}[${getTimestamp()}]${colors.reset} ${colorize('✗', 'red')} ${message}`);
 };
 
 export const logWarning = (message: string): void => {
-  console.log(`${colors.gray}[${getTimestamp()}]${colors.reset} ${colorize('⚠', 'yellow')} ${message}`);
+  logStream(`${colors.gray}[${getTimestamp()}]${colors.reset} ${colorize('⚠', 'yellow')} ${message}`);
 };
 
 export const logStep = (stepOrMessage: number | string, total?: number, message?: string): void => {
   if (typeof stepOrMessage === 'string') {
     // Single parameter version: just a message
-    console.log(`${colors.gray}[${getTimestamp()}]${colors.reset} ${colorize('▸', 'cyan')} ${stepOrMessage}`);
+    logStream(`${colors.gray}[${getTimestamp()}]${colors.reset} ${colorize('▸', 'cyan')} ${stepOrMessage}`);
   } else {
     // Three parameter version: step, total, message
-    console.log(`${colors.gray}[${getTimestamp()}]${colors.reset} ${colorize(`[${stepOrMessage}/${total}]`, 'cyan')} ${message}`);
+    logStream(`${colors.gray}[${getTimestamp()}]${colors.reset} ${colorize(`[${stepOrMessage}/${total}]`, 'cyan')} ${message}`);
   }
 };
