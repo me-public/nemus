@@ -115,45 +115,56 @@ async function handleDelete(opts: {
 
       const selectedNames = await promptMultiWorkspaceSelection(workspaces);
 
+      // Resolve + validate paths once. Names come from disk, but safeWorkspacePath
+      // must not throw mid-flow and crash the interactive session, so skip any
+      // name that fails the allowlist rather than aborting.
+      const resolved: { name: string; path: string; workspace: typeof workspaces[number] | undefined }[] = [];
       for (const name of selectedNames) {
-        const workspace = workspaces.find(ws => ws.name === name);
-        const workspacePath = safeWorkspacePath(name);
-        if (workspace?.metadata) {
-          console.log(`${colorize(name, 'cyan')}`);
-          console.log(`  Repositories: ${workspace.metadata.repositories.length}`);
-          console.log(`  Created: ${new Date(workspace.metadata.createdAt).toLocaleString()}`);
-          console.log(`  Path: ${workspacePath}`);
-        } else {
-          console.log(`${colorize(name, 'cyan')}`);
-          console.log(`  Path: ${workspacePath}`);
+        try {
+          resolved.push({ name, path: safeWorkspacePath(name), workspace: workspaces.find(ws => ws.name === name) });
+        } catch (error) {
+          logError(error instanceof Error ? error.message : `Invalid workspace name "${name}"`);
         }
       }
-      console.log('');
 
-      logWarning('This will permanently delete all cloned repositories in the selected workspaces!');
+      if (resolved.length > 0) {
+        for (const { name, path: workspacePath, workspace } of resolved) {
+          if (workspace?.metadata) {
+            console.log(`${colorize(name, 'cyan')}`);
+            console.log(`  Repositories: ${workspace.metadata.repositories.length}`);
+            console.log(`  Created: ${new Date(workspace.metadata.createdAt).toLocaleString()}`);
+            console.log(`  Path: ${workspacePath}`);
+          } else {
+            console.log(`${colorize(name, 'cyan')}`);
+            console.log(`  Path: ${workspacePath}`);
+          }
+        }
+        console.log('');
 
-      const confirmMessage = selectedNames.length === 1
-        ? `Delete workspace ${selectedNames[0]}?`
-        : `Delete these ${selectedNames.length} workspaces?`;
+        logWarning('This will permanently delete all cloned repositories in the selected workspaces!');
 
-      const { confirmed } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'confirmed',
-          message: confirmMessage,
-          default: true,
-        },
-      ]);
+        const confirmMessage = resolved.length === 1
+          ? `Delete workspace ${resolved[0].name}?`
+          : `Delete these ${resolved.length} workspaces?`;
 
-      if (confirmed) {
-        for (const name of selectedNames) {
-          const workspacePath = safeWorkspacePath(name);
-          try {
-            await fs.rm(workspacePath, { recursive: true, force: true });
-            logSuccess(`Deleted "${colorize(name, 'cyan')}"`);
-          } catch (error) {
-            logError(`Failed to delete "${name}"`);
-            if (error instanceof Error) logError(error.message);
+        const { confirmed } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'confirmed',
+            message: confirmMessage,
+            default: true,
+          },
+        ]);
+
+        if (confirmed) {
+          for (const { name, path: workspacePath } of resolved) {
+            try {
+              await fs.rm(workspacePath, { recursive: true, force: true });
+              logSuccess(`Deleted "${colorize(name, 'cyan')}"`);
+            } catch (error) {
+              logError(`Failed to delete "${name}"`);
+              if (error instanceof Error) logError(error.message);
+            }
           }
         }
       }
