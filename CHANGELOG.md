@@ -59,6 +59,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (P4) a vendor-neutral **notification seam** — `Notifier` with Slack (incoming
   webhook) + generic webhook sinks (`notifierFromEnv`), wired into the CI-loop as
   optional out-of-band report-back.
+  **Code-host breadth:** the `GitForge` seam gained a dependency-free **GitLab**
+  implementation (`GitLabForge` — merge requests, commit statuses, MR notes;
+  self-managed via `GITLAB_API_URL`) alongside GitHub, plus a **forge registry**
+  (`createForge`/`registerForge`/`registeredForges` + `NEMUS_FORGE_HOST`) so a
+  run targets GitHub or GitLab — or a custom "bring your own backend" host
+  (Gitea, Bitbucket, …) — with no code change. Docs in `packages/cloud/README.md`.
   Design: `docs/plans/2026-08-26-cloud-iac.md`.
 
 ## [0.2.9] - 2026-08-26

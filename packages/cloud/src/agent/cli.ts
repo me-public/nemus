@@ -2,7 +2,7 @@
 import { writeFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { forgeAuthFromEnv } from '../index';
-import { GitHubForge } from '../gitforge/github';
+import { createForge, forgeKindFromEnv, forgeApiBaseFromEnv } from '../gitforge/registry';
 import { parseAgentEnv } from './env';
 import { runAgentTask, RunAgentDeps } from './run';
 import { ShellGitOps } from './git-ops';
@@ -21,10 +21,14 @@ export async function main(env: NodeJS.ProcessEnv = process.env): Promise<number
     const config = parseAgentEnv(env);
     workdir = config.workdir;
     const tokenSource = forgeAuthFromEnv(env);
+    const forgeKind = forgeKindFromEnv(env);
     const deps: RunAgentDeps = {
       git: new ShellGitOps(),
       agent: new ShellAgentInvoker({ env }),
-      forge: new GitHubForge({ tokenSource, apiBaseUrl: env.GITHUB_API_URL }),
+      forge: createForge(forgeKind, {
+        tokenSource,
+        apiBaseUrl: forgeApiBaseFromEnv(forgeKind, env),
+      }),
       tokenSource,
     };
     result = await runAgentTask(config, deps);
