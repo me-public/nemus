@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.10] - 2026-08-27
+
+### Security
+
+- **Eliminated the shell-injection surface in git/shell operations.** Every
+  `exec`/`execSync` call that interpolated a value into a shell string was
+  migrated to `execFile`/argv (no shell). Most notably, the MCP `branch_create`
+  and `switch_branch` tools built `git checkout -b <name>` by unquoted
+  interpolation with no branch-name validation, so a crafted (but valid) git ref
+  could run arbitrary commands; branch names are now passed as argv elements and
+  can never be interpreted by a shell. Also migrated `ghq`/clone, workspace
+  cleanup (`du`, `git clean`), disk-usage health checks, agent-availability
+  probing, and the shell-integration/MCP installers.
+- **`w delete` no longer deletes arbitrary directories.** The `--workspace` flag
+  path validated names through `safeWorkspacePath()` (allowlist + containment)
+  and skips unknown/invalid names instead of `fs.rm`-ing a guessed path; the
+  interactive path is guarded the same way.
+
 ### Added
 
 - **Monorepo (npm workspaces).** The repo is now an npm-workspaces monorepo:
