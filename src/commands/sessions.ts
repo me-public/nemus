@@ -5,6 +5,7 @@ import * as fs from 'fs/promises';
 import { getWorkspaceSessions, WorkspaceSession } from '../utils/claude-sessions';
 import { listWorkspaces } from '../utils/workspace-meta';
 import { logError, logInfo } from '../utils/logger';
+import { outputJson, outputJsonError } from '../utils/output';
 import { colorize } from '../utils/colors';
 import inquirer from 'inquirer';
 import autocompletePrompt from 'inquirer-autocomplete-prompt';
@@ -20,16 +21,21 @@ export function registerSessionsCommand(parent: Command) {
     .command('sessions')
     .alias('ses')
     .description('Resume a Claude session in a workspace')
-    .action(async () => {
-      await handleSessions();
+    .option('--json', 'List sessions as JSON (no interactive resume)')
+    .action(async (opts) => {
+      await handleSessions(opts);
     });
 }
 
-async function handleSessions() {
+async function handleSessions(opts: { json?: boolean } = {}) {
   try {
     const sessions = await getWorkspaceSessions();
 
     if (sessions.length === 0) {
+      if (opts.json) {
+        outputJson({ count: 0, sessions: [] });
+        return;
+      }
       logInfo('No workspace sessions found.');
       console.log('\nYou can create a workspace with: nemus create');
       console.log('Or navigate to one with: w go');
@@ -45,6 +51,23 @@ async function handleSessions() {
       const repoLabel = repoCount > 0 ? `${repoCount} repos` : 'no repos';
       return { session, repoLabel };
     });
+
+    // JSON mode: list sessions to stdout, no resume prompt / temp-file writes.
+    if (opts.json) {
+      outputJson({
+        count: items.length,
+        sessions: items.map(i => ({
+          workspaceName: i.session.workspaceName,
+          workspacePath: i.session.workspacePath,
+          sessionId: i.session.sessionId,
+          agentType: i.session.agentType ?? null,
+          lastActive: i.session.lastActiveLabel,
+          lastActiveAt: i.session.lastActiveAt.toISOString(),
+          repoCount: workspaceMap.get(i.session.workspaceName)?.metadata?.repositories?.length ?? 0,
+        })),
+      });
+      return;
+    }
 
     const maxNameLen = Math.max(...items.map(i => i.session.workspaceName.length));
 
@@ -92,8 +115,12 @@ async function handleSessions() {
     console.log(`\n${colorize('Resuming:', 'green')} ${session.workspaceName} (last active ${session.lastActiveLabel})`);
   } catch (error) {
     if ((error as any)?.name === 'ExitPromptError') return;
-    logError('Failed to list sessions');
-    if (error instanceof Error) { logError(error.message); }
+    if (opts.json) {
+      outputJsonError(error instanceof Error ? error.message : 'Failed to list sessions');
+    } else {
+      logError('Failed to list sessions');
+      if (error instanceof Error) { logError(error.message); }
+    }
     process.exit(1);
   }
 }

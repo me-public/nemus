@@ -225,18 +225,23 @@ shared-lib       main         ✓ Clean       ↓3             -
 
 ### Scripting: `--json`
 
-`list`, `status`, and `doctor` accept `--json` for stable, machine-readable
-output. Diagnostics go to stderr, so stdout is a single JSON document you can
-pipe straight into `jq` or a CI step:
+The read-only reporting commands accept `--json` for stable, machine-readable
+output: `list`, `status`, `doctor`, `suite list`, `sessions`, and
+`analyze-deps`. Diagnostics go to stderr, so stdout is a single JSON document
+you can pipe straight into `jq` or a CI step:
 
 ```bash
 nemus list --json | jq -r '.workspaces[].name'
 nemus status my-workspace --json | jq '.clean'
 nemus doctor my-workspace --json | jq '.score'
+nemus suite list --json | jq -r '.suites[].name'
+nemus sessions --json | jq -r '.sessions[].workspaceName'
+nemus analyze-deps my-workspace --json | jq '.circularDependencies'
 ```
 
-`status`/`doctor` with `--json` need an explicit workspace name (they never
-prompt).
+The workspace-scoped ones (`status`/`doctor`/`analyze-deps`) need an explicit
+workspace name with `--json` (they never prompt). On failure, `--json` prints a
+parseable `{ "ok": false, "error": … }` to stdout and exits non-zero.
 
 ### Suites (reusable repo collections)
 
