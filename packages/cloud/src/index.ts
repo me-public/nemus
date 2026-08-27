@@ -28,6 +28,17 @@ export * from './secret';
 export * from './gitforge/types';
 export { GitHubForge } from './gitforge/github';
 export type { GitHubForgeOptions } from './gitforge/github';
+export { GitLabForge } from './gitforge/gitlab';
+export type { GitLabForgeOptions } from './gitforge/gitlab';
+// Code-host registry: build a GitForge by kind (github | gitlab | custom).
+export {
+  createForge,
+  registerForge,
+  registeredForges,
+  forgeKindFromEnv,
+  forgeApiBaseFromEnv,
+} from './gitforge/registry';
+export type { ForgeKind, ForgeFactory, CreateForgeOptions } from './gitforge/registry';
 
 // In-image agent orchestrator: env contract, result.json schema, run flow.
 export * from './agent/types';

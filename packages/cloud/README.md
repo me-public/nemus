@@ -91,6 +91,62 @@ own working dir** (or point a remote backend at it) so state is durable, and
 **don't pass secrets as `-var`** (they land in argv and the streamed apply log —
 use the provider's own credential env / a `SecretSource`).
 
+## The code-host seam: `GitForge` (GitHub, GitLab, or your own)
+
+Report-back and the CI-loop talk only to a `GitForge` — `openPR`, `getChecks`,
+`comment` — never to a host SDK. Two backends ship in-box (both dependency-free,
+`fetch`-only): **`github`** (REST; PRs, check-runs, issue comments; works against
+GitHub Enterprise via `GITHUB_API_URL`) and **`gitlab`** (REST v4; merge
+requests, commit statuses, MR notes; works against self-managed GitLab via
+`GITLAB_API_URL`). Both are authenticated by the same `ForgeTokenSource`, so
+PAT / GitHub-App auth is orthogonal to which host you target.
+
+Build one by kind with the registry instead of `new GitHubForge(...)`:
+
+```ts
+import { createForge, forgeKindFromEnv, forgeApiBaseFromEnv, forgeAuthFromEnv } from '@nemus-cli/cloud';
+
+const tokenSource = forgeAuthFromEnv(process.env);
+const kind = forgeKindFromEnv(process.env);            // NEMUS_FORGE_HOST, default 'github'
+const forge = createForge(kind, {
+  tokenSource,
+  apiBaseUrl: forgeApiBaseFromEnv(kind, process.env),  // GITHUB_API_URL | GITLAB_API_URL
+});
+await forge.openPR({ owner: 'acme', repo: 'api', head: 'nemus/x', base: 'main', title: '…', draft: true });
+```
+
+The container entrypoint (`nemus-cloud-agent`) already does exactly this, so a
+run targets GitLab by setting **`NEMUS_FORGE_HOST=gitlab`** (+ a GitLab token) —
+no code change. Neutral-vocabulary mapping for GitLab: a PR is a **merge
+request** and `PullRequest.number` is its project-scoped **iid**; "checks" are
+**commit statuses** for the head SHA; a repo `{ owner, repo }` addresses the
+URL-encoded `namespace/path` project (subgroups in `owner` are fine); draft is
+the `Draft:` title prefix; a `manual` job maps to `neutral` so an un-triggered
+manual gate never reads as a red check.
+
+### Bring your own backend
+
+Gitea, Bitbucket, a corporate host — implement the three-method `GitForge`
+interface and register it under a kind name. No fork required:
+
+```ts
+import { registerForge, createForge, type GitForge } from '@nemus-cli/cloud';
+
+class GiteaForge implements GitForge {
+  readonly id = 'gitea';
+  async openPR(input) { /* … your host's API … */ }
+  async getChecks(ref) { /* map host statuses -> CheckRun[] */ }
+  async comment(input) { /* … */ }
+}
+
+registerForge('gitea', (opts) => new GiteaForge(opts)); // opts: { tokenSource, apiBaseUrl?, fetchImpl? }
+// now createForge('gitea', …) and NEMUS_FORGE_HOST=gitea resolve it
+```
+
+Registering an existing kind name overrides it (last write wins), so you can
+swap even the built-in `github`/`gitlab` behavior. `registeredForges()` lists
+what's available.
+
 ## The CLI: `nemus-cloud`
 
 A thin, dependency-free CLI ties the seams together end-to-end:
