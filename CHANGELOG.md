@@ -20,7 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `TargetDescriptor`/`Capabilities` + a name registry) with an in-box
   **Docker runner** (needs no cloud account); a **`SecretSource`** seam
   (`env`/`dotenv`/`gh` + `resolveSecretsToEnv`); and a **`GitForge`** seam
-  (`openPR`/`getChecks`/`comment`) with a dependency-free GitHub implementation.
+  (`openPR`/`getChecks`/`comment`) with a dependency-free GitHub implementation;
+  and the **in-image agent orchestrator** (runner-image env contract, versioned
+  `result.json` schema, and `runAgentTask`: clone all → run the agent once over
+  the workspace → open a PR per changed repo, with per-repo error isolation).
   Design: `docs/plans/2026-08-26-cloud-iac.md`.
 
 ## [0.2.9] - 2026-08-26

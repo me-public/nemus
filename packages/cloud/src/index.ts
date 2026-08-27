@@ -27,6 +27,12 @@ export * from './gitforge/types';
 export { GitHubForge } from './gitforge/github';
 export type { GitHubForgeOptions } from './gitforge/github';
 
+// In-image agent orchestrator: env contract, result.json schema, run flow.
+export * from './agent/types';
+export { parseAgentEnv, parseRepo } from './agent/env';
+export { runAgentTask, slug } from './agent/run';
+export type { RunAgentDeps } from './agent/run';
+
 import { ForgeTokenSource } from './forge/types';
 import { PatTokenSource } from './forge/pat';
 import { GitHubAppTokenSource, GitHubAppConfig } from './forge/github-app';
