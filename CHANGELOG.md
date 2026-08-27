@@ -65,6 +65,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`createForge`/`registerForge`/`registeredForges` + `NEMUS_FORGE_HOST`) so a
   run targets GitHub or GitLab — or a custom "bring your own backend" host
   (Gitea, Bitbucket, …) — with no code change. Docs in `packages/cloud/README.md`.
+  **CI-loop + notifier wired into the agent image:** a second container entry
+  mode `NEMUS_MODE=fix-pr` (`runFixPr`/`parseFixPrEnv`, CLI `nemus-cloud fix-pr
+  --repo --pr --branch`) drives an *existing* PR to green with the bounded
+  CI-loop (P3) + optional Slack/webhook notifications (P4) — clone, checkout PR
+  head, `runCiLoop`, then write the same versioned `result.json` with
+  `mode: 'fix-pr'` + a compact `ci` summary. So P3+P4 are usable end-to-end in a
+  container, on GitHub or GitLab.
   Design: `docs/plans/2026-08-26-cloud-iac.md`.
 
 ## [0.2.9] - 2026-08-26

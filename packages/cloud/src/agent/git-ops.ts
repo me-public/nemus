@@ -29,6 +29,11 @@ export class ShellGitOps implements GitOps {
     await run(this.exec, 'git', ['-C', dir, 'checkout', '-b', branch]);
   }
 
+  async checkout(dir: string, branch: string): Promise<void> {
+    // A fresh clone has origin/<branch>; `git checkout <branch>` sets up tracking.
+    await run(this.exec, 'git', ['-C', dir, 'checkout', branch]);
+  }
+
   async hasChanges(dir: string): Promise<boolean> {
     const { stdout } = await run(this.exec, 'git', ['-C', dir, 'status', '--porcelain']);
     return stdout.trim().length > 0;

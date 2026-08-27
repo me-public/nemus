@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseArgs, parseVars, buildRunTaskSpec, main, CloudCliDeps } from './cloud';
+import { parseArgs, parseVars, buildRunTaskSpec, buildFixPrTaskSpec, main, CloudCliDeps } from './cloud';
 import { TargetDescriptor, LogLine, Status } from '../runner/types';
 
 describe('parseArgs', () => {
@@ -58,6 +58,50 @@ describe('buildRunTaskSpec', () => {
     expect(() => buildRunTaskSpec({ image: 'i', task: 't' }, { GITHUB_TOKEN: 't' })).toThrow(/--repos/);
     expect(() => buildRunTaskSpec({ image: 'i', repos: 'a' }, { GITHUB_TOKEN: 't' })).toThrow(/--task/);
     expect(() => buildRunTaskSpec(flags, {})).toThrow(/no forge auth/);
+  });
+});
+
+describe('buildFixPrTaskSpec', () => {
+  const flags = { image: 'img', repo: 'acme/api', pr: '42', branch: 'nemus/fix', owner: 'acme' };
+
+  it('wires the fix-pr env contract (NEMUS_MODE + PR coords) + tag-safe labels', () => {
+    const spec = buildFixPrTaskSpec(flags, { GITHUB_TOKEN: 't' });
+    expect(spec.command).toEqual(['nemus-cloud-agent']);
+    expect(spec.env).toMatchObject({
+      NEMUS_MODE: 'fix-pr',
+      NEMUS_REPOS: 'acme/api',
+      NEMUS_PR_NUMBER: '42',
+      NEMUS_PR_BRANCH: 'nemus/fix',
+      NEMUS_AGENT: 'pi',
+      GITHUB_TOKEN: 't',
+    });
+    expect(spec.labels).toEqual({ 'nemus.agent': 'pi', 'nemus.mode': 'fix-pr', 'nemus.pr': '42', 'nemus.owner': 'acme' });
+    expect(Object.values(spec.labels!).some((v) => v.includes(','))).toBe(false);
+  });
+
+  it('forwards the code-host selector + notifier sinks + CI tuning', () => {
+    const spec = buildFixPrTaskSpec(
+      { ...flags, 'max-iterations': '2', 'poll-interval-ms': '100', 'max-polls': '5' },
+      { GITHUB_TOKEN: 't', NEMUS_FORGE_HOST: 'gitlab', GITLAB_API_URL: 'https://gl/api/v4', SLACK_WEBHOOK_URL: 'https://hook' },
+    );
+    expect(spec.env).toMatchObject({
+      NEMUS_FORGE_HOST: 'gitlab',
+      GITLAB_API_URL: 'https://gl/api/v4',
+      SLACK_WEBHOOK_URL: 'https://hook',
+      NEMUS_CI_MAX_ITERATIONS: '2',
+      NEMUS_CI_POLL_INTERVAL_MS: '100',
+      NEMUS_CI_MAX_POLLS: '5',
+    });
+  });
+
+  it('validates its inputs', () => {
+    expect(() => buildFixPrTaskSpec({ repo: 'a/b', pr: '1', branch: 'x' }, { GITHUB_TOKEN: 't' })).toThrow(/--image/);
+    expect(() => buildFixPrTaskSpec({ image: 'i', pr: '1', branch: 'x' }, { GITHUB_TOKEN: 't' })).toThrow(/--repo/);
+    expect(() => buildFixPrTaskSpec({ image: 'i', repo: 'a/b,c/d', pr: '1', branch: 'x' }, { GITHUB_TOKEN: 't' })).toThrow(/exactly one --repo/);
+    expect(() => buildFixPrTaskSpec({ image: 'i', repo: 'a/b', branch: 'x' }, { GITHUB_TOKEN: 't' })).toThrow(/--pr/);
+    expect(() => buildFixPrTaskSpec({ image: 'i', repo: 'a/b', pr: 'x', branch: 'b' }, { GITHUB_TOKEN: 't' })).toThrow(/--pr must be a number/);
+    expect(() => buildFixPrTaskSpec({ image: 'i', repo: 'a/b', pr: '1' }, { GITHUB_TOKEN: 't' })).toThrow(/--branch/);
+    expect(() => buildFixPrTaskSpec(flags, {})).toThrow(/no forge auth/);
   });
 });
 
@@ -136,6 +180,18 @@ describe('main dispatch', () => {
     files.set('.nemus-target.json', JSON.stringify({ version: 1, runner: 'fake' }));
     const code = await main(['run', '--image', 'i', '--repos', 'a', '--task', 't', '--wait'], deps);
     expect(code).toBe(1);
+  });
+
+  it('fix-pr: loads target and launches the fix-pr task', async () => {
+    const { deps, files, calls, out } = harness();
+    files.set('.nemus-target.json', JSON.stringify({ version: 1, runner: 'fake' }));
+    const code = await main(
+      ['fix-pr', '--image', 'img', '--repo', 'acme/api', '--pr', '42', '--branch', 'nemus/fix', '--wait'],
+      deps,
+    );
+    expect(code).toBe(0);
+    expect(calls).toEqual(expect.arrayContaining(['runner:fake', 'launch']));
+    expect(out.some((l) => l.includes('succeeded'))).toBe(true);
   });
 
   it('down: reads target then destroys', async () => {

@@ -61,6 +61,18 @@ export interface RunResult {
   repos: RepoResult[];
   /** Top-level failure (env/agent), distinct from per-repo errors. */
   error?: string;
+  /** Which entry mode produced this result (default 'agent'). Additive/optional. */
+  mode?: 'agent' | 'fix-pr';
+  /** Present for `fix-pr` runs: the bounded CI-loop outcome. */
+  ci?: CiSummary;
+}
+
+/** Compact CI-loop outcome recorded in result.json for a `fix-pr` run. */
+export interface CiSummary {
+  ok: boolean;
+  /** green | no_checks | exhausted | stuck | timeout */
+  state: string;
+  iterations: number;
 }
 
 /** Git operations, injected so the flow is testable. Implementations shell git. */
@@ -69,6 +81,8 @@ export interface GitOps {
   clone(url: string, dir: string): Promise<void>;
   /** Create + switch to `branch` in the repo at `dir`. */
   checkoutNewBranch(dir: string, branch: string): Promise<void>;
+  /** Switch to an existing `branch` (e.g. a PR head) in the repo at `dir`. */
+  checkout(dir: string, branch: string): Promise<void>;
   /** True if the working tree has changes to commit. */
   hasChanges(dir: string): Promise<boolean>;
   /** Stage everything and commit with `message`. */

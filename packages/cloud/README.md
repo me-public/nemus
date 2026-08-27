@@ -159,7 +159,11 @@ nemus-cloud up --module fargate --var region=us-east-1 --var name=nemus
 nemus-cloud run --image ghcr.io/acme/agent:latest \
   --repos acme/api,acme/web --task "add idempotency keys" --owner acme --follow --wait
 
-# 3) tear it down
+# 3) drive an EXISTING PR to green (CI-loop + notifications, no new PR)
+nemus-cloud fix-pr --image ghcr.io/acme/agent:latest \
+  --repo acme/api --pr 42 --branch nemus/add-idempotency-keys --wait
+
+# 4) tear it down
 nemus-cloud down --module fargate
 ```
 
@@ -167,6 +171,23 @@ nemus-cloud down --module fargate
 + a tag-safe `TaskSpec` and launches it via the target's `Runner`, optionally
 streaming logs (`--follow`) and waiting for the exit code (`--wait`). Run
 `nemus-cloud help` for all flags.
+
+### `fix-pr`: make P3 + P4 usable end-to-end
+
+`fix-pr` is the second container entry mode (selected by `NEMUS_MODE=fix-pr`):
+instead of opening a **new** PR, it takes an **existing** one and drives it to
+green with the bounded **CI-loop** (P3) and optional **notifications** (P4). In
+the image it clones the repo, checks out the PR head branch, then hands off to
+`runCiLoop` — poll checks, run a fix pass on failure, commit, push, re-check,
+bounded so it can't spin; a give-up posts a best-effort "needs a human" comment
+and (if configured) a Slack/webhook alert. It writes the same versioned
+`result.json` as `run`, with an added `mode: 'fix-pr'` and a compact `ci`
+summary (`{ ok, state, iterations }`).
+
+Because it goes through the forge registry and notifier seam, it works against
+GitHub or GitLab (`NEMUS_FORGE_HOST=gitlab`) and reports out-of-band via
+`SLACK_WEBHOOK_URL` / `NEMUS_WEBHOOK_URL` — all opt-in, all vendor-neutral. Tune
+the loop with `--max-iterations` / `--poll-interval-ms` / `--max-polls`.
 
 ## Develop
 

@@ -128,11 +128,6 @@ export function buildRunTaskSpec(flags: Flags, env: NodeJS.ProcessEnv): TaskSpec
   const agent = str(flags, 'agent') ?? 'pi';
   const owner = str(flags, 'owner');
   const report = str(flags, 'report') ?? 'pr';
-  const token = env.GITHUB_TOKEN || env.GIT_TOKEN;
-  const hasApp = !!(env.GITHUB_APP_ID && env.GITHUB_APP_PRIVATE_KEY && env.GITHUB_APP_INSTALLATION_ID);
-  if (!token && !hasApp) {
-    throw new Error('run: no forge auth — set GITHUB_TOKEN (or GITHUB_APP_ID/_PRIVATE_KEY/_INSTALLATION_ID)');
-  }
 
   const taskEnv: Record<string, string> = {
     NEMUS_REPOS: repos,
@@ -142,11 +137,7 @@ export function buildRunTaskSpec(flags: Flags, env: NodeJS.ProcessEnv): TaskSpec
   };
   if (owner) taskEnv.NEMUS_OWNER = owner;
   if (str(flags, 'git-host')) taskEnv.GIT_HOST = str(flags, 'git-host')!;
-  if (token) taskEnv.GITHUB_TOKEN = token;
-  // Pass App creds straight through when present (least-privilege in-task auth).
-  for (const k of ['GITHUB_APP_ID', 'GITHUB_APP_PRIVATE_KEY', 'GITHUB_APP_INSTALLATION_ID']) {
-    if (env[k]) taskEnv[k] = env[k]!;
-  }
+  injectForgeEnv(taskEnv, env, 'run');
 
   const cpu = str(flags, 'cpu');
   const memory = str(flags, 'memory');
@@ -158,6 +149,75 @@ export function buildRunTaskSpec(flags: Flags, env: NodeJS.ProcessEnv): TaskSpec
   if (owner) labels['nemus.owner'] = owner;
 
   return { image, env: taskEnv, command: ['nemus-cloud-agent'], resources, labels };
+}
+
+/** Build the TaskSpec for `fix-pr` mode: drive an EXISTING PR to green (no new
+ *  PR). Pure + exported so the env contract is unit-tested. */
+export function buildFixPrTaskSpec(flags: Flags, env: NodeJS.ProcessEnv): TaskSpec {
+  const image = str(flags, 'image');
+  const repo = str(flags, 'repo') ?? str(flags, 'repos');
+  const pr = str(flags, 'pr');
+  const branch = str(flags, 'branch');
+  if (!image) throw new Error('fix-pr: --image is required');
+  if (!repo) throw new Error('fix-pr: --repo owner/name is required');
+  if (repo.includes(',')) throw new Error('fix-pr: exactly one --repo (no comma-separated list)');
+  if (!pr) throw new Error('fix-pr: --pr <number> is required');
+  if (!/^\d+$/.test(pr)) throw new Error(`fix-pr: --pr must be a number, got "${pr}"`);
+  if (!branch) throw new Error('fix-pr: --branch <pr-head> is required');
+
+  const agent = str(flags, 'agent') ?? 'pi';
+  const owner = str(flags, 'owner');
+  const taskEnv: Record<string, string> = {
+    NEMUS_MODE: 'fix-pr',
+    NEMUS_REPOS: repo,
+    NEMUS_PR_NUMBER: pr,
+    NEMUS_PR_BRANCH: branch,
+    NEMUS_AGENT: agent,
+  };
+  if (owner) taskEnv.NEMUS_OWNER = owner;
+  if (str(flags, 'task')) taskEnv.NEMUS_TASK = str(flags, 'task')!;
+  if (str(flags, 'git-host')) taskEnv.GIT_HOST = str(flags, 'git-host')!;
+  for (const [flag, envKey] of [
+    ['max-iterations', 'NEMUS_CI_MAX_ITERATIONS'],
+    ['poll-interval-ms', 'NEMUS_CI_POLL_INTERVAL_MS'],
+    ['max-polls', 'NEMUS_CI_MAX_POLLS'],
+  ] as const) {
+    if (str(flags, flag)) taskEnv[envKey] = str(flags, flag)!;
+  }
+  injectForgeEnv(taskEnv, env, 'fix-pr');
+
+  const cpu = str(flags, 'cpu');
+  const memory = str(flags, 'memory');
+  const resources =
+    cpu || memory ? { cpu: cpu ? Number(cpu) : undefined, memoryMB: memory ? Number(memory) : undefined } : undefined;
+
+  const labels: Record<string, string> = { 'nemus.agent': agent, 'nemus.mode': 'fix-pr', 'nemus.pr': pr };
+  if (owner) labels['nemus.owner'] = owner;
+
+  return { image, env: taskEnv, command: ['nemus-cloud-agent'], resources, labels };
+}
+
+/**
+ * Inject forge auth + code-host selector + notifier sinks into a task env,
+ * shared by `run` and `fix-pr`. Requires forge auth (a token or App creds) and
+ * passes through the code-host / API-base / notifier vars when set, so the
+ * container can target GitHub or GitLab and report back out-of-band.
+ */
+function injectForgeEnv(taskEnv: Record<string, string>, env: NodeJS.ProcessEnv, cmd: string): void {
+  const token = env.GITHUB_TOKEN || env.GIT_TOKEN;
+  const hasApp = !!(env.GITHUB_APP_ID && env.GITHUB_APP_PRIVATE_KEY && env.GITHUB_APP_INSTALLATION_ID);
+  if (!token && !hasApp) {
+    throw new Error(`${cmd}: no forge auth — set GITHUB_TOKEN (or GITHUB_APP_ID/_PRIVATE_KEY/_INSTALLATION_ID)`);
+  }
+  if (token) taskEnv.GITHUB_TOKEN = token;
+  // Least-privilege in-task auth (App) + code-host selector + notifier sinks.
+  for (const k of [
+    'GITHUB_APP_ID', 'GITHUB_APP_PRIVATE_KEY', 'GITHUB_APP_INSTALLATION_ID',
+    'NEMUS_FORGE', 'NEMUS_FORGE_HOST', 'GITHUB_API_URL', 'GITLAB_API_URL',
+    'SLACK_WEBHOOK_URL', 'NEMUS_WEBHOOK_URL',
+  ]) {
+    if (env[k]) taskEnv[k] = env[k]!;
+  }
 }
 
 function loadTarget(deps: CloudCliDeps, file: string): TargetDescriptor {
@@ -207,7 +267,15 @@ async function cmdDown(flags: Flags, deps: CloudCliDeps): Promise<number> {
 }
 
 async function cmdRun(flags: Flags, deps: CloudCliDeps): Promise<number> {
-  const spec = buildRunTaskSpec(flags, deps.env);
+  return launchSpec(buildRunTaskSpec(flags, deps.env), flags, deps);
+}
+
+async function cmdFixPr(flags: Flags, deps: CloudCliDeps): Promise<number> {
+  return launchSpec(buildFixPrTaskSpec(flags, deps.env), flags, deps);
+}
+
+/** Launch a TaskSpec on the resolved target, with optional --follow / --wait. */
+async function launchSpec(spec: TaskSpec, flags: Flags, deps: CloudCliDeps): Promise<number> {
   const target = loadTarget(deps, str(flags, 'target') ?? DEFAULT_TARGET_FILE);
   const runner = deps.createRunner(target.runner);
   const handle = await runner.launch(spec, target);
@@ -237,9 +305,15 @@ Usage:
   nemus-cloud run   --image REF --repos a,b --task "..." [--target FILE]
                     [--agent pi] [--owner ORG] [--report pr|none] [--cpu N] [--memory MB]
                     [--git-host HOST] [--follow] [--wait]
+  nemus-cloud fix-pr --image REF --repo owner/name --pr N --branch HEAD [--target FILE]
+                    [--agent pi] [--owner ORG] [--task "..."] [--git-host HOST]
+                    [--max-iterations N] [--poll-interval-ms N] [--max-polls N]
+                    [--cpu N] [--memory MB] [--follow] [--wait]
 
-Forge auth for \`run\` comes from the environment: GITHUB_TOKEN, or
-GITHUB_APP_ID/_PRIVATE_KEY/_INSTALLATION_ID.`;
+Forge auth for \`run\`/\`fix-pr\` comes from the environment: GITHUB_TOKEN, or
+GITHUB_APP_ID/_PRIVATE_KEY/_INSTALLATION_ID. Target a different host with
+NEMUS_FORGE_HOST=gitlab (+ GITLAB_API_URL); report out-of-band with
+SLACK_WEBHOOK_URL / NEMUS_WEBHOOK_URL.`;
 
 export async function main(argv: string[], deps: CloudCliDeps = defaultDeps): Promise<number> {
   const { cmd, flags } = parseArgs(argv);
@@ -251,6 +325,8 @@ export async function main(argv: string[], deps: CloudCliDeps = defaultDeps): Pr
         return await cmdDown(flags, deps);
       case 'run':
         return await cmdRun(flags, deps);
+      case 'fix-pr':
+        return await cmdFixPr(flags, deps);
       case undefined:
       case 'help':
       case '--help':
