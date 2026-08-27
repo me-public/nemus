@@ -88,7 +88,10 @@ export class FargateRunner implements Runner {
     const executionRoleArn = extra.execution_role_arn ? String(extra.execution_role_arn) : undefined;
     const logGroup = extra.log_group ? String(extra.log_group) : undefined;
 
-    // 1) Register the per-run task definition.
+    // 1) Register the per-run task definition. NOTE: this creates a new task-def
+    //    REVISION on every launch; ECS retains them, so a long-lived cluster
+    //    accumulates revisions. Follow-up: dedupe by hashing the def, or
+    //    deregister on stop.
     const taskDef = this.buildTaskDefinition(spec, { executionRoleArn, logGroup, region });
     const reg = await this.aws(
       ['ecs', 'register-task-definition', '--cli-input-json', JSON.stringify(taskDef)],
@@ -220,13 +223,23 @@ function awsArgs(args: string[], region?: string): string[] {
 }
 
 function tagArgs(labels?: Record<string, string>): string[] {
-  return Object.entries(labels ?? {}).map(([k, v]) => `key=${k},value=${v}`);
+  return Object.entries(labels ?? {}).map(([k, v]) => {
+    // The `--tags key=K,value=V` shorthand is delimited by ',' and '=', so a
+    // key/value containing either would silently corrupt into the wrong tags.
+    // Fail loudly rather than mis-tag (labels are Nemus-controlled, so this is
+    // an assertion, not an expected path).
+    if (/[,=]/.test(k) || /[,=]/.test(v)) {
+      throw new Error(`fargate: label "${k}" cannot be encoded as an ECS tag (contains ',' or '=')`);
+    }
+    return `key=${k},value=${v}`;
+  });
 }
 
-/** Fargate cpu is in CPU units (1 vCPU = 1024). We accept vCPU as a fraction. */
+/** Fargate `cpu` is in CPU units (1 vCPU = 1024). TaskSpec.resources.cpu is a
+ *  vCPU count (same meaning as DockerRunner's `--cpus`), so multiply. */
 function cpuUnits(cpu?: number): number {
   if (!cpu || cpu <= 0) return 1024;
-  return cpu < 16 ? Math.round(cpu * 1024) : Math.round(cpu); // treat >=16 as already-units
+  return Math.round(cpu * 1024);
 }
 
 function asStringArray(v: unknown): string[] {

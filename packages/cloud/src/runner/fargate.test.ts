@@ -80,6 +80,32 @@ describe('FargateRunner.launch', () => {
     expect((handle.raw as any).logStream).toBe('nemus-agent/nemus-agent/abc123');
   });
 
+  it('cpu is vCPU count -> units, defaulting to 1024', async () => {
+    const { run, calls } = awsMock({
+      'ecs register-task-definition': { taskDefinition: { taskDefinitionArn: 'arn:task/1' } },
+      'ecs run-task': { tasks: [{ taskArn: 'arn:aws:ecs:us-east-1:1:task/nemus/x' }] },
+    });
+    const runner = new FargateRunner({ run });
+    await runner.launch({ ...spec, resources: { cpu: 2, memoryMB: 4096 } }, target);
+    expect(calls[0].json.cpu).toBe('2048');
+    expect(calls[0].json.memory).toBe('4096');
+    // default when unset
+    calls.length = 0;
+    await runner.launch({ ...spec, resources: undefined }, target);
+    expect(calls[0].json.cpu).toBe('1024');
+    expect(calls[0].json.memory).toBe('2048');
+  });
+
+  it('refuses labels that cannot be safely encoded as ECS tags', async () => {
+    const { run } = awsMock({
+      'ecs register-task-definition': { taskDefinition: { taskDefinitionArn: 'arn:task/1' } },
+      'ecs run-task': { tasks: [{ taskArn: 'arn:task/x' }] },
+    });
+    await expect(
+      new FargateRunner({ run }).launch({ ...spec, labels: { 'nemus.note': 'a,b=c' } }, target),
+    ).rejects.toThrow(/cannot be encoded as an ECS tag/);
+  });
+
   it('rejects a mismatched target and unresolved secrets', async () => {
     const { run } = awsMock({});
     const runner = new FargateRunner({ run });
