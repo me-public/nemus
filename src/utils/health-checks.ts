@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -6,6 +6,7 @@ import { HealthCheckResult, WorkspaceMetadata } from '../types';
 import { isGitRepository, hasUncommittedChanges } from './git-status';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export const checkMissingRepositories = async (
   workspacePath: string,
@@ -215,7 +216,7 @@ export const checkDependencies = async (
 export const checkDiskSpace = async (workspacePath: string): Promise<HealthCheckResult> => {
   try {
     // Get disk usage for workspace
-    const { stdout } = await execAsync(`du -sh "${workspacePath}"`, { timeout: 30000 });
+    const { stdout } = await execFileAsync('du', ['-sh', workspacePath], { timeout: 30000 });
     const sizeStr = stdout.trim().split('\t')[0];
 
     // Parse size (rough check for > 10GB)

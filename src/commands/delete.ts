@@ -1,7 +1,6 @@
 import { Command } from 'commander';
 import * as fs from 'fs/promises';
-import { WORKSPACES_DIR } from '../utils/config';
-import * as path from 'path';
+import { safeWorkspacePath } from '../utils/validation';
 import { listWorkspaces } from '../utils/workspace-meta';
 import { promptMultiWorkspaceSelection } from '../utils/prompts';
 import { logInfo, logSuccess, logError, logWarning } from '../utils/logger';
@@ -35,10 +34,35 @@ async function handleDelete(opts: {
     if (opts.workspace) {
       const selectedNames = parseList(opts.workspace);
       const workspaces = await listWorkspaces();
+      const known = new Map(workspaces.map(ws => [ws.name, ws]));
 
+      // Resolve to validated, existing targets. safeWorkspacePath() both
+      // enforces the name allowlist and pins the path inside WORKSPACES_DIR, so
+      // a name like "../../etc" can never reach fs.rm; unknown names are skipped
+      // rather than deleted at a guessed path.
+      const targets: { name: string; path: string; workspace: typeof workspaces[number] }[] = [];
       for (const name of selectedNames) {
-        const workspace = workspaces.find(ws => ws.name === name);
-        const workspacePath = path.join(WORKSPACES_DIR, name);
+        const workspace = known.get(name);
+        if (!workspace) {
+          logError(`Workspace "${name}" not found — skipping`);
+          continue;
+        }
+        let workspacePath: string;
+        try {
+          workspacePath = safeWorkspacePath(name);
+        } catch (error) {
+          logError(error instanceof Error ? error.message : `Invalid workspace name "${name}"`);
+          continue;
+        }
+        targets.push({ name, path: workspacePath, workspace });
+      }
+
+      if (targets.length === 0) {
+        logInfo('Nothing to delete');
+        return;
+      }
+
+      for (const { name, path: workspacePath, workspace } of targets) {
         if (workspace?.metadata) {
           console.log(`${colorize(name, 'cyan')}`);
           console.log(`  Repositories: ${workspace.metadata.repositories.length}`);
@@ -56,9 +80,9 @@ async function handleDelete(opts: {
           {
             type: 'confirm',
             name: 'confirmed',
-            message: selectedNames.length === 1
-              ? `Delete workspace ${selectedNames[0]}?`
-              : `Delete these ${selectedNames.length} workspaces?`,
+            message: targets.length === 1
+              ? `Delete workspace ${targets[0].name}?`
+              : `Delete these ${targets.length} workspaces?`,
             default: true,
           },
         ]);
@@ -68,8 +92,7 @@ async function handleDelete(opts: {
         }
       }
 
-      for (const name of selectedNames) {
-        const workspacePath = path.join(WORKSPACES_DIR, name);
+      for (const { name, path: workspacePath } of targets) {
         try {
           await fs.rm(workspacePath, { recursive: true, force: true });
           logSuccess(`Deleted "${colorize(name, 'cyan')}"`);
@@ -94,7 +117,7 @@ async function handleDelete(opts: {
 
       for (const name of selectedNames) {
         const workspace = workspaces.find(ws => ws.name === name);
-        const workspacePath = path.join(WORKSPACES_DIR, name);
+        const workspacePath = safeWorkspacePath(name);
         if (workspace?.metadata) {
           console.log(`${colorize(name, 'cyan')}`);
           console.log(`  Repositories: ${workspace.metadata.repositories.length}`);
@@ -124,7 +147,7 @@ async function handleDelete(opts: {
 
       if (confirmed) {
         for (const name of selectedNames) {
-          const workspacePath = path.join(WORKSPACES_DIR, name);
+          const workspacePath = safeWorkspacePath(name);
           try {
             await fs.rm(workspacePath, { recursive: true, force: true });
             logSuccess(`Deleted "${colorize(name, 'cyan')}"`);

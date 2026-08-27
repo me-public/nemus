@@ -1,10 +1,13 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs/promises';
-import * as path from 'path';
 import { hasUncommittedChanges } from './git-status';
 
-const execAsync = promisify(exec);
+// execFile (no shell): git args are passed as an argv array, so a branch name
+// containing shell metacharacters can never be interpreted as a command.
+const execFileAsync = promisify(execFile);
+const git = (args: string[], opts: { cwd: string; timeout?: number }) =>
+  execFileAsync('git', args, opts);
 const GIT_TIMEOUT = 30000;
 
 export interface BranchSwitchResult {
@@ -34,7 +37,7 @@ export const switchBranch = async (
 
     // Check if it's a git repository
     try {
-      await execAsync('git rev-parse --git-dir', { cwd: repoPath });
+      await git(['rev-parse', '--git-dir'], { cwd: repoPath });
     } catch {
       return {
         repo: repoName,
@@ -44,7 +47,7 @@ export const switchBranch = async (
     }
 
     // Get current branch
-    const { stdout: currentBranchOutput } = await execAsync('git branch --show-current', { cwd: repoPath });
+    const { stdout: currentBranchOutput } = await git(['branch', '--show-current'], { cwd: repoPath });
     const currentBranch = currentBranchOutput.trim();
 
     if (currentBranch === targetBranch) {
@@ -57,7 +60,7 @@ export const switchBranch = async (
     }
 
     // Check for uncommitted changes
-    const { stdout: statusOutput } = await execAsync('git status --porcelain', { cwd: repoPath });
+    const { stdout: statusOutput } = await git(['status', '--porcelain'], { cwd: repoPath });
     if (statusOutput.trim().length > 0) {
       return {
         repo: repoName,
@@ -68,17 +71,17 @@ export const switchBranch = async (
     }
 
     // Fetch to ensure we have latest branches
-    await execAsync('git fetch', { cwd: repoPath, timeout: GIT_TIMEOUT });
+    await git(['fetch'], { cwd: repoPath, timeout: GIT_TIMEOUT });
 
     // Check if branch exists locally
     try {
-      await execAsync(`git rev-parse --verify ${targetBranch}`, { cwd: repoPath });
+      await git(['rev-parse', '--verify', targetBranch], { cwd: repoPath });
     } catch {
       // Branch doesn't exist locally, check remote
       try {
-        await execAsync(`git rev-parse --verify origin/${targetBranch}`, { cwd: repoPath });
+        await git(['rev-parse', '--verify', `origin/${targetBranch}`], { cwd: repoPath });
         // Branch exists on remote, create local tracking branch
-        await execAsync(`git checkout -b ${targetBranch} origin/${targetBranch}`, { cwd: repoPath });
+        await git(['checkout', '-b', targetBranch, `origin/${targetBranch}`], { cwd: repoPath });
         return {
           repo: repoName,
           status: 'success',
@@ -96,7 +99,7 @@ export const switchBranch = async (
     }
 
     // Switch to existing local branch
-    await execAsync(`git checkout ${targetBranch}`, { cwd: repoPath });
+    await git(['checkout', targetBranch], { cwd: repoPath });
 
     return {
       repo: repoName,
@@ -143,17 +146,11 @@ export const createBranch = async (
 
     // Checkout base branch if specified
     if (baseBranch) {
-      await execAsync(`git checkout ${baseBranch}`, {
-        cwd: repoPath,
-        timeout: GIT_TIMEOUT,
-      });
+      await git(['checkout', baseBranch], { cwd: repoPath, timeout: GIT_TIMEOUT });
     }
 
     // Create and checkout new branch
-    await execAsync(`git checkout -b ${branchName}`, {
-      cwd: repoPath,
-      timeout: GIT_TIMEOUT,
-    });
+    await git(['checkout', '-b', branchName], { cwd: repoPath, timeout: GIT_TIMEOUT });
 
     return {
       repo: repoName,
@@ -179,21 +176,15 @@ export const mergeBranch = async (
 ): Promise<BranchOperationResult> => {
   try {
     // Checkout target branch
-    await execAsync(`git checkout ${targetBranch}`, {
-      cwd: repoPath,
-      timeout: GIT_TIMEOUT,
-    });
+    await git(['checkout', targetBranch], { cwd: repoPath, timeout: GIT_TIMEOUT });
 
-    // Build merge command
-    let mergeCmd = `git merge ${sourceBranch}`;
-    if (options?.noFf) mergeCmd += ' --no-ff';
-    if (options?.ffOnly) mergeCmd += ' --ff-only';
-    if (options?.squash) mergeCmd += ' --squash';
+    // Build merge argv
+    const mergeArgs = ['merge', sourceBranch];
+    if (options?.noFf) mergeArgs.push('--no-ff');
+    if (options?.ffOnly) mergeArgs.push('--ff-only');
+    if (options?.squash) mergeArgs.push('--squash');
 
-    await execAsync(mergeCmd, {
-      cwd: repoPath,
-      timeout: GIT_TIMEOUT,
-    });
+    await git(mergeArgs, { cwd: repoPath, timeout: GIT_TIMEOUT });
 
     return {
       repo: repoName,
@@ -216,10 +207,7 @@ export const rebaseBranch = async (
   targetBranch: string
 ): Promise<BranchOperationResult> => {
   try {
-    await execAsync(`git rebase ${targetBranch}`, {
-      cwd: repoPath,
-      timeout: GIT_TIMEOUT,
-    });
+    await git(['rebase', targetBranch], { cwd: repoPath, timeout: GIT_TIMEOUT });
 
     return {
       repo: repoName,

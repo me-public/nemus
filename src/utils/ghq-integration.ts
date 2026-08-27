@@ -1,11 +1,16 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
+import * as fs from 'fs/promises';
 import { logInfo, logSuccess, logWarning } from './logger';
 import { colorize } from './colors';
 import { CLONE_TIMEOUT_MS, CLONE_MAX_BUFFER } from './config';
 
-const execAsync = promisify(exec);
+// execFile (no shell): every value below (repo URLs, ghq paths, branch names)
+// is passed as an argv element, so none can be interpreted as a shell command.
+const execFileAsync = promisify(execFile);
+type ExecOpts = { cwd?: string; timeout?: number; maxBuffer?: number };
+const git = (args: string[], opts: ExecOpts = {}) => execFileAsync('git', args, opts);
 
 /**
  * Turn a raw child-process clone failure (from exec or execFile) into an
@@ -39,7 +44,7 @@ export function describeCloneError(error: unknown, timeoutMs: number = CLONE_TIM
  */
 export async function isGhqInstalled(): Promise<boolean> {
   try {
-    await execAsync('which ghq');
+    await execFileAsync('which', ['ghq']);
     return true;
   } catch {
     return false;
@@ -65,7 +70,7 @@ export async function warnIfGhqMissing(): Promise<boolean> {
  */
 export async function getGhqRoot(): Promise<string | null> {
   try {
-    const { stdout } = await execAsync('ghq root');
+    const { stdout } = await execFileAsync('ghq', ['root']);
     return stdout.trim();
   } catch {
     return null;
@@ -80,8 +85,8 @@ export async function ghqRepoExists(repoUrl: string): Promise<boolean> {
     const repoPath = await getGhqRepoPath(repoUrl);
     if (!repoPath) return false;
 
-    await execAsync(`test -d "${repoPath}"`);
-    return true;
+    const stat = await fs.stat(repoPath);
+    return stat.isDirectory();
   } catch {
     return false;
   }
@@ -114,7 +119,7 @@ export async function ghqGet(repoUrl: string): Promise<{ success: boolean; path?
   try {
     logInfo(`Using ghq to clone ${colorize(repoUrl, 'cyan')}...`);
 
-    await execAsync(`ghq get "${repoUrl}"`, { timeout: CLONE_TIMEOUT_MS, maxBuffer: CLONE_MAX_BUFFER });
+    await execFileAsync('ghq', ['get', repoUrl], { timeout: CLONE_TIMEOUT_MS, maxBuffer: CLONE_MAX_BUFFER });
 
     const repoPath = await getGhqRepoPath(repoUrl);
     if (!repoPath) {
@@ -135,7 +140,7 @@ export async function ghqGet(repoUrl: string): Promise<{ success: boolean; path?
  */
 export async function ghqList(): Promise<string[]> {
   try {
-    const { stdout } = await execAsync('ghq list');
+    const { stdout } = await execFileAsync('ghq', ['list']);
     return stdout.trim().split('\n').filter(line => line.length > 0);
   } catch {
     return [];
@@ -196,18 +201,15 @@ export async function cloneWithGhq(
         // would serve stale state via hardlinks — user would open a workspace
         // missing dozens of recent commits.
         try {
-          await execAsync(
-            `git -C "${sourcePath}" fetch origin --quiet --prune`,
-            { timeout: 90 * 1000 },
-          );
+          await git(['-C', sourcePath, 'fetch', 'origin', '--quiet', '--prune'], { timeout: 90 * 1000 });
         } catch {
           // Network failure or no upstream — fall through with stale cache,
           // we'll log a warning after the local clone if we can't align to HEAD.
         }
 
-        await execAsync(`git clone --local "${sourcePath}" "${targetPath}"`, { timeout: 60 * 1000 });
+        await git(['clone', '--local', sourcePath, targetPath], { timeout: 60 * 1000 });
         // Reset remote to point to the original repo URL (not the local ghq path)
-        await execAsync(`git remote set-url origin "${repoUrl}"`, { cwd: targetPath });
+        await git(['remote', 'set-url', 'origin', repoUrl], { cwd: targetPath });
 
         // Make sure the working tree is at origin's default-branch tip.
         // Robust against:
@@ -217,27 +219,25 @@ export async function cloneWithGhq(
         let alignedToHead = false;
         let alignError: string | null = null;
         try {
-          await execAsync(`git fetch origin --quiet`, { cwd: targetPath, timeout: 60 * 1000 });
+          await git(['fetch', 'origin', '--quiet'], { cwd: targetPath, timeout: 60 * 1000 });
 
           // Explicitly set refs/remotes/origin/HEAD by querying the remote.
           // Without this, symbolic-ref may fail if the local symref wasn’t set.
-          await execAsync(`git remote set-head origin --auto`, { cwd: targetPath, timeout: 30 * 1000 })
+          await git(['remote', 'set-head', 'origin', '--auto'], { cwd: targetPath, timeout: 30 * 1000 })
             .catch(() => { /* if this fails the next step might still succeed */ });
 
           let defaultBranch: string | null = null;
           try {
-            const headRes = await execAsync(
-              `git symbolic-ref --short refs/remotes/origin/HEAD`,
-              { cwd: targetPath, timeout: 5000 },
-            );
+            const headRes = await git(['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'], {
+              cwd: targetPath, timeout: 5000,
+            });
             defaultBranch = headRes.stdout.trim().replace(/^origin\//, '');
           } catch {
             // Fall back to ls-remote query against the actual remote
             try {
-              const lsRes = await execAsync(
-                `git ls-remote --symref origin HEAD`,
-                { cwd: targetPath, timeout: 30 * 1000 },
-              );
+              const lsRes = await git(['ls-remote', '--symref', 'origin', 'HEAD'], {
+                cwd: targetPath, timeout: 30 * 1000,
+              });
               const match = lsRes.stdout.match(/^ref:\s+refs\/heads\/(\S+)\s+HEAD$/m);
               if (match) defaultBranch = match[1];
             } catch { /* fall through to common-name fallback */ }
@@ -246,10 +246,9 @@ export async function cloneWithGhq(
           // Final fallback: try common default branches
           if (!defaultBranch) {
             for (const candidate of ['main', 'master']) {
-              const exists = await execAsync(
-                `git rev-parse --verify --quiet origin/${candidate}`,
-                { cwd: targetPath, timeout: 5000 },
-              ).then(() => true).catch(() => false);
+              const exists = await git(['rev-parse', '--verify', '--quiet', `origin/${candidate}`], {
+                cwd: targetPath, timeout: 5000,
+              }).then(() => true).catch(() => false);
               if (exists) { defaultBranch = candidate; break; }
             }
           }
@@ -258,8 +257,8 @@ export async function cloneWithGhq(
             throw new Error('could not determine default branch (no origin/HEAD, no main, no master)');
           }
 
-          await execAsync(`git checkout --quiet "${defaultBranch}"`, { cwd: targetPath, timeout: 10 * 1000 });
-          await execAsync(`git reset --hard --quiet "origin/${defaultBranch}"`, { cwd: targetPath, timeout: 10 * 1000 });
+          await git(['checkout', '--quiet', defaultBranch], { cwd: targetPath, timeout: 10 * 1000 });
+          await git(['reset', '--hard', '--quiet', `origin/${defaultBranch}`], { cwd: targetPath, timeout: 10 * 1000 });
           alignedToHead = true;
         } catch (error) {
           alignError = error instanceof Error ? error.message : String(error);
@@ -277,7 +276,7 @@ export async function cloneWithGhq(
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         logWarning(`Local clone from ghq failed: ${errorMessage}`);
         // Clean up partial clone before fallback
-        try { await execAsync(`rm -rf "${targetPath}"`); } catch { /* ignore */ }
+        try { await fs.rm(targetPath, { recursive: true, force: true }); } catch { /* ignore */ }
         // Fall through to direct clone
       }
     }
@@ -285,7 +284,7 @@ export async function cloneWithGhq(
 
   // Fallback to direct git clone
   try {
-    await execAsync(`git clone "${repoUrl}" "${targetPath}"`, { timeout: CLONE_TIMEOUT_MS, maxBuffer: CLONE_MAX_BUFFER });
+    await git(['clone', repoUrl, targetPath], { timeout: CLONE_TIMEOUT_MS, maxBuffer: CLONE_MAX_BUFFER });
     return { success: true, usedGhq: false };
   } catch (error) {
     return { success: false, error: describeCloneError(error), usedGhq: false };

@@ -44,7 +44,20 @@ export async function run(
 ): Promise<ExecResultRaw> {
   const r = await exec(bin, args, opts);
   if (r.code !== 0) {
-    throw new Error(`${bin} ${args.join(' ')} failed (${r.code}): ${r.stderr.trim() || r.stdout.trim()}`);
+    const cmd = redactSecrets(`${bin} ${args.join(' ')}`);
+    const detail = redactSecrets(r.stderr.trim() || r.stdout.trim());
+    throw new Error(`${cmd} failed (${r.code}): ${detail}`);
   }
   return r;
+}
+
+/**
+ * Strip credentials from a string before it lands in an error message,
+ * result.json, or a log. Covers URL userinfo (`https://x-access-token:TOKEN@host`
+ * — how the git clone URL carries the forge token) so a clone failure can't leak
+ * the token. Exported for tests.
+ */
+export function redactSecrets(s: string): string {
+  // scheme://user:secret@host  ->  scheme://***@host
+  return s.replace(/([a-z][a-z0-9+.-]*:\/\/)[^/@\s]+@/gi, '$1***@');
 }

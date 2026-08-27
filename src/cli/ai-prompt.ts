@@ -1,4 +1,4 @@
-import { spawn, exec, execFileSync } from 'child_process';
+import { spawn, execFile, execFileSync } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -9,7 +9,7 @@ import { colorize } from '../utils/colors';
 import { getPrimaryAgent } from '../utils/agent-config';
 import { sanitizeWorkspaceName, checkWorkspaceExists, resolveWorkspaceNameConflict } from '../utils/validation';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export const AI_PROMPT_FILE = path.join(os.homedir(), '.workspace-ai-prompt');
 
@@ -97,7 +97,7 @@ export function buildInvestigationPreamble(
 export async function isPrimaryAgentAvailable(): Promise<boolean> {
   const agent = getPrimaryAgent();
   try {
-    await execAsync(`which ${agent.launchCommand}`);
+    await execFileAsync('which', [agent.launchCommand]);
     return true;
   } catch {
     return false;

@@ -1,4 +1,4 @@
-import { exec, execFile } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
 import * as fs from 'fs/promises';
@@ -10,7 +10,6 @@ import { withRetry } from './retry';
 import { createSimpleProgressBar } from './progress';
 import { getCloneUrl, CLONE_TIMEOUT_MS, CLONE_MAX_BUFFER } from './config';
 
-const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
 const CONCURRENCY_LIMIT = 3;
@@ -96,13 +95,13 @@ async function cloneLocal(
   const targetPath = path.join(workspacePath, directoryName);
   try {
     // git clone --local creates hardlinks for .git/objects — nearly instant
-    await execAsync(`git clone --local "${sourcePath}" "${targetPath}"`, {
+    await execFileAsync('git', ['clone', '--local', sourcePath, targetPath], {
       timeout: CLONE_TIMEOUT,
       maxBuffer: CLONE_MAX_BUFFER,
     });
     // Reset the remote to point to the original repo (not the local source)
     const remoteUrl = getCloneUrl(repo);
-    await execAsync(`git remote set-url origin "${remoteUrl}"`, {
+    await execFileAsync('git', ['remote', 'set-url', 'origin', remoteUrl], {
       cwd: targetPath,
     });
     return {

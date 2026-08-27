@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import { logSuccess, logError, logInfo, logWarning } from '../utils/logger';
@@ -37,7 +37,7 @@ function installShellIntegration(): void {
   }
 
   try {
-    execSync(`bash "${scriptPath}" ${shellType}`, { stdio: 'inherit' });
+    execFileSync('bash', [scriptPath, shellType], { stdio: 'inherit' });
     logSuccess('Shell integration installed (auto-CD for w/workspace commands)');
   } catch {
     logInfo('Shell integration install skipped (non-critical)');
@@ -264,8 +264,9 @@ async function install() {
     logInfo(`MCP server path: ${colorize(serverPath, 'cyan')}`);
 
     try {
-      execSync(
-        `claude mcp add nemus -s user -- node "${serverPath}"`,
+      execFileSync(
+        'claude',
+        ['mcp', 'add', 'nemus', '-s', 'user', '--', 'node', serverPath],
         { stdio: 'pipe' }
       );
       logSuccess('MCP server registered globally with Claude Code');
