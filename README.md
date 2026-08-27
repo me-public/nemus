@@ -11,7 +11,6 @@
 <p align="center">
   <a href="https://me-public.github.io/nemus/"><img src="https://img.shields.io/badge/website-nemus-3FB950.svg" alt="Website" /></a>
   <a href="https://github.com/me-public/nemus/actions/workflows/ci.yml"><img src="https://github.com/me-public/nemus/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://scorecard.dev/viewer/?uri=github.com/me-public/nemus"><img src="https://api.securityscorecards.dev/projects/github.com/me-public/nemus/badge" alt="OpenSSF Scorecard" /></a>
   <a href="https://www.npmjs.com/package/@nemus-cli/nemus"><img src="https://img.shields.io/npm/v/@nemus-cli/nemus.svg" alt="npm" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <a href="https://www.npmjs.com/package/@nemus-cli/nemus"><img src="https://img.shields.io/npm/dm/@nemus-cli/nemus.svg" alt="npm downloads" /></a>
