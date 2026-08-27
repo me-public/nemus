@@ -18,8 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that mints least-privilege, auto-refreshing installation tokens; and the
   **execution** seam (`Runner`/`Provisioner` + neutral `TaskSpec`/
   `TargetDescriptor`/`Capabilities` + a name registry) with an in-box
-  **Docker runner** (needs no cloud account). Design:
-  `docs/plans/2026-08-26-cloud-iac.md`.
+  **Docker runner** (needs no cloud account); a **`SecretSource`** seam
+  (`env`/`dotenv`/`gh` + `resolveSecretsToEnv`); and a **`GitForge`** seam
+  (`openPR`/`getChecks`/`comment`) with a dependency-free GitHub implementation.
+  Design: `docs/plans/2026-08-26-cloud-iac.md`.
 
 ## [0.2.9] - 2026-08-26
 

@@ -19,6 +19,14 @@ export type { DockerRunnerOptions, CommandRunner, LogStreamer } from './runner/d
 export { createRunner, registerRunner, runnerNames } from './runner/registry';
 export type { RunnerFactory } from './runner/registry';
 
+// Secret-resolution seam: turn TaskSpec.secrets into env for storeless backends.
+export * from './secret';
+
+// Code-host seam: open PR / read checks / comment.
+export * from './gitforge/types';
+export { GitHubForge } from './gitforge/github';
+export type { GitHubForgeOptions } from './gitforge/github';
+
 import { ForgeTokenSource } from './forge/types';
 import { PatTokenSource } from './forge/pat';
 import { GitHubAppTokenSource, GitHubAppConfig } from './forge/github-app';
