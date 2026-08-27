@@ -62,6 +62,35 @@ await runner.status(handle); // { state: 'succeeded' | 'failed' | … }
 The **`docker` runner is the portability boundary's proof**: if a feature can't
 work against a local Docker socket, it doesn't belong in core.
 
+## The provisioning seam: IaC modules
+
+Provisioning (stand up a place to run) is split from execution (run a task).
+Rather than invent an IaC DSL, one generic **`OpenTofuProvisioner`** delegates to
+real `tofu`/`terraform` over a module directory and maps the module's `target`
+output to a `TargetDescriptor`. Provider quirks (VPC, roles, Fly org) stay in the
+module's HCL + vars — never in core. One provisioner, many modules.
+
+```ts
+import { createProvisioner, iacModuleDir } from '@nemus-cli/cloud';
+
+const p = createProvisioner('opentofu', {
+  moduleDir: iacModuleDir('fargate'), // a real path to the shipped module
+  vars: { region: 'us-east-1', name: 'nemus' },
+});
+const target = await p.up();   // tofu init + apply -> TargetDescriptor
+// … createRunner(target.runner).launch(spec, target) …
+await p.down(target);          // tofu destroy
+```
+
+Shipped modules live under [`iac/`](./iac): `iac/fargate/` (AWS ECS Fargate,
+validated with real `tofu validate`). Fly and others are just more modules.
+
+The shipped module is a **template** — running `tofu` against `iacModuleDir(...)`
+directly writes state under `node_modules`. For anything real, **copy it to your
+own working dir** (or point a remote backend at it) so state is durable, and
+**don't pass secrets as `-var`** (they land in argv and the streamed apply log —
+use the provider's own credential env / a `SecretSource`).
+
 ## Develop
 
 ```bash

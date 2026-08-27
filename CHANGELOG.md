@@ -23,7 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`openPR`/`getChecks`/`comment`) with a dependency-free GitHub implementation;
   and the **in-image agent orchestrator** (runner-image env contract, versioned
   `result.json` schema, and `runAgentTask`: clone all → run the agent once over
-  the workspace → open a PR per changed repo, with per-repo error isolation).
+  the workspace → open a PR per changed repo, with per-repo error isolation);
+  the **OCI image + `nemus-cloud-agent` entrypoint** (a Dockerfile with node +
+  git + gh + pi/claude); and the **provisioning** seam (P2, in progress): a
+  generic `OpenTofuProvisioner` (delegates to `tofu`/`terraform`, maps a module's
+  `target` output → `TargetDescriptor`) + registry, plus a first **AWS Fargate**
+  OpenTofu module (`iac/fargate/`, validated with real `tofu validate`).
   Design: `docs/plans/2026-08-26-cloud-iac.md`.
 
 ## [0.2.9] - 2026-08-26
