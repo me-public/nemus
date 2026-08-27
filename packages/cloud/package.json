@@ -21,7 +21,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "nemus-cloud-agent": "dist/agent/cli.js"
+    "nemus-cloud-agent": "dist/agent/cli.js",
+    "nemus-cloud": "dist/cli/cloud.js"
   },
   "files": [
     "dist/**/*",
