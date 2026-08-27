@@ -16,6 +16,8 @@ export type { GitHubAppConfig } from './forge/github-app';
 export * from './runner/types';
 export { DockerRunner } from './runner/docker';
 export type { DockerRunnerOptions, CommandRunner, LogStreamer } from './runner/docker';
+export { FargateRunner, mapFargateState } from './runner/fargate';
+export type { FargateRunnerOptions } from './runner/fargate';
 export { createRunner, registerRunner, runnerNames } from './runner/registry';
 export type { RunnerFactory } from './runner/registry';
 

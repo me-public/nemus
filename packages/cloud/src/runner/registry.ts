@@ -1,5 +1,6 @@
 import { Runner } from './types';
 import { DockerRunner, DockerRunnerOptions } from './docker';
+import { FargateRunner, FargateRunnerOptions } from './fargate';
 
 /**
  * A runner factory. Third-party backends ship as `@nemus-cli/cloud-<name>` and
@@ -34,3 +35,5 @@ export function createRunner(name: string, opts?: Record<string, unknown>): Runn
 
 // Ship the local Docker runner in-box.
 registerRunner('docker', (opts) => new DockerRunner(opts as DockerRunnerOptions));
+// AWS ECS Fargate (pairs with the iac/fargate module). Dependency-free (aws CLI).
+registerRunner('aws-fargate', (opts) => new FargateRunner(opts as FargateRunnerOptions));
