@@ -75,4 +75,9 @@ describe('forgeKindFromEnv / forgeApiBaseFromEnv', () => {
     expect(forgeApiBaseFromEnv('gitlab', { GITHUB_API_URL: 'https://ghe/api/v3' })).toBeUndefined();
     expect(forgeApiBaseFromEnv('github', {})).toBeUndefined();
   });
+
+  it('never hands a custom kind GitHub\'s (or GitLab\'s) base URL', () => {
+    // A bring-your-own backend must not inherit a built-in's API base.
+    expect(forgeApiBaseFromEnv('gitea', { GITHUB_API_URL: 'https://ghe/api/v3', GITLAB_API_URL: 'https://gl/api/v4' })).toBeUndefined();
+  });
 });

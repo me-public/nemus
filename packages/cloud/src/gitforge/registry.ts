@@ -62,13 +62,15 @@ export function forgeKindFromEnv(env: NodeJS.ProcessEnv = process.env): string {
 
 /**
  * Per-kind default for the host API base, honoring the host-specific env var
- * (`GITHUB_API_URL` / `GITLAB_API_URL`). Returns undefined when unset, so each
- * forge falls back to its own public default.
+ * (`GITHUB_API_URL` / `GITLAB_API_URL`). Returns undefined when unset — and for
+ * any custom kind — so each forge falls back to its own default and a custom
+ * backend never accidentally inherits GitHub's/GitLab's base URL.
  */
 export function forgeApiBaseFromEnv(
   kind: string,
   env: NodeJS.ProcessEnv = process.env,
 ): string | undefined {
+  if (kind === 'github') return env.GITHUB_API_URL?.trim() || undefined;
   if (kind === 'gitlab') return env.GITLAB_API_URL?.trim() || undefined;
-  return env.GITHUB_API_URL?.trim() || undefined;
+  return undefined;
 }
