@@ -53,9 +53,12 @@ tofu output -json target
 - **This is a template.** Running `tofu` against the copy shipped under
   `node_modules` writes `.terraform/` + state there (fragile / sometimes
   read-only). Copy this directory into your own working dir first.
-- **State** is local by default. For a team, add your own
+- **State** is local by default. For a team — or to `down()` from a *different*
+  machine than the one that ran `up()` — add your own
   [backend](https://opentofu.org/docs/language/settings/backends/configuration/)
-  block — the module is backend-agnostic.
+  block. The descriptor's `extra.tofu_vars` hand-back only re-derives the input
+  *vars*; tofu still needs the **state**, and local state isn't portable, so a
+  truly stateless teardown requires a shared/remote backend.
 - **Subnets:** by default the module surfaces *all* subnets in the VPC. Fargate
   tasks need to reach the image registry + git forge, so the Runner must place
   them on public subnets with a public IP, or on private subnets behind a NAT.

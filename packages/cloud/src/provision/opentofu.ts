@@ -8,6 +8,8 @@ export interface OpenTofuProvisionerOptions {
   vars?: Record<string, string>;
   /** IaC binary: 'tofu' (default) or 'terraform' — the CLIs are arg-compatible here. */
   bin?: string;
+  /** Provisioner id; defaults to the bin ('tofu' → 'opentofu', 'terraform' → 'terraform'). */
+  id?: string;
   /** Injectable for tests. */
   exec?: Exec;
   /** Name of the module output holding the TargetDescriptor JSON. Default 'target'. */
@@ -25,7 +27,7 @@ export interface OpenTofuProvisionerOptions {
  * unit-tested without touching real cloud state.
  */
 export class OpenTofuProvisioner implements Provisioner {
-  readonly id = 'opentofu';
+  readonly id: string;
   private readonly moduleDir: string;
   private readonly vars: Record<string, string>;
   private readonly bin: string;
@@ -37,6 +39,8 @@ export class OpenTofuProvisioner implements Provisioner {
     this.moduleDir = opts.moduleDir;
     this.vars = opts.vars ?? {};
     this.bin = opts.bin ?? 'tofu';
+    // A terraform-bin instance must not self-report as 'opentofu'.
+    this.id = opts.id ?? (this.bin === 'terraform' ? 'terraform' : 'opentofu');
     this.exec = opts.exec ?? shellExec;
     this.outputName = opts.outputName ?? 'target';
   }
@@ -52,8 +56,14 @@ export class OpenTofuProvisioner implements Provisioner {
   async down(target: TargetDescriptor): Promise<void> {
     // Vars can be handed back through the descriptor so a fresh process can tear
     // down what another stood up; construction vars remain the base.
-    const handed = (target.extra?.tofuVars as Record<string, string> | undefined) ?? {};
+    const handed = (target.extra?.tofu_vars as Record<string, string> | undefined) ?? {};
     const vars = { ...this.vars, ...handed };
+    // init before destroy: a fresh process (or a cleaned .terraform/) has no
+    // provider plugins installed, so destroy would fail without it. init is
+    // idempotent + cheap. (Note: with the default LOCAL state backend, a truly
+    // fresh process also has no state to destroy — portable teardown needs a
+    // shared/remote backend; see the module README.)
+    await run(this.exec, this.bin, this.args('init', []), { stream: true });
     await run(this.exec, this.bin, this.args('destroy', ['-auto-approve', ...varArgs(vars)]), { stream: true });
   }
 
@@ -82,6 +92,9 @@ export function parseTargetDescriptor(outputJson: string, outputName = 'target')
   try {
     all = JSON.parse(outputJson);
   } catch {
+    throw new Error(`could not parse '${outputName}' from tofu output -json`);
+  }
+  if (all === null || typeof all !== 'object') {
     throw new Error(`could not parse '${outputName}' from tofu output -json`);
   }
   const entry = all[outputName];

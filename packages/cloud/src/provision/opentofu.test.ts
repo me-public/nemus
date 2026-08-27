@@ -17,7 +17,7 @@ function recorder(outputs: Record<string, ExecResultRaw> = {}) {
 }
 
 const targetJson = JSON.stringify({
-  target: { value: { version: 1, runner: 'aws-fargate', region: 'us-east-1', cluster: 'nemus', extra: { logGroup: '/nemus' } } },
+  target: { value: { version: 1, runner: 'aws-fargate', region: 'us-east-1', cluster: 'nemus', extra: { log_group: '/nemus' } } },
   other: { value: 'ignored' },
 });
 
@@ -38,18 +38,20 @@ describe('OpenTofuProvisioner.up', () => {
     expect(apply).toContain('region=us-east-1');
     expect(apply).toContain('app_name=demo');
     expect(apply).toContain('replicas=2'); // non-string JSON-stringified
-    expect(target).toEqual({ version: 1, runner: 'aws-fargate', region: 'us-east-1', cluster: 'nemus', extra: { logGroup: '/nemus' } });
+    expect(target).toEqual({ version: 1, runner: 'aws-fargate', region: 'us-east-1', cluster: 'nemus', extra: { log_group: '/nemus' } });
   });
 
-  it('down runs destroy with construction + handed-back vars', async () => {
+  it('down runs init THEN destroy with construction + handed-back vars', async () => {
     const { exec, calls } = recorder();
     const p = new OpenTofuProvisioner({ moduleDir: '/iac/fly', bin: 'terraform', vars: { org: 'acme' }, exec });
-    await p.down({ version: 1, runner: 'fly', extra: { tofuVars: { app: 'demo' } } });
-    expect(calls[0].bin).toBe('terraform');
-    expect(calls[0].args[1]).toBe('destroy');
-    expect(calls[0].args).toContain('-auto-approve');
-    expect(calls[0].args).toContain('org=acme');
-    expect(calls[0].args).toContain('app=demo');
+    await p.down({ version: 1, runner: 'fly', extra: { tofu_vars: { app: 'demo' } } });
+    // init must run before destroy: a fresh process has no provider plugins
+    expect(calls.map((c) => c.args[1])).toEqual(['init', 'destroy']);
+    expect(calls.every((c) => c.bin === 'terraform')).toBe(true);
+    const destroy = calls[1].args;
+    expect(destroy).toContain('-auto-approve');
+    expect(destroy).toContain('org=acme');
+    expect(destroy).toContain('app=demo');
   });
 
   it('requires a moduleDir', () => {
@@ -77,8 +79,9 @@ describe('provisioner registry', () => {
   it('ships opentofu + terraform', () => {
     expect(provisionerNames()).toEqual(expect.arrayContaining(['opentofu', 'terraform']));
   });
-  it('createProvisioner builds by name', () => {
+  it('createProvisioner builds by name, and terraform self-reports its own id', () => {
     expect(createProvisioner('opentofu', { moduleDir: '/x' }).id).toBe('opentofu');
+    expect(createProvisioner('terraform', { moduleDir: '/x' }).id).toBe('terraform');
   });
   it('unknown name throws with the available list', () => {
     expect(() => createProvisioner('nope', {})).toThrow(/unknown provisioner 'nope'.*opentofu/s);
