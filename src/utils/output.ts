@@ -11,9 +11,10 @@ export function outputJson(data: unknown): void {
 }
 
 /**
- * Emit a structured error as JSON to stdout for `--json` callers (so a script
- * parsing stdout gets a parseable object rather than a human log line on
- * stderr), then signal failure via the returned exit code.
+ * Emit a structured error as JSON to stdout for `--json` callers, so a script
+ * parsing stdout always gets a parseable object (`{ ok: false, error }`) rather
+ * than empty stdout + a human log line on stderr. The caller still signals
+ * failure with a non-zero exit code.
  */
 export function outputJsonError(message: string): void {
   outputJson({ ok: false, error: message });

@@ -4,7 +4,7 @@ import { WORKSPACES_DIR } from '../utils/config';
 import { loadMetadata } from '../utils/workspace-meta';
 import { runAllHealthChecks, calculateHealthScore } from '../utils/health-checks';
 import { logError, logInfo, logStep, logSuccess, logWarning } from '../utils/logger';
-import { outputJson } from '../utils/output';
+import { outputJson, outputJsonError } from '../utils/output';
 import { colorize } from '../utils/colors';
 import { HealthCheckResult } from '../types';
 import { resolveWorkspace } from '../utils/command-helpers';
@@ -67,10 +67,13 @@ export function registerDoctorCommand(parent: Command) {
 }
 
 async function handleDoctor(workspaceArg?: string, opts: { json?: boolean } = {}) {
+  // In --json mode, failures are parseable JSON on stdout + exit 1; otherwise a
+  // human log on stderr. `process.exit(1)` stays the last statement so TS still
+  // narrows `metadata` to non-null below.
   try {
     // JSON mode is non-interactive: require an explicit workspace rather than prompt.
     if (opts.json && !workspaceArg) {
-      logError('doctor --json requires a workspace name');
+      outputJsonError('doctor --json requires a workspace name');
       process.exit(1);
     }
     const selectedWorkspace = await resolveWorkspace(workspaceArg);
@@ -78,7 +81,8 @@ async function handleDoctor(workspaceArg?: string, opts: { json?: boolean } = {}
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
-      logError(`Workspace metadata not found for: ${selectedWorkspace}`);
+      if (opts.json) outputJsonError(`Workspace metadata not found for: ${selectedWorkspace}`);
+      else logError(`Workspace metadata not found for: ${selectedWorkspace}`);
       process.exit(1);
     }
 
@@ -120,9 +124,11 @@ async function handleDoctor(workspaceArg?: string, opts: { json?: boolean } = {}
       logSuccess('All health checks passed! Your workspace is in good shape.');
     }
   } catch (error) {
-    logError('Failed to run health checks');
-    if (error instanceof Error) {
-      logError(error.message);
+    if (opts.json) {
+      outputJsonError(error instanceof Error ? error.message : 'Failed to run health checks');
+    } else {
+      logError('Failed to run health checks');
+      if (error instanceof Error) logError(error.message);
     }
     process.exit(1);
   }
