@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.13] - 2026-08-27
+
+### Added
+
+- **Shell completions**: `nemus completion bash|zsh|fish` prints a completion
+  script for that shell. Completes subcommands (names + aliases) and, for a
+  workspace-scoped command, live **workspace names** — the script calls back
+  into `nemus completion --workspaces`, so completions stay fresh without
+  regenerating. Registered for both the `nemus` and `nem` binaries. Install e.g.
+  `nemus completion zsh > "${fpath[1]}/_nemus"` (see README).
+
 ## [0.2.12] - 2026-08-27
 
 ### Added

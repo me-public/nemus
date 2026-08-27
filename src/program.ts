@@ -58,6 +58,7 @@ import { registerGhqStatusCommand } from './commands/ghq-status';
 import { registerSaveContextCommand } from './commands/save-context';
 import { registerMigrateCommand } from './commands/migrate';
 import { registerReportBugCommand } from './commands/report-bug';
+import { registerCompletionCommand } from './commands/completion';
 
 registerCreateCommand(program);
 registerListCommand(program);
@@ -82,6 +83,7 @@ registerGhqStatusCommand(program);
 registerSaveContextCommand(program);
 registerMigrateCommand(program);
 registerReportBugCommand(program);
+registerCompletionCommand(program);
 
 // Register TUI (delegates to existing Ink/React implementation)
 program
