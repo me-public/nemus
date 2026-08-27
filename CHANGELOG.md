@@ -28,7 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   git + gh + pi/claude); and the **provisioning** seam (P2, in progress): a
   generic `OpenTofuProvisioner` (delegates to `tofu`/`terraform`, maps a module's
   `target` output → `TargetDescriptor`) + registry, plus a first **AWS Fargate**
-  OpenTofu module (`iac/fargate/`, validated with real `tofu validate`).
+  OpenTofu module (`iac/fargate/`, validated with real `tofu validate`); and the
+  matching **`aws-fargate` Runner** (dependency-free, shells the `aws` CLI:
+  `register-task-definition` → `run-task`, `describe-tasks` → status, CloudWatch
+  `logs tail` streaming, `stop-task`).
   Design: `docs/plans/2026-08-26-cloud-iac.md`.
 
 ## [0.2.9] - 2026-08-26
