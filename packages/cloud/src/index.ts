@@ -32,6 +32,11 @@ export * from './agent/types';
 export { parseAgentEnv, parseRepo } from './agent/env';
 export { runAgentTask, slug } from './agent/run';
 export type { RunAgentDeps } from './agent/run';
+export { ShellGitOps } from './agent/git-ops';
+export type { ShellGitOpsOptions } from './agent/git-ops';
+export { ShellAgentInvoker, buildAgentCommand } from './agent/agent-invoker';
+export { shellExec, run as runCommand } from './agent/exec';
+export type { Exec } from './agent/exec';
 
 import { ForgeTokenSource } from './forge/types';
 import { PatTokenSource } from './forge/pat';

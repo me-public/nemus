@@ -1,0 +1,76 @@
+#!/usr/bin/env node
+import { writeFileSync } from 'node:fs';
+import * as path from 'node:path';
+import { forgeAuthFromEnv } from '../index';
+import { GitHubForge } from '../gitforge/github';
+import { parseAgentEnv } from './env';
+import { runAgentTask, RunAgentDeps } from './run';
+import { ShellGitOps } from './git-ops';
+import { ShellAgentInvoker } from './agent-invoker';
+import { RunResult } from './types';
+
+/**
+ * Container entrypoint (`nemus-cloud-agent`). Reads the env contract, runs the
+ * task, writes result.json to the workspace, and exits non-zero on failure so
+ * the runner's `status` reflects it. Designed to be the image's ENTRYPOINT.
+ */
+export async function main(env: NodeJS.ProcessEnv = process.env): Promise<number> {
+  let workdir = env.NEMUS_WORKDIR?.trim() || '/workspace';
+  let result: RunResult;
+  try {
+    const config = parseAgentEnv(env);
+    workdir = config.workdir;
+    const tokenSource = forgeAuthFromEnv(env);
+    const deps: RunAgentDeps = {
+      git: new ShellGitOps(),
+      agent: new ShellAgentInvoker({ env }),
+      forge: new GitHubForge({ tokenSource, apiBaseUrl: env.GITHUB_API_URL }),
+      tokenSource,
+    };
+    result = await runAgentTask(config, deps);
+  } catch (e) {
+    const now = new Date().toISOString();
+    result = {
+      schema: 1,
+      ok: false,
+      agent: env.NEMUS_AGENT?.trim() || 'pi',
+      task: env.NEMUS_TASK ?? '',
+      startedAt: now,
+      finishedAt: now,
+      repos: [],
+      error: (e as Error).message,
+    };
+  }
+
+  writeResult(workdir, result);
+  process.stdout.write(`\n[nemus-cloud-agent] result: ${result.ok ? 'ok' : 'failed'}\n`);
+  for (const r of result.repos) {
+    const status = r.error ? `error: ${r.error}` : r.prUrl ? `PR ${r.prUrl}` : r.changed === false ? 'no changes' : r.pushed ? 'pushed' : 'cloned';
+    process.stdout.write(`  ${r.repo}: ${status}\n`);
+  }
+  if (result.error) process.stderr.write(`[nemus-cloud-agent] ${result.error}\n`);
+  return result.ok ? 0 : 1;
+}
+
+function writeResult(workdir: string, result: RunResult): void {
+  try {
+    writeFileSync(path.join(workdir, 'result.json'), JSON.stringify(result, null, 2));
+  } catch {
+    // Fall back to cwd if the workspace isn't writable; never crash on reporting.
+    try {
+      writeFileSync('result.json', JSON.stringify(result, null, 2));
+    } catch {
+      /* best-effort */
+    }
+  }
+}
+
+// Executed directly as the container entrypoint.
+if (require.main === module) {
+  main()
+    .then((code) => process.exit(code))
+    .catch((e) => {
+      process.stderr.write(`[nemus-cloud-agent] fatal: ${e}\n`);
+      process.exit(1);
+    });
+}
