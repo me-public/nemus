@@ -3,7 +3,9 @@ import { writeFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { forgeAuthFromEnv } from '../index';
 import { createForge, forgeKindFromEnv, forgeApiBaseFromEnv } from '../gitforge/registry';
+import { notifierFromEnv } from '../notify/index';
 import { parseAgentEnv } from './env';
+import { parseFixPrEnv, runFixPr } from './fix-pr';
 import { runAgentTask, RunAgentDeps } from './run';
 import { ShellGitOps } from './git-ops';
 import { ShellAgentInvoker } from './agent-invoker';
@@ -16,27 +18,51 @@ import { RunResult } from './types';
  */
 export async function main(env: NodeJS.ProcessEnv = process.env): Promise<number> {
   let workdir = env.NEMUS_WORKDIR?.trim() || '/workspace';
+  const mode = env.NEMUS_MODE?.trim() || 'agent';
   let result: RunResult;
   try {
-    const config = parseAgentEnv(env);
-    workdir = config.workdir;
     const tokenSource = forgeAuthFromEnv(env);
     const forgeKind = forgeKindFromEnv(env);
-    const deps: RunAgentDeps = {
-      git: new ShellGitOps(),
-      agent: new ShellAgentInvoker({ env }),
-      forge: createForge(forgeKind, {
-        tokenSource,
-        apiBaseUrl: forgeApiBaseFromEnv(forgeKind, env),
-      }),
+    const forge = createForge(forgeKind, {
       tokenSource,
-    };
-    result = await runAgentTask(config, deps);
+      apiBaseUrl: forgeApiBaseFromEnv(forgeKind, env),
+    });
+    const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+    if (mode !== 'agent' && mode !== 'fix-pr') {
+      // Fail loudly on a typo rather than silently running the default flow
+      // (which would surface a misleading "NEMUS_TASK is required").
+      throw new Error(`unknown NEMUS_MODE "${mode}" (expected 'agent' or 'fix-pr')`);
+    }
+    if (mode === 'fix-pr') {
+      // Drive an EXISTING PR to green (CI-loop + notifications), no new PR.
+      const cfg = parseFixPrEnv(env);
+      workdir = cfg.workdir;
+      result = await runFixPr(cfg, {
+        git: new ShellGitOps(),
+        agent: new ShellAgentInvoker({ env }),
+        forge,
+        tokenSource,
+        notifier: notifierFromEnv(env),
+        sleep,
+        log: (s) => process.stdout.write(`[nemus-cloud-agent] ${s}\n`),
+      });
+    } else {
+      const config = parseAgentEnv(env);
+      workdir = config.workdir;
+      const deps: RunAgentDeps = {
+        git: new ShellGitOps(),
+        agent: new ShellAgentInvoker({ env }),
+        forge,
+        tokenSource,
+      };
+      result = await runAgentTask(config, deps);
+    }
   } catch (e) {
     const now = new Date().toISOString();
     result = {
       schema: 1,
       ok: false,
+      mode: mode === 'fix-pr' ? 'fix-pr' : 'agent',
       agent: env.NEMUS_AGENT?.trim() || 'pi',
       task: env.NEMUS_TASK ?? '',
       startedAt: now,

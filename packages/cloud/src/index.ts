@@ -45,6 +45,9 @@ export * from './agent/types';
 export { parseAgentEnv, parseRepo } from './agent/env';
 export { runAgentTask, slug } from './agent/run';
 export type { RunAgentDeps } from './agent/run';
+// fix-pr entry mode: drive an existing PR to green (CI-loop + notifications).
+export { runFixPr, parseFixPrEnv } from './agent/fix-pr';
+export type { FixPrConfig, FixPrDeps } from './agent/fix-pr';
 export { ShellGitOps } from './agent/git-ops';
 export type { ShellGitOpsOptions } from './agent/git-ops';
 export { ShellAgentInvoker, buildAgentCommand } from './agent/agent-invoker';
