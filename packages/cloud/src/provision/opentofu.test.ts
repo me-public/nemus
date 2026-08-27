@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
+import { existsSync } from 'node:fs';
+import * as path from 'node:path';
 import { OpenTofuProvisioner, parseTargetDescriptor } from './opentofu';
 import { createProvisioner, provisionerNames, registerProvisioner } from './registry';
+import { iacModuleDir } from './modules';
 import { Exec, ExecResultRaw } from '../agent/exec';
 
 function recorder(outputs: Record<string, ExecResultRaw> = {}) {
@@ -83,5 +86,15 @@ describe('provisioner registry', () => {
   it('is extensible', () => {
     registerProvisioner('fake', () => ({ id: 'fake', up: async () => ({ version: 1, runner: 'fake' }), down: async () => {} }));
     expect(createProvisioner('fake').id).toBe('fake');
+  });
+});
+
+describe('iacModuleDir', () => {
+  it('resolves to a shipped module that actually exists on disk', () => {
+    const dir = iacModuleDir('fargate');
+    expect(dir.endsWith(path.join('iac', 'fargate'))).toBe(true);
+    // the whole point of the helper: the path is real (require.resolve on a
+    // dir throws MODULE_NOT_FOUND, which is the bug it replaces)
+    expect(existsSync(path.join(dir, 'versions.tf'))).toBe(true);
   });
 });

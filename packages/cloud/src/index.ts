@@ -43,6 +43,7 @@ export { OpenTofuProvisioner, parseTargetDescriptor } from './provision/opentofu
 export type { OpenTofuProvisionerOptions } from './provision/opentofu';
 export { createProvisioner, registerProvisioner, provisionerNames } from './provision/registry';
 export type { ProvisionerFactory } from './provision/registry';
+export { iacModuleDir } from './provision/modules';
 
 import { ForgeTokenSource } from './forge/types';
 import { PatTokenSource } from './forge/pat';

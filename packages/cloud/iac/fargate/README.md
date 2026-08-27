@@ -12,10 +12,10 @@ It emits a single `target` output that maps directly to a Nemus
 ## Use it via Nemus
 
 ```ts
-import { createProvisioner, createRunner } from '@nemus-cli/cloud';
+import { createProvisioner, iacModuleDir } from '@nemus-cli/cloud';
 
 const provisioner = createProvisioner('opentofu', {
-  moduleDir: require.resolve('@nemus-cli/cloud/iac/fargate'), // or a path
+  moduleDir: iacModuleDir('fargate'), // a real path to this shipped module
   vars: { region: 'us-east-1', name: 'nemus' },
 });
 
@@ -50,9 +50,18 @@ tofu output -json target
 - **Credentials:** standard AWS provider auth (`AWS_PROFILE` / env / SSO). The
   module needs permissions to create ECS, IAM, CloudWatch Logs, and EC2 SG
   resources.
+- **This is a template.** Running `tofu` against the copy shipped under
+  `node_modules` writes `.terraform/` + state there (fragile / sometimes
+  read-only). Copy this directory into your own working dir first.
 - **State** is local by default. For a team, add your own
   [backend](https://opentofu.org/docs/language/settings/backends/configuration/)
   block — the module is backend-agnostic.
+- **Subnets:** by default the module surfaces *all* subnets in the VPC. Fargate
+  tasks need to reach the image registry + git forge, so the Runner must place
+  them on public subnets with a public IP, or on private subnets behind a NAT.
+  Pass `subnet_ids` to pin the right ones.
+- **Don't pass secrets as `-var`** — they land in argv and the streamed apply
+  log. Use the AWS provider's own credential env.
 - **No task role.** The agent authenticates to the git forge with a token from
   its environment (a `ForgeTokenSource`), not cloud IAM, so tasks are granted no
   AWS permissions. The *execution* role only pulls the image and writes logs.
