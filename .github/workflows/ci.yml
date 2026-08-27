@@ -74,10 +74,37 @@ jobs:
 
       - name: Guard against Melio references in shipped code
         run: |
-          if grep -rniE 'melio' src bin scripts skills 2>/dev/null; then
+          if grep -rniE 'melio' src bin scripts skills packages \
+               --include='*.ts' --include='*.tsx' --include='*.js' --include='*.json' \
+               --include='*.sh' --include='*.md' \
+               --exclude-dir=node_modules --exclude-dir=dist 2>/dev/null; then
             echo "::error::Found 'melio' reference in shipped sources"; exit 1;
           fi
           echo "no vendor references found"
+
+  cloud-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install (workspaces)
+        run: npm ci
+
+      - name: Build @nemus-cli/cloud
+        run: npm run build -w @nemus-cli/cloud
+
+      - name: Typecheck @nemus-cli/cloud
+        run: npm run typecheck -w @nemus-cli/cloud
+
+      - name: Test @nemus-cli/cloud
+        run: npm test -w @nemus-cli/cloud
 
   check-version-bump:
     if: github.event_name == 'pull_request'
