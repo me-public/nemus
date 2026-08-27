@@ -86,7 +86,7 @@ describe('GitHubForge.getChecks', () => {
       { name: 'build', status: 'completed', conclusion: 'success' },
       { name: 'test', status: 'in_progress', conclusion: null },
     ]);
-    expect(calls[0].url).toContain('/commits/abc123/check-runs');
+    expect(calls[0].url).toContain('/commits/abc123/check-runs?per_page=100');
   });
 });
 
@@ -105,6 +105,6 @@ describe('GitHubForge apiBaseUrl (GHES)', () => {
     const { fetchImpl, calls } = stubFetch(() => ({ status: 200, body: { check_runs: [] } }));
     const forge = new GitHubForge({ tokenSource, fetchImpl, apiBaseUrl: 'https://ghe.acme.com/api/v3/' });
     await forge.getChecks({ owner: 'a', repo: 'b', ref: 'main' });
-    expect(calls[0].url).toBe('https://ghe.acme.com/api/v3/repos/a/b/commits/main/check-runs');
+    expect(calls[0].url).toBe('https://ghe.acme.com/api/v3/repos/a/b/commits/main/check-runs?per_page=100');
   });
 });

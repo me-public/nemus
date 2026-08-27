@@ -115,6 +115,16 @@ describe('DockerRunner.exec + stop', () => {
 });
 
 describe('DockerRunner.logs', () => {
+  it('rejects (does not hang) when the docker binary is missing', async () => {
+    // Uses the REAL default streamer against a nonexistent bin -> spawn 'error'.
+    const runner = new DockerRunner({ bin: 'nemus-no-such-bin-xyz' });
+    await expect(
+      (async () => {
+        for await (const _ of runner.logs({ runner: 'docker', id: 'c1' })) void _;
+      })(),
+    ).rejects.toThrow(/docker logs stream failed/);
+  });
+
   it('yields the streamed log lines', async () => {
     const fake: LogStreamer = async function* () {
       yield { stream: 'stdout', line: 'cloning…' } as LogLine;

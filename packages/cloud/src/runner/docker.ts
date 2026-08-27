@@ -154,6 +154,7 @@ const defaultStream: LogStreamer = async function* (bin, args) {
   const child = spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
   const queue: LogLine[] = [];
   let done = false;
+  let failure: Error | undefined;
   let notify: (() => void) | null = null;
   const push = (stream: LogLine['stream']) => (buf: Buffer) => {
     for (const raw of buf.toString().split('\n')) {
@@ -164,6 +165,13 @@ const defaultStream: LogStreamer = async function* (bin, args) {
   };
   child.stdout.on('data', push('stdout'));
   child.stderr.on('data', push('stderr'));
+  // ENOENT (e.g. docker not installed) emits 'error' with NO 'close' — without
+  // this the consumer's `for await` would hang forever.
+  child.on('error', (e) => {
+    failure = e instanceof Error ? e : new Error(String(e));
+    done = true;
+    notify?.();
+  });
   child.on('close', () => {
     done = true;
     notify?.();
@@ -176,4 +184,5 @@ const defaultStream: LogStreamer = async function* (bin, args) {
       notify = null;
     }
   }
+  if (failure) throw new Error(`docker logs stream failed: ${failure.message}`);
 };

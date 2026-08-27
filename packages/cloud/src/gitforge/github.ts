@@ -48,9 +48,10 @@ export class GitHubForge implements GitForge {
   }
 
   async getChecks(ref: RepoRef & { ref: string }): Promise<CheckRun[]> {
+    // per_page=100 covers virtually every commit; full pagination is a follow-up.
     const json = await this.request<any>(
       'GET',
-      `/repos/${ref.owner}/${ref.repo}/commits/${encodeURIComponent(ref.ref)}/check-runs`,
+      `/repos/${ref.owner}/${ref.repo}/commits/${encodeURIComponent(ref.ref)}/check-runs?per_page=100`,
     );
     return (json.check_runs ?? []).map((c: any) => ({
       name: c.name,
