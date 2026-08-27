@@ -69,3 +69,10 @@ Thumbs.db
 # The image installs THIS commit rather than the last published release.
 infra/docker/workspace-manager.tgz
 *.tgz
+
+# OpenTofu / Terraform local state + provider caches (IaC modules are templates)
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
