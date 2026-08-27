@@ -47,6 +47,12 @@ export { createProvisioner, registerProvisioner, provisionerNames } from './prov
 export type { ProvisionerFactory } from './provision/registry';
 export { iacModuleDir } from './provision/modules';
 
+// Bounded CI-loop: drive a PR to green over GitForge (report-back + fix, P3).
+export { runCiLoop } from './ci/loop';
+export { summarizeChecks, buildFixPrompt } from './ci/checks';
+export type { ChecksSummary } from './ci/checks';
+export type { CiLoopConfig, CiLoopDeps, CiLoopResult, CiLoopState } from './ci/types';
+
 import { ForgeTokenSource } from './forge/types';
 import { PatTokenSource } from './forge/pat';
 import { GitHubAppTokenSource, GitHubAppConfig } from './forge/github-app';
