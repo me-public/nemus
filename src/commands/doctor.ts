@@ -4,6 +4,7 @@ import { WORKSPACES_DIR } from '../utils/config';
 import { loadMetadata } from '../utils/workspace-meta';
 import { runAllHealthChecks, calculateHealthScore } from '../utils/health-checks';
 import { logError, logInfo, logStep, logSuccess, logWarning } from '../utils/logger';
+import { outputJson, outputJsonError } from '../utils/output';
 import { colorize } from '../utils/colors';
 import { HealthCheckResult } from '../types';
 import { resolveWorkspace } from '../utils/command-helpers';
@@ -59,20 +60,42 @@ export function registerDoctorCommand(parent: Command) {
     .alias('doc')
     .description('Run comprehensive health checks')
     .argument('[workspace]', 'Workspace name')
-    .action(async (workspace) => {
-      await handleDoctor(workspace);
+    .option('--json', 'Output as JSON')
+    .action(async (workspace, opts) => {
+      await handleDoctor(workspace, opts);
     });
 }
 
-async function handleDoctor(workspaceArg?: string) {
+async function handleDoctor(workspaceArg?: string, opts: { json?: boolean } = {}) {
+  // In --json mode, failures are parseable JSON on stdout + exit 1; otherwise a
+  // human log on stderr. `process.exit(1)` stays the last statement so TS still
+  // narrows `metadata` to non-null below.
   try {
+    // JSON mode is non-interactive: require an explicit workspace rather than prompt.
+    if (opts.json && !workspaceArg) {
+      outputJsonError('doctor --json requires a workspace name');
+      process.exit(1);
+    }
     const selectedWorkspace = await resolveWorkspace(workspaceArg);
     const workspacePath = path.join(WORKSPACES_DIR, selectedWorkspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
-      logError(`Workspace metadata not found for: ${selectedWorkspace}`);
+      if (opts.json) outputJsonError(`Workspace metadata not found for: ${selectedWorkspace}`);
+      else logError(`Workspace metadata not found for: ${selectedWorkspace}`);
       process.exit(1);
+    }
+
+    if (opts.json) {
+      const results = await runAllHealthChecks(workspacePath, metadata);
+      const score = calculateHealthScore(results);
+      const overall = results.some(r => r.status === 'error')
+        ? 'error'
+        : results.some(r => r.status === 'warning')
+          ? 'warning'
+          : 'healthy';
+      outputJson({ workspace: selectedWorkspace, score, status: overall, checks: results });
+      return;
     }
 
     logStep(`Running health checks for workspace: ${colorize(selectedWorkspace, 'cyan')}`);
@@ -101,9 +124,11 @@ async function handleDoctor(workspaceArg?: string) {
       logSuccess('All health checks passed! Your workspace is in good shape.');
     }
   } catch (error) {
-    logError('Failed to run health checks');
-    if (error instanceof Error) {
-      logError(error.message);
+    if (opts.json) {
+      outputJsonError(error instanceof Error ? error.message : 'Failed to run health checks');
+    } else {
+      logError('Failed to run health checks');
+      if (error instanceof Error) logError(error.message);
     }
     process.exit(1);
   }

@@ -4,6 +4,7 @@ import { WORKSPACES_DIR } from '../utils/config';
 import { loadMetadata } from '../utils/workspace-meta';
 import { getAllReposStatus } from '../utils/git-status';
 import { logError, logInfo, logStep } from '../utils/logger';
+import { outputJson, outputJsonError } from '../utils/output';
 import { colorize } from '../utils/colors';
 import { resolveWorkspace } from '../utils/command-helpers';
 
@@ -78,33 +79,59 @@ export function registerStatusCommand(parent: Command) {
     .alias('st')
     .description('Show git status across all repos')
     .argument('[workspace]', 'Workspace name')
-    .action(async (workspace) => {
-      await handleStatus(workspace);
+    .option('--json', 'Output as JSON')
+    .action(async (workspace, opts) => {
+      await handleStatus(workspace, opts);
     });
 }
 
-async function handleStatus(workspaceArg?: string) {
+async function handleStatus(workspaceArg?: string, opts: { json?: boolean } = {}) {
+  // In --json mode, failures are parseable JSON on stdout + exit 1; otherwise a
+  // human log on stderr. `process.exit(1)` stays the last statement so TS still
+  // narrows `metadata` to non-null below.
   try {
+    // JSON mode is non-interactive: require an explicit workspace rather than prompt.
+    if (opts.json && !workspaceArg) {
+      outputJsonError('status --json requires a workspace name');
+      process.exit(1);
+    }
     const selectedWorkspace = await resolveWorkspace(workspaceArg);
     const workspacePath = path.join(WORKSPACES_DIR, selectedWorkspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
-      logError(`Workspace metadata not found for: ${selectedWorkspace}`);
+      if (opts.json) outputJsonError(`Workspace metadata not found for: ${selectedWorkspace}`);
+      else logError(`Workspace metadata not found for: ${selectedWorkspace}`);
       process.exit(1);
+    }
+
+    const repoDirectoryNames = metadata.repositories.map(r => r.directoryName);
+
+    if (opts.json) {
+      const statuses = await getAllReposStatus(workspacePath, repoDirectoryNames, 3);
+      outputJson({
+        workspace: selectedWorkspace,
+        path: workspacePath,
+        repoCount: statuses.length,
+        clean: statuses.every(s => s.clean),
+        repositories: statuses,
+      });
+      return;
     }
 
     logStep(`Checking status for workspace: ${colorize(selectedWorkspace, 'cyan')}`);
     logInfo(`Found ${metadata.repositories.length} repositories`);
 
-    const repoDirectoryNames = metadata.repositories.map(r => r.directoryName);
     const statuses = await getAllReposStatus(workspacePath, repoDirectoryNames, 3);
 
     displayStatusTable(statuses);
   } catch (error) {
-    logError('Failed to check workspace status');
-    if (error instanceof Error) {
-      logError(error.message);
+    const msg = error instanceof Error ? error.message : 'Failed to check workspace status';
+    if (opts.json) {
+      outputJsonError(msg);
+    } else {
+      logError('Failed to check workspace status');
+      if (error instanceof Error) logError(error.message);
     }
     process.exit(1);
   }

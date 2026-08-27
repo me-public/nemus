@@ -5,6 +5,7 @@ import * as fsPromises from 'fs/promises';
 import { listWorkspaces } from '../utils/workspace-meta';
 import { getWorkspaceSessions } from '../utils/claude-sessions';
 import { logInfo, logError } from '../utils/logger';
+import { outputJson } from '../utils/output';
 import { colorize } from '../utils/colors';
 import inquirer from 'inquirer';
 import autocompletePrompt from 'inquirer-autocomplete-prompt';
@@ -31,12 +32,13 @@ export function registerListCommand(parent: Command) {
     .alias('l')
     .description('List workspaces and navigate to one')
     .option('-a, --archived', 'Show archived workspaces')
+    .option('--json', 'Output as JSON (no interactive selection)')
     .action(async (opts) => {
       await handleList(opts);
     });
 }
 
-async function handleList(opts: { archived?: boolean }) {
+async function handleList(opts: { archived?: boolean; json?: boolean }) {
   const showArchived = opts.archived ?? false;
   const title = showArchived ? 'Archived Workspaces' : 'Existing Workspaces';
 
@@ -49,6 +51,10 @@ async function handleList(opts: { archived?: boolean }) {
     ]);
 
     if (workspaces.length === 0) {
+      if (opts.json) {
+        outputJson({ archived: showArchived, count: 0, workspaces: [] });
+        return;
+      }
       console.log('\n' + '='.repeat(60));
       console.log(colorize(title, 'bright'));
       console.log('='.repeat(60) + '\n');
@@ -84,6 +90,23 @@ async function handleList(opts: { archived?: boolean }) {
       if (b.hasSession) return 1;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
+
+    // JSON mode: one document to stdout, no table, no interactive selection.
+    if (opts.json) {
+      outputJson({
+        archived: showArchived,
+        count: items.length,
+        workspaces: items.map(i => ({
+          name: i.name,
+          path: i.wsPath,
+          repoCount: i.repoCount,
+          createdAt: i.createdAt || null,
+          lastActive: i.lastActiveLabel,
+          hasSession: i.hasSession,
+        })),
+      });
+      return;
+    }
 
     console.log('');
     console.log(colorize('  ' + title, 'bright') + colorize('  (sorted by last active)', 'dim'));
@@ -172,5 +195,6 @@ async function handleList(opts: { archived?: boolean }) {
 export async function main() {
   const args = process.argv.slice(2);
   const archived = args.includes('--archived') || args.includes('-a');
-  await handleList({ archived });
+  const json = args.includes('--json');
+  await handleList({ archived, json });
 }

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.11] - 2026-08-27
+
+### Added
+
+- **`--json` output** for the read-only reporting commands `list`, `status`, and
+  `doctor`. Emits exactly one JSON document to stdout (no table, no interactive
+  prompt), so `nemus list --json | jq …` and CI/scripts get stable,
+  machine-readable output. `status --json` / `doctor --json` require an explicit
+  workspace name (they never prompt).
+
+### Changed
+
+- **stdout/stderr hygiene.** Diagnostic logs (info/success/error/warning/step)
+  now go to **stderr**, leaving **stdout** for a command's actual data. This is
+  what makes `--json` pipe cleanly and lets non-TTY consumers separate data from
+  progress. Human-facing table/plain output is unchanged on stdout.
+
 ## [0.2.10] - 2026-08-27
 
 ### Security

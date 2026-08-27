@@ -223,6 +223,21 @@ web              feature/x    ⚠ 2 modified  ↑1             2 files
 shared-lib       main         ✓ Clean       ↓3             -
 ```
 
+### Scripting: `--json`
+
+`list`, `status`, and `doctor` accept `--json` for stable, machine-readable
+output. Diagnostics go to stderr, so stdout is a single JSON document you can
+pipe straight into `jq` or a CI step:
+
+```bash
+nemus list --json | jq -r '.workspaces[].name'
+nemus status my-workspace --json | jq '.clean'
+nemus doctor my-workspace --json | jq '.score'
+```
+
+`status`/`doctor` with `--json` need an explicit workspace name (they never
+prompt).
+
 ### Suites (reusable repo collections)
 
 ```bash
