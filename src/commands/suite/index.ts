@@ -17,9 +17,10 @@ export function registerSuiteCommands(parent: Command) {
   suite
     .command('list')
     .description('List all saved suites')
-    .action(async () => {
+    .option('--json', 'Output as JSON')
+    .action(async (opts) => {
       const { main } = await import('./list');
-      await main();
+      await main(opts);
     });
 
   suite

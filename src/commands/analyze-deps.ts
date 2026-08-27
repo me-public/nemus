@@ -9,6 +9,7 @@ import {
   updateWorkspaceMetadata,
 } from '../utils/dependency-analyzer';
 import { logError, logInfo, logStep, logSuccess } from '../utils/logger';
+import { outputJson, outputJsonError } from '../utils/output';
 import { colorize } from '../utils/colors';
 import inquirer from 'inquirer';
 import { resolveWorkspace } from '../utils/command-helpers';
@@ -42,26 +43,53 @@ export function registerAnalyzeDepsCommand(parent: Command) {
     .alias('ad')
     .description('Analyze inter-repo dependencies')
     .argument('[workspace]', 'Workspace name')
-    .action(async (workspace) => {
-      await handleAnalyzeDeps(workspace);
+    .option('--json', 'Output as JSON (no interactive save)')
+    .action(async (workspace, opts) => {
+      await handleAnalyzeDeps(workspace, opts);
     });
 }
 
-async function handleAnalyzeDeps(workspaceArg?: string) {
+async function handleAnalyzeDeps(workspaceArg?: string, opts: { json?: boolean } = {}) {
   try {
+    // JSON mode is non-interactive: require an explicit workspace rather than prompt.
+    if (opts.json && !workspaceArg) {
+      outputJsonError('analyze-deps --json requires a workspace name');
+      process.exit(1);
+    }
     const selectedWorkspace = await resolveWorkspace(workspaceArg);
     const workspacePath = path.join(WORKSPACES_DIR, selectedWorkspace);
     const metadata = await loadMetadata(workspacePath);
 
     if (!metadata) {
-      logError(`Workspace metadata not found for: ${selectedWorkspace}`);
+      if (opts.json) outputJsonError(`Workspace metadata not found for: ${selectedWorkspace}`);
+      else logError(`Workspace metadata not found for: ${selectedWorkspace}`);
       process.exit(1);
+    }
+
+    const repoNames = metadata.repositories.map(r => r.name);
+
+    if (opts.json) {
+      const analyses = await analyzeDependencies(workspacePath, repoNames);
+      const cycles = detectCircularDependencies(analyses);
+      const missing = new Set<string>();
+      for (const [, a] of analyses) for (const dep of a.missingDependencies) missing.add(dep);
+      outputJson({
+        workspace: selectedWorkspace,
+        repositories: Array.from(analyses.entries()).map(([name, a]) => ({
+          name,
+          dependencies: a.dependencies,
+          dependents: a.dependents,
+          missingDependencies: a.missingDependencies,
+        })),
+        circularDependencies: cycles,
+        missingRepositories: Array.from(missing),
+      });
+      return;
     }
 
     logStep(`Analyzing dependencies for workspace: ${colorize(selectedWorkspace, 'cyan')}`);
     logInfo('Scanning package.json, Dockerfile, and docker-compose.yml files...');
 
-    const repoNames = metadata.repositories.map(r => r.name);
     const analyses = await analyzeDependencies(workspacePath, repoNames);
 
     displayDependencyAnalysis(analyses);
@@ -110,9 +138,11 @@ async function handleAnalyzeDeps(workspaceArg?: string) {
       }
     }
   } catch (error) {
-    logError('Failed to analyze dependencies');
-    if (error instanceof Error) {
-      logError(error.message);
+    if (opts.json) {
+      outputJsonError(error instanceof Error ? error.message : 'Failed to analyze dependencies');
+    } else {
+      logError('Failed to analyze dependencies');
+      if (error instanceof Error) logError(error.message);
     }
     process.exit(1);
   }

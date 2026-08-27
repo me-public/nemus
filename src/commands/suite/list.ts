@@ -2,15 +2,31 @@
 
 import { listSuites } from '../../utils/suite';
 import { logInfo, logError } from '../../utils/logger';
+import { outputJson, outputJsonError } from '../../utils/output';
 import { colorize } from '../../utils/colors';
 
-export async function main() {
-  console.log('\n' + '='.repeat(60));
-  console.log(colorize('Saved Suites', 'bright'));
-  console.log('='.repeat(60) + '\n');
-
+export async function main(opts: { json?: boolean } = {}) {
   try {
     const suites = await listSuites();
+
+    if (opts.json) {
+      outputJson({
+        count: suites.length,
+        suites: suites.map(s => ({
+          name: s.name,
+          description: s.description ?? null,
+          repoCount: s.entries.length,
+          entries: s.entries.map(e => ({ directoryName: e.directoryName, repoName: e.repoName })),
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
+        })),
+      });
+      return;
+    }
+
+    console.log('\n' + '='.repeat(60));
+    console.log(colorize('Saved Suites', 'bright'));
+    console.log('='.repeat(60) + '\n');
 
     if (suites.length === 0) {
       logInfo('No suites found');
@@ -43,9 +59,11 @@ export async function main() {
 
     console.log('='.repeat(60) + '\n');
   } catch (error) {
-    logError('Failed to list suites');
-    if (error instanceof Error) {
-      logError(error.message);
+    if (opts.json) {
+      outputJsonError(error instanceof Error ? error.message : 'Failed to list suites');
+    } else {
+      logError('Failed to list suites');
+      if (error instanceof Error) logError(error.message);
     }
     process.exit(1);
   }

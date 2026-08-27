@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.12] - 2026-08-27
+
+### Added
+
+- **`--json` for more read-only reporting commands**, extending 0.2.11's set
+  (`list`/`status`/`doctor`) to `suite list`, `sessions`, and `analyze-deps`.
+  Each emits exactly one JSON document to stdout (no tables, no interactive
+  prompt): `suite list --json` (saved suites + entries), `sessions --json`
+  (workspace sessions, list-only — no resume), `analyze-deps --json` (per-repo
+  dependencies/dependents/missing + circular deps + suggested missing repos;
+  requires an explicit workspace). `--json` errors are parseable
+  `{ ok:false, error }` on stdout + exit 1, consistent with 0.2.11.
+
 ## [0.2.11] - 2026-08-27
 
 ### Added
