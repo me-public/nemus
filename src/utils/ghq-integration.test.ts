@@ -1,12 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockExecAsync = vi.fn();
+const mockExecFile = vi.fn();
+// ghqRepoExists now uses fs.stat (not `test -d`); cleanup uses fs.rm.
+const mockStat = vi.fn();
+const mockRm = vi.fn().mockResolvedValue(undefined);
+vi.mock('fs/promises', () => ({
+  stat: (...a: unknown[]) => mockStat(...a),
+  rm: (...a: unknown[]) => mockRm(...a),
+}));
+const cached = () => mockStat.mockResolvedValue({ isDirectory: () => true });
 vi.mock('child_process', () => ({
   exec: (...args: unknown[]) => {
     const callback = args[args.length - 1] as (err: Error | null, result: { stdout: string; stderr: string }) => void;
     const command = args[0] as string;
     const opts = args.length === 3 ? args[1] : {};
     mockExecAsync(command, opts)
+      .then((result: { stdout: string; stderr: string }) => callback(null, result))
+      .catch((err: Error) => callback(err, { stdout: '', stderr: '' }));
+  },
+  // execFile(file, args, [opts], cb): reconstruct a command string so existing
+  // expectations that assert on the command keep working, and record argv.
+  execFile: (...args: unknown[]) => {
+    const callback = args[args.length - 1] as (err: Error | null, result: { stdout: string; stderr: string }) => void;
+    const file = args[0] as string;
+    const fileArgs = Array.isArray(args[1]) ? (args[1] as string[]) : [];
+    const opts = typeof args[2] === 'object' && args[2] !== null ? args[2] : {};
+    mockExecFile(file, fileArgs, opts);
+    mockExecAsync([file, ...fileArgs].join(' '), opts)
       .then((result: { stdout: string; stderr: string }) => callback(null, result))
       .catch((err: Error) => callback(err, { stdout: '', stderr: '' }));
   },
@@ -28,13 +49,16 @@ import { cloneWithGhq, describeCloneError } from './ghq-integration';
 describe('cloneWithGhq', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRm.mockResolvedValue(undefined);
+    // default: not cached (fs.stat rejects) unless a test opts into cached()
+    mockStat.mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
   });
 
   it('uses git clone --local from ghq cache when repo exists', async () => {
+    cached();
     mockExecAsync.mockImplementation((cmd: string) => {
       if (cmd === 'which ghq') return Promise.resolve({ stdout: '/usr/bin/ghq\n', stderr: '' });
       if (cmd === 'ghq root') return Promise.resolve({ stdout: '/home/user/ghq\n', stderr: '' });
-      if (cmd.startsWith('test -d')) return Promise.resolve({ stdout: '', stderr: '' });
       if (cmd.startsWith('git clone --local')) return Promise.resolve({ stdout: '', stderr: '' });
       if (cmd.startsWith('git remote set-url')) return Promise.resolve({ stdout: '', stderr: '' });
       return Promise.resolve({ stdout: '', stderr: '' });
@@ -55,10 +79,10 @@ describe('cloneWithGhq', () => {
   });
 
   it('does not call ghq get -u when repo is already cached', async () => {
+    cached();
     mockExecAsync.mockImplementation((cmd: string) => {
       if (cmd === 'which ghq') return Promise.resolve({ stdout: '/usr/bin/ghq\n', stderr: '' });
       if (cmd === 'ghq root') return Promise.resolve({ stdout: '/home/user/ghq\n', stderr: '' });
-      if (cmd.startsWith('test -d')) return Promise.resolve({ stdout: '', stderr: '' });
       if (cmd.startsWith('git clone --local')) return Promise.resolve({ stdout: '', stderr: '' });
       if (cmd.startsWith('git remote set-url')) return Promise.resolve({ stdout: '', stderr: '' });
       return Promise.resolve({ stdout: '', stderr: '' });
@@ -109,8 +133,8 @@ describe('cloneWithGhq', () => {
     const calls = mockExecAsync.mock.calls.map(([cmd]: [string]) => cmd);
     // Should NOT attempt git clone --local since ghq get failed
     expect(calls.some((cmd: string) => cmd.includes('--local'))).toBe(false);
-    // Should fall back to direct clone
-    expect(calls.some((cmd: string) => cmd.startsWith('git clone "git@github.com'))).toBe(true);
+    // Should fall back to direct clone (argv form: no shell quotes)
+    expect(calls.some((cmd: string) => cmd.startsWith('git clone git@github.com'))).toBe(true);
   });
 
   it('falls back to direct git clone when ghq is not installed', async () => {
@@ -126,7 +150,7 @@ describe('cloneWithGhq', () => {
     expect(result.usedGhq).toBe(false);
 
     const calls = mockExecAsync.mock.calls.map(([cmd]: [string]) => cmd);
-    expect(calls.some((cmd: string) => cmd.startsWith('git clone "git@github.com'))).toBe(true);
+    expect(calls.some((cmd: string) => cmd.startsWith('git clone git@github.com'))).toBe(true);
     expect(calls.some((cmd: string) => cmd.includes('--local'))).toBe(false);
   });
 

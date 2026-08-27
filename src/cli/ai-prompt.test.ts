@@ -2,12 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 
 const {
   mockExec,
+  mockExecFile,
   mockExecFileSync,
   mockSpawn,
   mockMkdirSync,
   mockWriteFileSync,
 } = vi.hoisted(() => ({
   mockExec: vi.fn(),
+  mockExecFile: vi.fn(),
   mockExecFileSync: vi.fn(),
   mockSpawn: vi.fn(),
   mockMkdirSync: vi.fn(),
@@ -16,6 +18,7 @@ const {
 
 vi.mock('child_process', () => ({
   exec: mockExec,
+  execFile: mockExecFile,
   execFileSync: mockExecFileSync,
   spawn: mockSpawn,
 }));
@@ -69,7 +72,8 @@ function setupSpawnMock(exitCode: number = 0) {
 }
 
 function setupExecMock(success: boolean) {
-  mockExec.mockImplementation((_cmd: string, cb: Function) => {
+  // isPrimaryAgentAvailable now uses execFile('which', [cmd], cb) — cb is the 3rd arg.
+  mockExecFile.mockImplementation((_file: string, _args: string[], cb: Function) => {
     if (success) {
       cb(null, { stdout: '/usr/local/bin/claude\n', stderr: '' });
     } else {

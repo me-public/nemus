@@ -1,9 +1,9 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export interface CleanupResult {
   operation: string;
@@ -14,7 +14,7 @@ export interface CleanupResult {
 
 export const calculateDirSize = async (dirPath: string): Promise<number> => {
   try {
-    const { stdout } = await execAsync(`du -sk "${dirPath}"`);
+    const { stdout } = await execFileAsync('du', ['-sk', dirPath]);
     const sizeInKB = parseInt(stdout.split('\t')[0], 10);
     return sizeInKB;
   } catch {
@@ -72,10 +72,10 @@ export const removeBuildArtifacts = async (repoPath: string): Promise<CleanupRes
 
 export const gitClean = async (repoPath: string, dryRun: boolean = false): Promise<CleanupResult> => {
   try {
-    const cmd = dryRun ? 'git clean -fdxn' : 'git clean -fdx';
-    const { stdout } = await execAsync(cmd, { cwd: repoPath });
+    const args = dryRun ? ['clean', '-fdxn'] : ['clean', '-fdx'];
+    const { stdout } = await execFileAsync('git', args, { cwd: repoPath });
 
-    const lines = stdout.split('\n').filter(l => l.trim());
+    const lines = stdout.split('\n').filter((l: string) => l.trim());
 
     return {
       operation: 'Git clean',

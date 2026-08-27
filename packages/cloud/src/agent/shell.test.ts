@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ShellGitOps } from './git-ops';
 import { buildAgentCommand } from './agent-invoker';
-import { Exec, ExecResultRaw } from './exec';
+import { Exec, ExecResultRaw, run, redactSecrets } from './exec';
 
 /** Records git invocations and returns queued/derived results. */
 function recorder(map: (bin: string, args: string[]) => ExecResultRaw = () => ({ code: 0, stdout: '', stderr: '' })) {
@@ -46,6 +46,24 @@ describe('ShellGitOps', () => {
   it('throws with stderr on a failed git command', async () => {
     const git = new ShellGitOps({ exec: recorder(() => ({ code: 128, stdout: '', stderr: 'fatal: repo not found' })).exec });
     await expect(git.clone('u', '/d')).rejects.toThrow(/128.*repo not found/);
+  });
+});
+
+describe('redactSecrets', () => {
+  it('strips URL credentials (e.g. the tokenized clone URL)', () => {
+    expect(redactSecrets('git clone https://x-access-token:ghs_SECRET@github.com/acme/api.git /w')).toBe(
+      'git clone https://***@github.com/acme/api.git /w',
+    );
+    expect(redactSecrets('no creds here')).toBe('no creds here');
+  });
+});
+
+describe('run() error redaction', () => {
+  it('does not leak the token in the thrown error on a failed clone', async () => {
+    const failing: Exec = async () => ({ code: 128, stdout: '', stderr: 'fatal: auth for https://x-access-token:ghs_SECRET@github.com/acme/api.git' });
+    const url = 'https://x-access-token:ghs_SECRET@github.com/acme/api.git';
+    await expect(run(failing, 'git', ['clone', url, '/w'])).rejects.toThrow(/\*\*\*@github\.com/);
+    await expect(run(failing, 'git', ['clone', url, '/w'])).rejects.not.toThrow(/ghs_SECRET/);
   });
 });
 

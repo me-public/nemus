@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import inquirer from 'inquirer';
@@ -117,7 +117,7 @@ async function handleConfigure() {
       logInfo('Installing MCP server...');
       try {
         const mcpInstallScript = path.join(__dirname, '..', '..', 'dist', 'mcp', 'install.js');
-        execSync(`node "${mcpInstallScript}" install`, { stdio: 'inherit' });
+        execFileSync('node', [mcpInstallScript, 'install'], { stdio: 'inherit' });
         mcpInstalled = true;
       } catch { logError('MCP install failed. You can retry later with: w mcp install'); }
     }
@@ -169,7 +169,7 @@ function installShellIntegration(): void {
   }
 
   try {
-    execSync(`bash "${scriptPath}" ${shellType}`, { stdio: 'inherit' });
+    execFileSync('bash', [scriptPath, shellType], { stdio: 'inherit' });
   } catch {
     logWarning('Shell integration install failed — you can run it manually:');
     logInfo(`  bash "${scriptPath}" ${shellType}`);
