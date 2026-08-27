@@ -28,6 +28,11 @@ export async function main(env: NodeJS.ProcessEnv = process.env): Promise<number
       apiBaseUrl: forgeApiBaseFromEnv(forgeKind, env),
     });
     const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+    if (mode !== 'agent' && mode !== 'fix-pr') {
+      // Fail loudly on a typo rather than silently running the default flow
+      // (which would surface a misleading "NEMUS_TASK is required").
+      throw new Error(`unknown NEMUS_MODE "${mode}" (expected 'agent' or 'fix-pr')`);
+    }
     if (mode === 'fix-pr') {
       // Drive an EXISTING PR to green (CI-loop + notifications), no new PR.
       const cfg = parseFixPrEnv(env);
