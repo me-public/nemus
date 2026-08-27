@@ -31,8 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   OpenTofu module (`iac/fargate/`, validated with real `tofu validate`); and the
   matching **`aws-fargate` Runner** (dependency-free, shells the `aws` CLI:
   `register-task-definition` → `run-task`, `describe-tasks` → status, CloudWatch
-  `logs tail` streaming, `stop-task`).
-  Design: `docs/plans/2026-08-26-cloud-iac.md`.
+  `logs tail` streaming, `stop-task`); and the **`nemus-cloud` CLI** (own bin,
+  dependency-free) — `up`/`down` drive the provisioner, `run` launches the agent
+  image on a target (`--follow` logs, `--wait` for the exit code). This
+  completes P2. Design: `docs/plans/2026-08-26-cloud-iac.md`.
 
 ## [0.2.9] - 2026-08-26
 

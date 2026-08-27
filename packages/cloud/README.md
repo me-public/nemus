@@ -91,6 +91,27 @@ own working dir** (or point a remote backend at it) so state is durable, and
 **don't pass secrets as `-var`** (they land in argv and the streamed apply log —
 use the provider's own credential env / a `SecretSource`).
 
+## The CLI: `nemus-cloud`
+
+A thin, dependency-free CLI ties the seams together end-to-end:
+
+```bash
+# 1) provision a target (writes .nemus-target.json)
+nemus-cloud up --module fargate --var region=us-east-1 --var name=nemus
+
+# 2) run the agent image on it (forge auth from env: GITHUB_TOKEN or GITHUB_APP_*)
+nemus-cloud run --image ghcr.io/acme/agent:latest \
+  --repos acme/api,acme/web --task "add idempotency keys" --owner acme --follow --wait
+
+# 3) tear it down
+nemus-cloud down --module fargate
+```
+
+`up`/`down` drive the `OpenTofuProvisioner`; `run` builds the agent env contract
++ a tag-safe `TaskSpec` and launches it via the target's `Runner`, optionally
+streaming logs (`--follow`) and waiting for the exit code (`--wait`). Run
+`nemus-cloud help` for all flags.
+
 ## Develop
 
 ```bash
