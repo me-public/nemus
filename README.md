@@ -24,8 +24,9 @@
 </p>
 
 <p align="center">
-  <a href="https://me-public.github.io/nemus/"><img src="https://raw.githubusercontent.com/me-public/nemus/main/docs/assets/nemus-demo.gif" alt="Nemus terminal demo — create a workspace, run across every repo, hand it to your agent" width="760" /></a>
+  <a href="https://raw.githubusercontent.com/me-public/nemus/main/docs/assets/nemus-cli-demo.mp4"><img src="https://raw.githubusercontent.com/me-public/nemus/main/docs/assets/nemus-cli-demo.gif" alt="Nemus terminal demo — describe a workspace in plain English, Nemus clones the repos and writes the agent context, then run across every repo at once" width="820" /></a>
 </p>
+<p align="center"><sub>A real recording — <code>nemus -- "…"</code> turns a sentence into a ready workspace. <a href="https://raw.githubusercontent.com/me-public/nemus/main/docs/assets/nemus-cli-demo.mp4">▶ watch as MP4</a></sub></p>
 
 ---
 
