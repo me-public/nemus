@@ -66,7 +66,11 @@ function harness(checkSequence: CheckRun[][], opts: { agentChanges?: boolean } =
     push: async () => { events.push('push'); },
   };
   const agent: AgentInvoker = { run: async () => { events.push('agent'); } };
-  const deps: CiLoopDeps = { forge, git, agent, sleep: async () => {}, log: (s) => events.push(`log:${s}`) };
+  const notes: string[] = [];
+  const deps: CiLoopDeps = {
+    forge, git, agent, sleep: async () => {}, log: (s) => events.push(`log:${s}`),
+    notifier: { id: 'test', notify: async (n) => { notes.push(n.event); } },
+  };
   const config: CiLoopConfig = {
     repo: { owner: 'acme', repo: 'api' },
     prNumber: 7,
@@ -76,7 +80,7 @@ function harness(checkSequence: CheckRun[][], opts: { agentChanges?: boolean } =
     maxIterations: 2,
     maxPollsPerIteration: 3,
   };
-  return { deps, config, events, comments, agentCalls: () => events.filter((e) => e === 'agent').length };
+  return { deps, config, events, comments, notes, agentCalls: () => events.filter((e) => e === 'agent').length };
 }
 
 describe('runCiLoop', () => {
@@ -127,10 +131,21 @@ describe('runCiLoop', () => {
     expect(comments).toHaveLength(1);
   });
 
-  it('a ref with NO CI at all → no_checks (ok, no give-up comment)', async () => {
-    const { deps, config, comments } = harness([[]]); // no check ever appears
+  it('a ref with NO CI at all → no_checks (ok, no give-up comment or notification)', async () => {
+    const { deps, config, comments, notes } = harness([[]]); // no check ever appears
     const r = await runCiLoop(config, deps);
     expect(r).toMatchObject({ ok: true, state: 'no_checks' });
     expect(comments).toEqual([]); // never a false "needs a human"
+    expect(notes).toEqual([]); // and nothing worth pinging about
+  });
+
+  it('notifies ci_green on success and needs_human on give-up', async () => {
+    const green = harness([[done('build', 'success')]]);
+    await runCiLoop(green.config, green.deps);
+    expect(green.notes).toEqual(['ci_green']);
+
+    const giveup = harness([[done('build', 'failure')]]); // exhausts
+    await runCiLoop(giveup.config, giveup.deps);
+    expect(giveup.notes).toEqual(['needs_human']);
   });
 });

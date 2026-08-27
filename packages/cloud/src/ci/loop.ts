@@ -40,6 +40,25 @@ export async function runCiLoop(config: CiLoopConfig, deps: CiLoopDeps): Promise
         /* best-effort */
       }
     }
+    // Out-of-band report-back (Slack/webhook), best-effort. Only the outcomes a
+    // human cares about: green (done) and give-ups (needs attention).
+    if (deps.notifier && state !== 'no_checks') {
+      const repoName = `${config.repo.owner}/${config.repo.repo}`;
+      try {
+        await deps.notifier.notify(
+          ok
+            ? { event: 'ci_green', title: `CI green: ${repoName}`, repo: repoName }
+            : {
+                event: 'needs_human',
+                title: `CI-loop gave up (${state}): ${repoName}`,
+                body: summarizeChecks(checks).failed.map((f) => `- ${f.name}`).join('\n') || undefined,
+                repo: repoName,
+              },
+        );
+      } catch {
+        /* best-effort */
+      }
+    }
     return { ok, state, iterations, checks };
   };
 

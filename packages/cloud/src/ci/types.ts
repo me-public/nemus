@@ -1,5 +1,6 @@
 import { RepoRef, GitForge, CheckRun } from '../gitforge/types';
 import { AgentInvoker, GitOps } from '../agent/types';
+import { Notifier } from '../notify/types';
 
 /** Inputs to one CI-loop run (one PR on one repo). */
 export interface CiLoopConfig {
@@ -44,4 +45,6 @@ export interface CiLoopDeps {
   agent: AgentInvoker;
   sleep: (ms: number) => Promise<void>;
   log?: (s: string) => void;
+  /** Optional out-of-band report-back (Slack/webhook); best-effort. */
+  notifier?: Notifier;
 }

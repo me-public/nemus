@@ -37,7 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   completes P2. **P3 (in progress):** a bounded **CI-loop** (`runCiLoop`) that
   drives a PR to green over `GitForge` — poll checks, run a fix pass on failure,
   commit/push, repeat; anti-runaway guards (max iterations, no-change → stuck,
-  poll-budget → timeout) + a best-effort "needs a human" give-up comment.
+  poll-budget → timeout) + a best-effort "needs a human" give-up comment; and
+  (P4) a vendor-neutral **notification seam** — `Notifier` with Slack (incoming
+  webhook) + generic webhook sinks (`notifierFromEnv`), wired into the CI-loop as
+  optional out-of-band report-back.
   Design: `docs/plans/2026-08-26-cloud-iac.md`.
 
 ## [0.2.9] - 2026-08-26
