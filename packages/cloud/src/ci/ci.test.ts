@@ -120,15 +120,17 @@ describe('runCiLoop', () => {
     expect(agentCalls()).toBe(1);
   });
 
-  it('checks never complete → timeout (also covers "no CI")', async () => {
-    const { deps, config } = harness([[running('build')]]); // perpetually pending
+  it('a check that appears but never completes → timeout (+ comment)', async () => {
+    const { deps, config, comments } = harness([[running('build')]]); // perpetually pending
     const r = await runCiLoop(config, deps);
     expect(r).toMatchObject({ ok: false, state: 'timeout' });
+    expect(comments).toHaveLength(1);
   });
 
-  it('empty checks are treated as pending → timeout, never green', async () => {
-    const { deps, config } = harness([[]]);
+  it('a ref with NO CI at all → no_checks (ok, no give-up comment)', async () => {
+    const { deps, config, comments } = harness([[]]); // no check ever appears
     const r = await runCiLoop(config, deps);
-    expect(r.state).toBe('timeout');
+    expect(r).toMatchObject({ ok: true, state: 'no_checks' });
+    expect(comments).toEqual([]); // never a false "needs a human"
   });
 });

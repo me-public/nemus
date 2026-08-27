@@ -23,6 +23,7 @@ export async function runCiLoop(config: CiLoopConfig, deps: CiLoopDeps): Promise
   const ref = config.branch; // read checks by branch head → always the latest push
 
   let iterations = 0;
+  let sawChecks = false; // distinguish "no CI on this ref" from "CI hung"
 
   // Terminal exit: on a non-green give-up, tell the human on the PR (best-effort;
   // a failed comment must never change the loop's verdict).
@@ -48,6 +49,7 @@ export async function runCiLoop(config: CiLoopConfig, deps: CiLoopDeps): Promise
     let polls = 0;
     for (;;) {
       checks = await forge.getChecks({ owner: config.repo.owner, repo: config.repo.repo, ref });
+      if (checks.length > 0) sawChecks = true;
       const summary = summarizeChecks(checks);
       if (!summary.pending) {
         if (summary.green) {
@@ -77,6 +79,12 @@ export async function runCiLoop(config: CiLoopConfig, deps: CiLoopDeps): Promise
         break; // re-enter the poll loop for the new head commit
       }
       if (++polls > maxPolls) {
+        // Never saw a single check across the whole budget → this ref has no CI;
+        // that's nothing to fix, not a failure (don't cry "needs a human").
+        if (!sawChecks) {
+          log?.('no CI checks on this ref — nothing to gate on');
+          return finish('no_checks', true, checks);
+        }
         log?.('checks did not complete within the poll budget — timeout');
         return finish('timeout', false, checks);
       }

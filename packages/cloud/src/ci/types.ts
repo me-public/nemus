@@ -1,4 +1,4 @@
-import { RepoRef, GitForge } from '../gitforge/types';
+import { RepoRef, GitForge, CheckRun } from '../gitforge/types';
 import { AgentInvoker, GitOps } from '../agent/types';
 
 /** Inputs to one CI-loop run (one PR on one repo). */
@@ -24,9 +24,10 @@ export interface CiLoopConfig {
 
 export type CiLoopState =
   | 'green' // checks passed
+  | 'no_checks' // this ref has no CI at all — nothing to gate on (ok)
   | 'exhausted' // still failing after maxIterations fixes
   | 'stuck' // a fix produced no changes → agent can't progress
-  | 'timeout'; // checks never completed within the poll budget
+  | 'timeout'; // checks appeared but never completed within the poll budget
 
 export interface CiLoopResult {
   ok: boolean;
@@ -34,7 +35,7 @@ export interface CiLoopResult {
   /** How many fix attempts were made. */
   iterations: number;
   /** Checks as last seen. */
-  checks: import('../gitforge/types').CheckRun[];
+  checks: CheckRun[];
 }
 
 export interface CiLoopDeps {
