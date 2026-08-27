@@ -53,6 +53,10 @@ export { summarizeChecks, buildFixPrompt } from './ci/checks';
 export type { ChecksSummary } from './ci/checks';
 export type { CiLoopConfig, CiLoopDeps, CiLoopResult, CiLoopState } from './ci/types';
 
+// Notification seam: out-of-band report-back (Slack / generic webhook), P4.
+export * from './notify';
+export { notifierFromEnv } from './notify';
+
 import { ForgeTokenSource } from './forge/types';
 import { PatTokenSource } from './forge/pat';
 import { GitHubAppTokenSource, GitHubAppConfig } from './forge/github-app';
