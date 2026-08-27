@@ -148,4 +148,12 @@ describe('runCiLoop', () => {
     await runCiLoop(giveup.config, giveup.deps);
     expect(giveup.notes).toEqual(['needs_human']);
   });
+
+  it('a failing notifier is logged, never fatal to the loop', async () => {
+    const h = harness([[done('build', 'success')]]);
+    h.deps.notifier = { id: 'bad', notify: async () => { throw new Error('webhook 500'); } };
+    const r = await runCiLoop(h.config, h.deps); // must still return green
+    expect(r.state).toBe('green');
+    expect(h.events.some((e) => e.startsWith('log:notify failed: webhook 500'))).toBe(true);
+  });
 });

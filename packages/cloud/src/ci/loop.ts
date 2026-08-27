@@ -28,13 +28,14 @@ export async function runCiLoop(config: CiLoopConfig, deps: CiLoopDeps): Promise
   // Terminal exit: on a non-green give-up, tell the human on the PR (best-effort;
   // a failed comment must never change the loop's verdict).
   const finish = async (state: CiLoopState, ok: boolean, checks: CheckRun[]): Promise<CiLoopResult> => {
+    const failed = summarizeChecks(checks).failed;
     if (!ok && config.prNumber !== undefined) {
       try {
         await forge.comment({
           owner: config.repo.owner,
           repo: config.repo.repo,
           number: config.prNumber,
-          body: buildGiveUpComment(state, iterations, summarizeChecks(checks).failed),
+          body: buildGiveUpComment(state, iterations, failed),
         });
       } catch {
         /* best-effort */
@@ -51,12 +52,13 @@ export async function runCiLoop(config: CiLoopConfig, deps: CiLoopDeps): Promise
             : {
                 event: 'needs_human',
                 title: `CI-loop gave up (${state}): ${repoName}`,
-                body: summarizeChecks(checks).failed.map((f) => `- ${f.name}`).join('\n') || undefined,
+                body: failed.map((f) => `- ${f.name}`).join('\n') || undefined,
                 repo: repoName,
               },
         );
-      } catch {
-        /* best-effort */
+      } catch (e) {
+        // best-effort, but don't fail silently — a misconfigured webhook is worth a line
+        log?.(`notify failed: ${(e as Error).message}`);
       }
     }
     return { ok, state, iterations, checks };

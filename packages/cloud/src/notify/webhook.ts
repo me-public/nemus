@@ -3,6 +3,8 @@ import { FetchLike, Notification, Notifier } from './types';
 export interface WebhookNotifierOptions {
   url: string;
   fetch?: FetchLike;
+  /** Abort the POST after this many ms so a hung endpoint can't stall a run (default 10_000). */
+  timeoutMs?: number;
 }
 
 /** Generic webhook: POSTs the raw Notification as JSON (Discord/custom sinks). */
@@ -14,7 +16,8 @@ export class WebhookNotifier implements Notifier {
   constructor(opts: WebhookNotifierOptions) {
     if (!opts.url) throw new Error('WebhookNotifier requires a url');
     this.url = opts.url;
-    this.fetch = opts.fetch ?? ((u, init) => fetch(u, init));
+    const timeoutMs = opts.timeoutMs ?? 10_000;
+    this.fetch = opts.fetch ?? ((u, init) => fetch(u, { ...init, signal: AbortSignal.timeout(timeoutMs) }));
   }
 
   async notify(n: Notification): Promise<void> {

@@ -20,6 +20,8 @@ export function formatSlackText(n: Notification): string {
 export interface SlackNotifierOptions {
   webhookUrl: string;
   fetch?: FetchLike;
+  /** Abort the POST after this many ms so a hung endpoint can't stall a run (default 10_000). */
+  timeoutMs?: number;
 }
 
 /** Posts to a Slack incoming webhook (`{ text }`). Zero-dep (uses fetch). */
@@ -31,7 +33,8 @@ export class SlackNotifier implements Notifier {
   constructor(opts: SlackNotifierOptions) {
     if (!opts.webhookUrl) throw new Error('SlackNotifier requires a webhookUrl');
     this.webhookUrl = opts.webhookUrl;
-    this.fetch = opts.fetch ?? ((url, init) => fetch(url, init));
+    const timeoutMs = opts.timeoutMs ?? 10_000;
+    this.fetch = opts.fetch ?? ((url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) }));
   }
 
   async notify(n: Notification): Promise<void> {

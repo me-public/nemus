@@ -41,6 +41,11 @@ describe('SlackNotifier', () => {
   it('requires a webhookUrl', () => {
     expect(() => new SlackNotifier({ webhookUrl: '' })).toThrow(/webhookUrl/);
   });
+  it('accepts a timeoutMs (bounds a hung endpoint) and still posts', async () => {
+    const { fetch, calls } = recorder();
+    await new SlackNotifier({ webhookUrl: 'h', fetch, timeoutMs: 500 }).notify(pr);
+    expect(calls).toHaveLength(1);
+  });
 });
 
 describe('WebhookNotifier', () => {
