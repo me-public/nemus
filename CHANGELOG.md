@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-27
+
+### Added
+
+- **`nemus reflect` (alias `retro`) — LLM-as-a-judge retrospective.** Analyzes
+  your most recent workspaces (default 10) by reading their agent session
+  transcripts, distilling the human prompts + tool failures + tools used, and
+  asking your own configured agent (claude/pi/opencode — no API key of ours) to
+  recommend concrete setup improvements: which **skills** to add and where,
+  missing **AGENTS.md/context** rules, missing **connectivity/smoke tests**, and
+  **prompt/workflow** habits to change — each with a priority and a concrete
+  example snippet. Reads both Claude and pi transcript formats. Flags:
+  `--limit <n>`, `--json` (structured report, same `{ok:false,error}` failure
+  contract as the other JSON commands), and `--dry-run` (print the assembled
+  corpus + judge prompt without calling the agent). Idea courtesy of
+  **@lightpriest** — thank you for the great suggestion!
+
 ## [0.2.13] - 2026-08-27
 
 ### Added

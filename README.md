@@ -280,6 +280,23 @@ nemus snapshot save ws        # (ss) capture exact branches/commits/dirty state
 nemus snapshot restore <id>   # (sr)
 ```
 
+### Reflect — improve your setup over time
+
+```bash
+nemus reflect                 # (retro) analyze your last 10 workspaces' sessions
+nemus reflect --limit 5       # narrow the window
+nemus reflect --json          # structured report for tooling
+nemus reflect --dry-run       # show what the judge sees, without calling the agent
+```
+
+`reflect` reads your recent agent **session transcripts** (Claude + pi), distills
+the prompts you sent, the failures the agent hit, and the tools it used, then asks
+**your own configured agent** (LLM-as-a-judge — no extra API key) to recommend
+concrete improvements: which **skills** to add and where, missing
+**AGENTS.md/context** rules, missing **connectivity/smoke tests**, and
+**prompt/workflow** habits — each with a priority and an example snippet. It's a
+fast retrospective on *how you drive the agent*, so next time works better.
+
 ### AI assistant
 
 ```bash
