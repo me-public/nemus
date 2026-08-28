@@ -1,4 +1,5 @@
 import { spawn, execFile, execFileSync } from 'child_process';
+import { parseAgentJson } from '../utils/agent-judge';
 import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -259,32 +260,21 @@ export async function extractIntent(prompt: string): Promise<ExtractedIntent> {
     result = runExtraction('pi', [...piLean, ...piCore], piCore);
   }
 
-  // Strip markdown code fences if present (Pi may wrap JSON in ```json...```)
-  let jsonStr = result.trim();
-  const fenceMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-  if (fenceMatch) {
-    jsonStr = fenceMatch[1].trim();
-  }
-
-  const parsed = JSON.parse(jsonStr);
-
-  // Handle different output formats:
-  // - Claude: { structured_output: {...} } or { result: "..." }
-  // - Pi: may return the object directly or wrap it
+  // Unwrap the agent's reply (code fences + the structured_output / result-string
+  // / result-object / bare-object envelopes) with the shared parser, so this and
+  // the reflect judge can't drift when a new agent shape is learned. The
+  // extraction-specific INVOCATION (lean flags + tailored timeout/auth errors)
+  // deliberately stays here — those messages are part of the `nemus --` UX.
   let intent: ExtractedIntent | undefined;
-  if (parsed.structured_output) {
-    intent = parsed.structured_output;
-  } else if (typeof parsed.result === 'string' && parsed.result) {
-    try { intent = JSON.parse(parsed.result); } catch { /* ignore */ }
-  } else if (typeof parsed.result === 'object' && parsed.result !== null) {
-    intent = parsed.result;
-  } else if (parsed.workspaceName || parsed.repos || parsed.remainingIntent !== undefined) {
-    // Pi may return the extracted object directly
-    intent = parsed;
+  try {
+    const parsed = parseAgentJson(result) as any;
+    if (parsed && typeof parsed === 'object') intent = parsed;
+  } catch {
+    throw new Error(`Could not extract intent from agent response: ${result.slice(0, 200)}`);
   }
 
   if (!intent) {
-    throw new Error(`Could not extract intent from agent response. Parsed: ${JSON.stringify(parsed).slice(0, 200)}`);
+    throw new Error(`Could not extract intent from agent response: ${result.slice(0, 200)}`);
   }
 
   // Coerce/validate field types so malformed model output can't crash the

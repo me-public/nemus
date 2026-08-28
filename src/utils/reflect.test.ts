@@ -21,14 +21,23 @@ describe('distillTranscript', () => {
       J({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', is_error: true, content: 'file not found' }] } }),
       // a system-reminder-style user text → ignored as a prompt
       J({ type: 'message', message: { role: 'user', content: '<system-reminder>ignore me</system-reminder>' } }),
+      // UNFLAGGED benign result whose text merely mentions "error" → NOT a failure
+      J({ type: 'message', message: { role: 'toolResult', toolName: 'grep', content: [{ type: 'text', text: '0 results for error' }] } }),
+      // UNFLAGGED result with a strong failure signal → a failure (regex fallback)
+      J({ type: 'message', message: { role: 'toolResult', toolName: 'git', content: [{ type: 'text', text: 'fatal: not a git repository' }] } }),
+      // EXPLICITLY not-an-error, despite failing-looking text → trust the flag
+      J({ type: 'message', message: { role: 'toolResult', isError: false, content: [{ type: 'text', text: 'fatal: boom (but flagged success)' }] } }),
     ].join('\n');
 
     const d = distillTranscript(lines, { sessionId: 's1', agentType: 'pi' });
     expect(d.turns).toBe(2);
     expect(d.userPrompts).toEqual(['do the thing', 'claude style prompt']);
-    expect(d.tools.sort()).toEqual(['Edit', 'bash']);
-    expect(d.errors).toContain('command failed: boom');
-    expect(d.errors).toContain('file not found');
+    expect(d.tools.sort()).toEqual(['Edit', 'bash', 'git', 'grep']);
+    expect(d.errors).toContain('command failed: boom'); // explicit isError:true
+    expect(d.errors).toContain('file not found'); // explicit is_error:true
+    expect(d.errors).toContain('fatal: not a git repository'); // unflagged + strong signal
+    expect(d.errors).not.toContain('0 results for error'); // unflagged benign 'error' mention
+    expect(d.errors.some((e) => e.includes('flagged success'))).toBe(false); // isError:false trusted
   });
 
   it('is bounded and tolerant of empty input', () => {

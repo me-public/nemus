@@ -73,7 +73,22 @@ function contentToText(content: unknown): string {
   return '';
 }
 
-const ERROR_RE = /\b(error|failed|not found|denied|permission|exception|timed out|cannot|unable to)\b/i;
+// Only used as a FALLBACK when a tool result carries no explicit error flag.
+// Kept to strong failure signals so a successful grep/log line for the word
+// "error", or a passing test named “…error…”, isn't mistaken for a failure.
+const ERROR_RE = /\b(fatal|failed|failure|exception|traceback|denied|not a git repository|timed out|exit code\s+[1-9])\b/i;
+
+/**
+ * Decide whether a tool result is a failure: trust the explicit `isError` flag
+ * when present (true => failure, false => success), and only guess from the
+ * text when there's no flag at all. This keeps the judge's “evidence” to real
+ * failures instead of any output that happens to contain the word “error”.
+ */
+function isToolFailure(flag: unknown, text: string): boolean {
+  if (flag === true) return true;
+  if (flag === false) return false;
+  return ERROR_RE.test(text);
+}
 
 /**
  * Distill a raw `.jsonl` transcript into the signals a judge needs: the human
@@ -120,7 +135,7 @@ export function distillTranscript(
     if (role === 'toolResult') {
       if (typeof msg.toolName === 'string') tools.add(msg.toolName);
       const text = contentToText(content);
-      if ((msg.isError || msg.is_error || ERROR_RE.test(text)) && text.trim() && errors.length < MAX_ERRORS) {
+      if (isToolFailure(msg.isError ?? msg.is_error, text) && text.trim() && errors.length < MAX_ERRORS) {
         errors.push(text.trim().slice(0, ERROR_CHARS));
       }
     }
@@ -128,7 +143,7 @@ export function distillTranscript(
       for (const b of content) {
         if (b && b.type === 'tool_result') {
           const text = contentToText(b.content);
-          if ((b.is_error || ERROR_RE.test(text)) && text.trim() && errors.length < MAX_ERRORS) {
+          if (isToolFailure(b.is_error, text) && text.trim() && errors.length < MAX_ERRORS) {
             errors.push(text.trim().slice(0, ERROR_CHARS));
           }
         }
