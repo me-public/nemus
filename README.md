@@ -243,6 +243,24 @@ The workspace-scoped ones (`status`/`doctor`/`analyze-deps`) need an explicit
 workspace name with `--json` (they never prompt). On failure, `--json` prints a
 parseable `{ "ok": false, "error": … }` to stdout and exits non-zero.
 
+### Shell completions
+
+Tab-complete subcommands and workspace names. `nemus completion <shell>` prints
+a script for `bash`, `zsh`, or `fish` (works for both the `nemus` and `nem`
+binaries):
+
+```bash
+# bash
+nemus completion bash > /etc/bash_completion.d/nemus     # or >> ~/.bashrc
+# zsh (a directory on your $fpath)
+nemus completion zsh > "${fpath[1]}/_nemus"
+# fish
+nemus completion fish > ~/.config/fish/completions/nemus.fish
+```
+
+Workspace names are resolved live (the script calls back into the CLI), so they
+stay current without regenerating.
+
 ### Suites (reusable repo collections)
 
 ```bash
