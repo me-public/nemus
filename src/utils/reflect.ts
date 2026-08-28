@@ -1,9 +1,8 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { WORKSPACES_DIR } from './config';
 import { listWorkspaces } from './workspace-meta';
-import { getActiveAgents, getSkillsTargetDirs, getAllKnownContextFileNames, ConcreteAgentType } from './agent-config';
-import { pathToProjectDirName } from './claude-sessions';
+import { getAgentPaths, getSkillsTargetDirs, getAllKnownContextFileNames, ConcreteAgentType } from './agent-config';
+import { pathToProjectDirName, getWorkspaceSessions, WorkspaceSession } from './claude-sessions';
 
 // ------------------------------------------------------------------ types
 
@@ -185,12 +184,19 @@ export async function findLatestTranscriptFile(
 
 const MAX_TRANSCRIPT_BYTES = 4 * 1024 * 1024;
 
-async function readSessionDigest(
-  sessionProjectsDir: string,
-  workspacePath: string,
-  agentType: ConcreteAgentType,
-): Promise<SessionDigest | null> {
-  const file = await findLatestTranscriptFile(sessionProjectsDir, workspacePath, agentType);
+/** Read + distill the transcript for a specific discovered session. Prefers the
+ *  exact `<sessionId>.jsonl`; falls back to the latest transcript in that
+ *  project dir if the exact file has been rotated away. */
+async function readDigestForSession(s: WorkspaceSession): Promise<SessionDigest | null> {
+  if (s.agentType !== 'claude' && s.agentType !== 'pi') return null;
+  const projectsDir = getAgentPaths(s.agentType).sessionProjectsDir;
+  const exact = path.join(projectsDir, pathToProjectDirName(s.workspacePath, s.agentType), `${s.sessionId}.jsonl`);
+  let file: string | null = exact;
+  try {
+    await fs.access(exact);
+  } catch {
+    file = await findLatestTranscriptFile(projectsDir, s.workspacePath, s.agentType);
+  }
   if (!file) return null;
   let raw: string;
   try {
@@ -199,8 +205,7 @@ async function readSessionDigest(
     return null;
   }
   if (raw.length > MAX_TRANSCRIPT_BYTES) raw = raw.slice(raw.length - MAX_TRANSCRIPT_BYTES); // keep the tail (most recent)
-  const sessionId = path.basename(file, '.jsonl');
-  return distillTranscript(raw, { sessionId, agentType });
+  return distillTranscript(raw, { sessionId: s.sessionId, agentType: s.agentType });
 }
 
 async function listAvailableSkills(): Promise<string[]> {
@@ -232,33 +237,29 @@ async function contextFilesFor(workspacePath: string): Promise<string[]> {
 }
 
 /**
- * Build the corpus the judge reasons over: the last `limit` workspaces (most
- * recently created), each with its repos, context files, and distilled latest
+ * Build the corpus the judge reasons over: the `limit` most **recently active**
+ * workspaces (by their latest agent session, not creation date — a retrospective
+ * is about recent *work*), each with its repos, context files, and distilled
  * session, plus the globally-available skills.
  */
 export async function gatherReflectionCorpus(limit: number): Promise<ReflectionCorpus> {
-  const [workspaces, availableSkills] = await Promise.all([listWorkspaces(false), listAvailableSkills()]);
-  const agents = getActiveAgents().filter((a) => a.type === 'claude' || a.type === 'pi');
-
-  const recent = [...workspaces]
-    .sort((a, b) => new Date(b.metadata?.createdAt ?? 0).getTime() - new Date(a.metadata?.createdAt ?? 0).getTime())
-    .slice(0, limit);
+  const [sessions, workspaces, availableSkills] = await Promise.all([
+    getWorkspaceSessions(), // already sorted by last-active, one per workspace
+    listWorkspaces(false),
+    listAvailableSkills(),
+  ]);
+  const metaByName = new Map(workspaces.map((w) => [w.name, w]));
+  const recent = sessions.slice(0, limit);
 
   const digests: WorkspaceDigest[] = [];
-  for (const ws of recent) {
-    const workspacePath = path.join(WORKSPACES_DIR, ws.name);
-    // Find the most recent session across active agents.
-    let session: SessionDigest | null = null;
-    for (const agent of agents) {
-      const d = await readSessionDigest(agent.sessionProjectsDir, workspacePath, agent.type);
-      if (d && (!session || d.turns > session.turns)) session = d;
-    }
+  for (const s of recent) {
+    const meta = metaByName.get(s.workspaceName);
     digests.push({
-      name: ws.name,
-      repoCount: ws.metadata?.repositories?.length ?? 0,
-      repos: (ws.metadata?.repositories ?? []).map((r) => r.name),
-      contextFiles: await contextFilesFor(workspacePath),
-      session,
+      name: s.workspaceName,
+      repoCount: meta?.metadata?.repositories?.length ?? 0,
+      repos: (meta?.metadata?.repositories ?? []).map((r) => r.name),
+      contextFiles: await contextFilesFor(s.workspacePath),
+      session: await readDigestForSession(s),
     });
   }
 
