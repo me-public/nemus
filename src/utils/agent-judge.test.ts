@@ -43,10 +43,13 @@ describe('agentAttempts', () => {
     expect(pi[1]).toEqual({ cmd: 'pi', args: ['-p', 'P'] });
     expect(agentAttempts('opencode', 'P')).toEqual([{ cmd: 'opencode', args: ['run', 'P'] }]);
   });
-  it('threads --model (all) and --thinking (pi only) through both attempts', () => {
+  it('threads --model (all) + --thinking (pi only); fallback keeps model, drops --thinking', () => {
     const pi = agentAttempts('pi', 'P', { model: 'haiku', thinking: 'low' });
     expect(pi[0].args).toEqual(expect.arrayContaining(['--model', 'haiku', '--thinking', 'low', '-p', 'P']));
-    expect(pi[1].args).toEqual(expect.arrayContaining(['--model', 'haiku', '--thinking', 'low', '-p', 'P']));
+    // Safety net: model stays (stable flag), --thinking is dropped so an old pi
+    // that rejects --thinking still has a working fallback.
+    expect(pi[1].args).toEqual(['--model', 'haiku', '-p', 'P']);
+    expect(pi[1].args).not.toContain('--thinking');
     const cl = agentAttempts('claude', 'P', { model: 'sonnet' });
     expect(cl[0].args).toEqual(expect.arrayContaining(['--model', 'sonnet']));
     expect(cl[0].args).not.toContain('--thinking'); // thinking is pi-only

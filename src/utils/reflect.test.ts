@@ -63,6 +63,15 @@ describe('classifyAgentsMd', () => {
     const real = Array.from({ length: 12 }, (_, i) => `- Always run the ${i} integration suite before opening a pull request here`).join('\n');
     expect(classifyAgentsMd(`# Rules\n${real}`)).toBe('substantive');
   });
+
+  it('is newline-independent: a whitespace-collapsed substantive file still classifies substantive', () => {
+    // Regression for the collapse bug: same content, newlines squashed to spaces.
+    const real = Array.from({ length: 12 }, (_, i) => `- Always run the ${i} integration suite before opening a pull request here`).join('\n');
+    const multiline = `# Rules\n${real}`;
+    const collapsed = multiline.replace(/\s+/g, ' ');
+    expect(classifyAgentsMd(collapsed)).toBe(classifyAgentsMd(multiline));
+    expect(classifyAgentsMd(collapsed)).toBe('substantive');
+  });
 });
 
 describe('isCorrectionPrompt', () => {

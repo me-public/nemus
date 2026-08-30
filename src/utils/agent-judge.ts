@@ -20,6 +20,10 @@ export function spawnCollect(
       timeout: opts.timeout,
       killSignal: 'SIGKILL',
     });
+    // Decode as UTF-8 at the stream boundary so a multi-byte char split across
+    // two chunks isn't corrupted (which would break JSON.parse downstream).
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
     let stdout = '';
     let stderr = '';
     let overflow = false;
@@ -114,12 +118,14 @@ export function agentAttempts(agentType: JudgeAgentType, prompt: string, opts: A
   }
   // pi (and any other): run as lean as possible so a bloated env can't hang it.
   const piLean = ['--no-extensions', '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-tools', '--no-session'];
-  const tune: string[] = [];
-  if (model) tune.push('--model', model);
-  if (thinking) tune.push('--thinking', thinking);
+  const modelArgs = model ? ['--model', model] : [];
+  const tune = thinking ? [...modelArgs, '--thinking', thinking] : modelArgs;
+  // Fallback keeps the stable --model but DROPS --thinking: --thinking is the
+  // newest flag and the most likely reason an older pi rejects the first
+  // attempt, so the safety net must not carry it (else both attempts fail).
   return [
     { cmd: 'pi', args: [...piLean, ...tune, '-p', prompt] },
-    { cmd: 'pi', args: [...tune, '-p', prompt] },
+    { cmd: 'pi', args: [...modelArgs, '-p', prompt] },
   ];
 }
 

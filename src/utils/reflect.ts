@@ -211,31 +211,28 @@ const BOILERPLATE_MARKERS = [
 /**
  * Classify an AGENTS.md/CLAUDE.md by how much *real* guidance it carries, so the
  * judge can tell “no context” from “has a file but it's the generated template.”
- * Heuristic + pure: count substantive lines (real prose/rules), discounting
- * headings, list scaffolding, code fences, and known generated boilerplate.
+ * Heuristic + pure.
+ *
+ * Deliberately **newline-independent**: it measures the volume of non-boilerplate
+ * prose (word count) plus heading count via a whitespace-tolerant regex, rather
+ * than splitting on lines. A line-anchored version would misclassify any excerpt
+ * whose newlines were collapsed to spaces upstream (a real bug class caught in a
+ * sibling implementation) — here even a fully single-lined file classifies the
+ * same as its multi-line original.
  */
 export function classifyAgentsMd(content: string | null | undefined): ContextQuality {
   if (!content || !content.trim()) return 'missing';
-  let substantive = 0;
-  let inFence = false;
-  for (const rawLine of content.split('\n')) {
-    const line = rawLine.trim();
-    if (!line) continue;
-    if (line.startsWith('```')) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
-    if (line.startsWith('#')) continue; // heading
-    if (line.startsWith('|') || /^[-=]{3,}$/.test(line)) continue; // table / rule
-    if (line.startsWith('<!--') || line.startsWith('|---')) continue;
-    const lower = line.toLowerCase();
-    if (BOILERPLATE_MARKERS.some((m) => lower.includes(m))) continue;
-    // A real instruction line: enough words to be more than a label.
-    const words = line.replace(/[*_`>#-]/g, ' ').trim().split(/\s+/).filter(Boolean);
-    if (words.length >= 5) substantive++;
-  }
-  return substantive >= 10 ? 'substantive' : 'boilerplate';
+  let s = content.replace(/\r\n/g, '\n').toLowerCase();
+  s = s.replace(/```[\s\S]*?```/g, ' '); // drop fenced code
+  s = s.replace(/<!--[\s\S]*?-->/g, ' '); // drop HTML comments
+  for (const m of BOILERPLATE_MARKERS) s = s.split(m).join(' '); // drop generated boilerplate (markers are lowercase)
+  // Headings: a `#` run at start OR after any whitespace (so a collapsed,
+  // single-line excerpt still counts them), followed by a space.
+  const headings = (s.match(/(?:^|\s)#{1,6}\s/g) || []).length;
+  // Remaining non-boilerplate words (markdown punctuation stripped).
+  const words = s.replace(/[#|>*_`~-]/g, ' ').split(/\s+/).filter((w) => w.length > 1).length;
+  if (words < 40) return 'boilerplate';
+  return headings >= 2 || words >= 60 ? 'substantive' : 'boilerplate';
 }
 
 // --------------------------------------------------------- corpus gathering
