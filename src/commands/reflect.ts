@@ -5,6 +5,7 @@ import { colorize } from '../utils/colors';
 import {
   gatherReflectionCorpus,
   parseReflectionReport,
+  saveReflectionReport,
   REFLECT_SCHEMA,
   ReflectionReport,
   ReflectProgress,
@@ -19,24 +20,40 @@ export function registerReflectCommand(parent: Command) {
     .alias('retro')
     .description('Analyze your recent workspace sessions and suggest skill/prompt/context improvements (LLM-as-a-judge)')
     .option('-n, --limit <n>', 'How many recent workspaces to analyze', '10')
+    .option('-w, --workspace <name>', 'Analyze a single workspace by name (ignores --limit)')
     .option('--model <model>', 'Judge model override (agent-native pattern/id)')
     .option('--thinking <level>', 'Judge thinking level for pi: off|minimal|low|medium|high|xhigh|max')
     .option('--json', 'Output the report as JSON')
+    .option('--no-save', 'Do not save the report to ~/.nemus/reflect/')
     .option('--dry-run', 'Print the assembled corpus + judge prompt without calling the agent')
     .action(async (opts) => {
       await handleReflect(opts);
     });
 }
 
-async function handleReflect(opts: { limit?: string; model?: string; thinking?: string; json?: boolean; dryRun?: boolean }) {
+async function handleReflect(opts: {
+  limit?: string;
+  workspace?: string;
+  model?: string;
+  thinking?: string;
+  json?: boolean;
+  save?: boolean; // commander sets `save: false` for --no-save
+  dryRun?: boolean;
+}) {
   const limit = Math.max(1, Number.parseInt(opts.limit ?? '10', 10) || 10);
   try {
     const showProgress = !opts.json && !opts.dryRun;
     if (showProgress) {
-      logStep(`Analyzing your ${colorize(String(limit), 'cyan')} most recent workspaces…`);
+      logStep(
+        opts.workspace
+          ? `Analyzing workspace ${colorize(opts.workspace, 'cyan')}…`
+          : `Analyzing your ${colorize(String(limit), 'cyan')} most recent workspaces…`,
+      );
     }
 
-    const corpus = await gatherReflectionCorpus(limit, showProgress ? printProgress : undefined);
+    const corpus = await gatherReflectionCorpus(limit, showProgress ? printProgress : undefined, {
+      workspace: opts.workspace,
+    });
     const withSessions = corpus.workspaces.filter((w) => w.session).length;
     // A script does the heavy analysis (clustering failures, counting tools,
     // spotting correction loops); the LLM only ever sees these compact facts,
@@ -54,7 +71,9 @@ async function handleReflect(opts: { limit?: string; model?: string; thinking?: 
     }
 
     if (withSessions === 0) {
-      const msg = 'No recent agent sessions found to analyze (need Claude/pi session transcripts).';
+      const msg = opts.workspace
+        ? `No recent agent session found for workspace "${opts.workspace}" (need a Claude/pi transcript).`
+        : 'No recent agent sessions found to analyze (need Claude/pi session transcripts).';
       if (opts.json) outputJsonError(msg);
       else logError(msg);
       process.exit(1);
@@ -77,11 +96,26 @@ async function handleReflect(opts: { limit?: string; model?: string; thinking?: 
     }
     const report = parseReflectionReport(parsed);
 
+    // Persist the report (best-effort; never fails the run) unless --no-save.
+    let savedTo: string | undefined;
+    if (opts.save !== false) {
+      try {
+        savedTo = await saveReflectionReport(report, {
+          analyzed: withSessions,
+          workspaces: corpus.workspaces.length,
+          workspace: opts.workspace,
+        });
+      } catch {
+        /* saving is a convenience, not the point */
+      }
+    }
+
     if (opts.json) {
-      outputJson({ analyzed: withSessions, workspaces: corpus.workspaces.length, ...report });
+      outputJson({ analyzed: withSessions, workspaces: corpus.workspaces.length, ...report, savedTo });
       return;
     }
     printReport(report, corpus.workspaces.length, withSessions);
+    if (savedTo) logInfo(`Saved report to ${colorize(savedTo, 'dim')}`);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'reflect failed';
     if (opts.json) outputJsonError(msg);

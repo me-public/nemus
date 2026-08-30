@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { distillTranscript, parseReflectionReport, classifyAgentsMd, isCorrectionPrompt } from './reflect';
+import { distillTranscript, parseReflectionReport, classifyAgentsMd, isCorrectionPrompt, saveReflectionReport } from './reflect';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 const J = (o: unknown) => JSON.stringify(o);
 
@@ -50,6 +52,24 @@ describe('distillTranscript', () => {
       errors: [],
       tools: [],
     });
+  });
+});
+
+describe('saveReflectionReport', () => {
+  it('writes a timestamped JSON report (sanitized scope) and returns its path', async () => {
+    const file = await saveReflectionReport(
+      { summary: 'ok', recommendations: [{ kind: 'skill', title: 't', detail: 'd', priority: 'high' }] },
+      { analyzed: 2, workspaces: 3, workspace: 'pay/app' },
+    );
+    try {
+      expect(file).toMatch(/\.json$/);
+      expect(path.basename(file)).toContain('pay_app'); // scope suffix, path-sanitized
+      const written = JSON.parse(await fs.readFile(file, 'utf-8'));
+      expect(written).toMatchObject({ analyzed: 2, workspaces: 3, workspace: 'pay/app', summary: 'ok' });
+      expect(written.generatedAt).toBeTruthy();
+    } finally {
+      await fs.rm(file, { force: true });
+    }
   });
 });
 
