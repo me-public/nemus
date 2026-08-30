@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseAgentJson, runAgentRaw } from './agent-judge';
+import { parseAgentJson, runAgentRaw, runAgentRawAsync, agentAttempts } from './agent-judge';
 
 describe('parseAgentJson', () => {
   it('unwraps the common agent envelopes and shapes', () => {
@@ -13,6 +13,40 @@ describe('parseAgentJson', () => {
 
   it('throws when there is no JSON at all', () => {
     expect(() => parseAgentJson('totally not json')).toThrow(/did not return JSON/);
+  });
+});
+
+describe('agentAttempts', () => {
+  it('claude: preferred (schema + lean flags) then a plain fallback', () => {
+    const a = agentAttempts('claude', 'P', '{"type":"object"}');
+    expect(a[0]).toEqual({ cmd: 'claude', args: expect.arrayContaining(['-p', 'P', '--output-format', 'json', '--json-schema', '{"type":"object"}']) });
+    expect(a[1]).toEqual({ cmd: 'claude', args: ['-p', 'P'] });
+  });
+  it('pi: lean then plain; opencode: single run', () => {
+    const pi = agentAttempts('pi', 'P');
+    expect(pi[0].args).toEqual(expect.arrayContaining(['--no-tools', '--no-skills', '-p', 'P']));
+    expect(pi[1]).toEqual({ cmd: 'pi', args: ['-p', 'P'] });
+    expect(agentAttempts('opencode', 'P')).toEqual([{ cmd: 'opencode', args: ['run', 'P'] }]);
+  });
+});
+
+describe('runAgentRawAsync', () => {
+  it('runs the preferred attempt and returns stdout', async () => {
+    const calls: string[][] = [];
+    const execAsync = async (cmd: string, args: string[]) => {
+      calls.push([cmd, ...args]);
+      return '{"ok":true}';
+    };
+    const out = await runAgentRawAsync('P', { agentType: 'pi', execAsync });
+    expect(out).toBe('{"ok":true}');
+    expect(calls).toHaveLength(1); // first attempt succeeded, no fallback
+  });
+
+  it('turns a timeout into an actionable error', async () => {
+    const execAsync = async () => {
+      throw Object.assign(new Error('spawn pi ETIMEDOUT'), { code: 'ETIMEDOUT', killed: true });
+    };
+    await expect(runAgentRawAsync('P', { agentType: 'pi', execAsync })).rejects.toThrow(/timed out.*NEMUS_JUDGE_TIMEOUT_MS/s);
   });
 });
 

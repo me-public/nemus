@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`reflect` now shows live progress and no longer looks hung.** The judge call
+  ran synchronously (`execFileSync`), which blocked the event loop, and a
+  10-workspace run could hit the 180s cap and die with a raw
+  `spawnSync pi ETIMEDOUT`. Now: (1) the gather phase prints a **per-workspace
+  line** as each session is read (`✓ 1/3 my-workspace  635 turns · 12 prompts ·
+  13 failures`); (2) the judge runs **async** behind a live spinner with elapsed
+  seconds; (3) the timeout is raised to 300s, overridable via
+  `NEMUS_JUDGE_TIMEOUT_MS`, and a timeout now yields an **actionable** message
+  ("try a smaller --limit, a faster agent, or raise the cap"); (4) the judge
+  prompt is leaner (fewer prompts/errors per session) so a local model actually
+  finishes.
+
 ## [0.3.0] - 2026-08-27
 
 ### Added

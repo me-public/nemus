@@ -56,10 +56,14 @@ export interface ReflectionReport {
 
 // --------------------------------------------------------- transcript distill
 
-const MAX_PROMPTS = 25;
-const MAX_ERRORS = 25;
-const PROMPT_CHARS = 600;
-const ERROR_CHARS = 300;
+// Kept deliberately lean: the judge runs on the user's own (often local, slow)
+// agent, and a 10-workspace corpus at full verbosity produced a ~200KB prompt
+// that timed pi out. These bounds capture the pattern of a session at a
+// fraction of the tokens (~halving the prompt), so the judge actually finishes.
+const MAX_PROMPTS = 12;
+const MAX_ERRORS = 15;
+const PROMPT_CHARS = 400;
+const ERROR_CHARS = 200;
 
 /** Flatten a message `content` (string or content-block array) to plain text. */
 function contentToText(content: unknown): string {
@@ -251,13 +255,25 @@ async function contextFilesFor(workspacePath: string): Promise<string[]> {
   return present;
 }
 
+/** Fired as each workspace is read + distilled, so the CLI can show live,
+ *  per-workspace progress during the (I/O-bound) gather phase. */
+export interface ReflectProgress {
+  index: number;
+  total: number;
+  digest: WorkspaceDigest;
+}
+
 /**
  * Build the corpus the judge reasons over: the `limit` most **recently active**
  * workspaces (by their latest agent session, not creation date — a retrospective
  * is about recent *work*), each with its repos, context files, and distilled
- * session, plus the globally-available skills.
+ * session, plus the globally-available skills. `onProgress` (optional) fires
+ * once per workspace as it finishes, for a live progress display.
  */
-export async function gatherReflectionCorpus(limit: number): Promise<ReflectionCorpus> {
+export async function gatherReflectionCorpus(
+  limit: number,
+  onProgress?: (p: ReflectProgress) => void,
+): Promise<ReflectionCorpus> {
   const [sessions, workspaces, availableSkills] = await Promise.all([
     getWorkspaceSessions(), // already sorted by last-active, one per workspace
     listWorkspaces(false),
@@ -267,15 +283,18 @@ export async function gatherReflectionCorpus(limit: number): Promise<ReflectionC
   const recent = sessions.slice(0, limit);
 
   const digests: WorkspaceDigest[] = [];
-  for (const s of recent) {
+  for (let index = 0; index < recent.length; index++) {
+    const s = recent[index];
     const meta = metaByName.get(s.workspaceName);
-    digests.push({
+    const digest: WorkspaceDigest = {
       name: s.workspaceName,
       repoCount: meta?.metadata?.repositories?.length ?? 0,
       repos: (meta?.metadata?.repositories ?? []).map((r) => r.name),
       contextFiles: await contextFilesFor(s.workspacePath),
       session: await readDigestForSession(s),
-    });
+    };
+    digests.push(digest);
+    onProgress?.({ index, total: recent.length, digest });
   }
 
   return { generatedAt: new Date().toISOString(), availableSkills, workspaces: digests };

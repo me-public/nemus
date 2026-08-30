@@ -8,9 +8,10 @@ import {
   parseReflectionReport,
   REFLECT_SCHEMA,
   ReflectionReport,
+  ReflectProgress,
   Recommendation,
 } from '../utils/reflect';
-import { runAgentJson } from '../utils/agent-judge';
+import { runAgentJsonAsync } from '../utils/agent-judge';
 
 export function registerReflectCommand(parent: Command) {
   parent
@@ -28,12 +29,12 @@ export function registerReflectCommand(parent: Command) {
 async function handleReflect(opts: { limit?: string; json?: boolean; dryRun?: boolean }) {
   const limit = Math.max(1, Number.parseInt(opts.limit ?? '10', 10) || 10);
   try {
-    if (!opts.json && !opts.dryRun) {
+    const showProgress = !opts.json && !opts.dryRun;
+    if (showProgress) {
       logStep(`Analyzing your ${colorize(String(limit), 'cyan')} most recent workspaces…`);
-      logInfo('Reading sessions and distilling prompts + failures…');
     }
 
-    const corpus = await gatherReflectionCorpus(limit);
+    const corpus = await gatherReflectionCorpus(limit, showProgress ? printProgress : undefined);
     const withSessions = corpus.workspaces.filter((w) => w.session).length;
     const prompt = buildJudgePrompt(corpus);
 
@@ -53,8 +54,19 @@ async function handleReflect(opts: { limit?: string; json?: boolean; dryRun?: bo
       process.exit(1);
     }
 
-    if (!opts.json) logInfo(`Judging ${withSessions} session(s) with your configured agent…`);
-    const parsed = runAgentJson(prompt, { schema: REFLECT_SCHEMA });
+    // The judge shells the user's own agent and can take minutes; run it async
+    // (non-blocking) so a live spinner shows it's alive, not hung. Timeout is
+    // overridable for slow local models.
+    const timeoutMs = Number.parseInt(process.env.NEMUS_JUDGE_TIMEOUT_MS ?? '', 10) || undefined;
+    const stopSpinner = opts.json
+      ? () => {}
+      : startSpinner(`Judging ${withSessions} session(s) with your configured agent (this can take a minute)…`);
+    let parsed: unknown;
+    try {
+      parsed = await runAgentJsonAsync(prompt, { schema: REFLECT_SCHEMA, timeoutMs });
+    } finally {
+      stopSpinner();
+    }
     const report = parseReflectionReport(parsed);
 
     if (opts.json) {
@@ -82,6 +94,46 @@ const KIND_LABEL: Record<Recommendation['kind'], string> = {
   workflow: 'Workflow',
   other: 'Other',
 };
+
+/**
+ * A minimal stderr spinner with elapsed seconds. Returns a stop() that clears
+ * the line. No-op (single log line) when stderr isn't a TTY (piped/CI), so it
+ * never pollutes captured output. Kept local + tiny — no new dependency.
+ */
+function startSpinner(text: string): () => void {
+  if (!process.stderr.isTTY) {
+    logInfo(text);
+    return () => {};
+  }
+  const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+  const start = Date.now();
+  let i = 0;
+  const render = () => {
+    const secs = Math.floor((Date.now() - start) / 1000);
+    process.stderr.write(`\r${colorize(frames[(i = (i + 1) % frames.length)], 'cyan')} ${text} ${colorize(`(${secs}s)`, 'dim')}`);
+  };
+  render();
+  const timer = setInterval(render, 100);
+  timer.unref?.(); // never keep the process alive on our account
+  return () => {
+    clearInterval(timer);
+    process.stderr.write('\r' + ' '.repeat(text.length + 24) + '\r');
+  };
+}
+
+/** Live per-workspace line during the gather phase (to stderr — stdout stays
+ *  reserved for the report / JSON). */
+function printProgress(p: ReflectProgress): void {
+  const n = colorize(`${p.index + 1}/${p.total}`, 'dim');
+  const d = p.digest.session;
+  if (!d) {
+    process.stderr.write(`  ${colorize('·', 'dim')} ${n} ${p.digest.name} ${colorize('— no session', 'dim')}\n`);
+    return;
+  }
+  const failures = `${d.errors.length} ${d.errors.length === 1 ? 'failure' : 'failures'}`;
+  const stats = colorize(`${d.turns} turns · ${d.userPrompts.length} prompts · ${failures}`, 'dim');
+  process.stderr.write(`  ${colorize('✓', 'green')} ${n} ${p.digest.name}  ${stats}\n`);
+}
 
 function priorityBadge(p: Recommendation['priority']): string {
   if (p === 'high') return colorize('● high', 'red');

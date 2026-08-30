@@ -1,5 +1,8 @@
-import { execFileSync } from 'child_process';
+import { execFile, execFileSync } from 'child_process';
+import { promisify } from 'util';
 import { getPrimaryAgent } from './agent-config';
+
+const execFileAsync = promisify(execFile);
 
 /**
  * Run the user's configured coding agent headlessly as an "LLM-as-a-judge":
@@ -16,13 +19,54 @@ export interface JudgeOptions {
   schema?: string;
   timeoutMs?: number;
   maxBuffer?: number;
-  /** Injected for tests. Defaults to the real child_process runner. */
+  /** Injected for tests. Defaults to the real (blocking) child_process runner. */
   exec?: (cmd: string, args: string[], opts: { timeout: number; maxBuffer: number }) => string;
+  /** Injected for tests. Async runner used by the non-blocking variants. */
+  execAsync?: (cmd: string, args: string[], opts: { timeout: number; maxBuffer: number }) => Promise<string>;
   /** Injected for tests. Defaults to the configured primary agent. */
   agentType?: 'claude' | 'pi' | 'opencode' | 'codex' | 'gemini';
 }
 
-const DEFAULT_TIMEOUT_MS = 180_000; // judging N transcripts is heavier than extraction
+export type JudgeAgentType = NonNullable<JudgeOptions['agentType']>;
+
+export interface AgentAttempt {
+  cmd: string;
+  args: string[];
+}
+
+/**
+ * The ordered invocation attempts for an agent (preferred → fallback), as pure
+ * data so both the sync and async runners share ONE flag ladder (and it's
+ * unit-testable without spawning anything).
+ */
+export function agentAttempts(agentType: JudgeAgentType, prompt: string, schema?: string): AgentAttempt[] {
+  if (agentType === 'claude') {
+    const preferred = ['-p', prompt, '--output-format', 'json', '--bare', '--strict-mcp-config', '--disable-slash-commands'];
+    if (schema) preferred.push('--json-schema', schema);
+    // Older claude may reject the newer flags — fall back to the plainest form.
+    return [{ cmd: 'claude', args: preferred }, { cmd: 'claude', args: ['-p', prompt] }];
+  }
+  if (agentType === 'opencode') {
+    return [{ cmd: 'opencode', args: ['run', prompt] }];
+  }
+  // pi (and any other): run as lean as possible so a bloated env can't hang it.
+  const piLean = ['--no-extensions', '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-tools', '--no-session'];
+  return [{ cmd: 'pi', args: [...piLean, '-p', prompt] }, { cmd: 'pi', args: ['-p', prompt] }];
+}
+
+function wrapJudgeError(err: any, agentType: string): Error {
+  // A timeout is the common failure (big prompt + slow local model), so make it
+  // actionable instead of surfacing a raw `spawn … ETIMEDOUT`.
+  if (err?.killed || err?.code === 'ETIMEDOUT' || err?.signal === 'SIGTERM' || /ETIMEDOUT/.test(String(err?.message ?? ''))) {
+    return new Error(
+      `agent judge (${agentType}) timed out. Try a smaller --limit, a faster agent, or raise the cap with NEMUS_JUDGE_TIMEOUT_MS.`,
+    );
+  }
+  const detail = (err?.stderr || err?.stdout || err?.message || 'unknown error').toString().trim().slice(0, 500);
+  return new Error(`agent judge failed (${agentType}): ${detail}`);
+}
+
+const DEFAULT_TIMEOUT_MS = 300_000; // judging N transcripts is heavier than extraction; a big prompt + slow model can run minutes
 const DEFAULT_MAX_BUFFER = 32 * 1024 * 1024;
 
 /**
@@ -38,33 +82,42 @@ export function runAgentRaw(prompt: string, opts: JudgeOptions = {}): string {
     opts.exec ??
     ((cmd, args, o) => execFileSync(cmd, args, { encoding: 'utf-8', timeout: o.timeout, maxBuffer: o.maxBuffer }));
 
-  const attempt = (cmd: string, args: string[]) => exec(cmd, args, { timeout, maxBuffer });
-
-  try {
-    if (agentType === 'claude') {
-      const preferred = ['-p', prompt, '--output-format', 'json', '--bare', '--strict-mcp-config', '--disable-slash-commands'];
-      if (opts.schema) preferred.push('--json-schema', opts.schema);
-      try {
-        return attempt('claude', preferred);
-      } catch {
-        // Older claude may reject the newer flags — fall back to the plainest form.
-        return attempt('claude', ['-p', prompt]);
-      }
-    }
-    if (agentType === 'opencode') {
-      return attempt('opencode', ['run', prompt]);
-    }
-    // pi (and any other): run as lean as possible so a bloated env can't hang it.
-    const piLean = ['--no-extensions', '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-tools', '--no-session'];
+  const attempts = agentAttempts(agentType, prompt, opts.schema);
+  let lastErr: any;
+  for (const a of attempts) {
     try {
-      return attempt('pi', [...piLean, '-p', prompt]);
-    } catch {
-      return attempt('pi', ['-p', prompt]);
+      return exec(a.cmd, a.args, { timeout, maxBuffer });
+    } catch (err) {
+      lastErr = err; // try the next (fallback) form
     }
-  } catch (err: any) {
-    const detail = (err?.stderr || err?.stdout || err?.message || 'unknown error').toString().trim().slice(0, 500);
-    throw new Error(`agent judge failed (${agentType}): ${detail}`);
   }
+  throw wrapJudgeError(lastErr, agentType);
+}
+
+/**
+ * Non-blocking twin of {@link runAgentRaw}. Uses `execFile` (async) so the
+ * caller's event loop stays free — letting a spinner/progress UI animate while
+ * the judge (which can take minutes) runs. Prefer this in interactive commands.
+ */
+export async function runAgentRawAsync(prompt: string, opts: JudgeOptions = {}): Promise<string> {
+  const agentType = opts.agentType ?? getPrimaryAgent().type;
+  const timeout = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const maxBuffer = opts.maxBuffer ?? DEFAULT_MAX_BUFFER;
+  const exec =
+    opts.execAsync ??
+    (async (cmd, args, o) =>
+      (await execFileAsync(cmd, args, { encoding: 'utf-8', timeout: o.timeout, maxBuffer: o.maxBuffer })).stdout.toString());
+
+  const attempts = agentAttempts(agentType, prompt, opts.schema);
+  let lastErr: any;
+  for (const a of attempts) {
+    try {
+      return await exec(a.cmd, a.args, { timeout, maxBuffer });
+    } catch (err) {
+      lastErr = err; // try the next (fallback) form
+    }
+  }
+  throw wrapJudgeError(lastErr, agentType);
 }
 
 /**
@@ -74,6 +127,12 @@ export function runAgentRaw(prompt: string, opts: JudgeOptions = {}): string {
  */
 export function runAgentJson(prompt: string, opts: JudgeOptions = {}): unknown {
   const raw = runAgentRaw(prompt, opts);
+  return parseAgentJson(raw);
+}
+
+/** Non-blocking twin of {@link runAgentJson}. */
+export async function runAgentJsonAsync(prompt: string, opts: JudgeOptions = {}): Promise<unknown> {
+  const raw = await runAgentRawAsync(prompt, opts);
   return parseAgentJson(raw);
 }
 
