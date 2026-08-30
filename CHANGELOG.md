@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-08-30
+
+### Added
+
+- **`reflect --workspace <name>`** — analyze a single workspace by name (ignores
+  `--limit`); a clean error if that workspace has no recent Claude/pi session.
+- **`reflect` now saves each report** as timestamped JSON under
+  `~/.nemus/reflect/` (scope suffix for single-workspace runs), so runs can be
+  revisited or diffed over time. Best-effort (never fails the run); disable with
+  **`--no-save`**. The path is printed after a run (and included as `savedTo` in
+  `--json`).
+
 ## [0.3.2] - 2026-08-30
 
 ### Fixed

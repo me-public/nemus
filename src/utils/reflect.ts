@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { CACHE_DIR } from './config';
 import { listWorkspaces } from './workspace-meta';
 import { getAgentPaths, getSkillsTargetDirs, getAllKnownContextFileNames, ConcreteAgentType } from './agent-config';
 import { pathToProjectDirName, getWorkspaceSessions, WorkspaceSession } from './claude-sessions';
@@ -344,6 +345,7 @@ export interface ReflectProgress {
 export async function gatherReflectionCorpus(
   limit: number,
   onProgress?: (p: ReflectProgress) => void,
+  opts: { workspace?: string } = {},
 ): Promise<ReflectionCorpus> {
   const [sessions, workspaces, availableSkills] = await Promise.all([
     getWorkspaceSessions(), // already sorted by last-active, one per workspace
@@ -351,7 +353,10 @@ export async function gatherReflectionCorpus(
     listAvailableSkills(),
   ]);
   const metaByName = new Map(workspaces.map((w) => [w.name, w]));
-  const recent = sessions.slice(0, limit);
+  // A single named workspace (ignores limit), else the N most recently active.
+  const recent = opts.workspace
+    ? sessions.filter((s) => s.workspaceName === opts.workspace)
+    : sessions.slice(0, limit);
 
   const digests: WorkspaceDigest[] = [];
   for (let index = 0; index < recent.length; index++) {
@@ -427,4 +432,26 @@ export function parseReflectionReport(parsed: unknown): ReflectionReport {
     })
     .filter((r: Recommendation | null): r is Recommendation => r !== null);
   return { summary, recommendations };
+}
+
+// -------------------------------------------------------------- report saving
+
+/** Where saved reflection reports live: `~/.nemus/reflect/`. */
+export const REFLECT_REPORTS_DIR = path.join(CACHE_DIR, 'reflect');
+
+/**
+ * Persist a reflection report as timestamped JSON under `~/.nemus/reflect/`, so
+ * a run can be revisited or diffed over time. Returns the written path. Pure
+ * side-effect (mkdir -p + write); callers treat failure as non-fatal.
+ */
+export async function saveReflectionReport(
+  report: ReflectionReport,
+  meta: { analyzed: number; workspaces: number; workspace?: string },
+): Promise<string> {
+  await fs.mkdir(REFLECT_REPORTS_DIR, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const scope = meta.workspace ? `-${meta.workspace.replace(/[^a-zA-Z0-9_-]+/g, '_')}` : '';
+  const file = path.join(REFLECT_REPORTS_DIR, `${stamp}${scope}.json`);
+  await fs.writeFile(file, JSON.stringify({ generatedAt: new Date().toISOString(), ...meta, ...report }, null, 2));
+  return file;
 }
