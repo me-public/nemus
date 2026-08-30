@@ -31,6 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cheaper, less raw prompt text leaves your machine, and every recommendation is
   grounded in a real count. Output shape (`--json`, the report) is unchanged;
   `--dry-run` now shows the computed facts.
+- **Faster judge + richer signal.** The judge now runs pi at **`--thinking low`**
+  by default (it's a mechanical facts→recommendations transform, not deep
+  reasoning) — overridable with `--thinking`/`NEMUS_JUDGE_THINKING` and
+  `--model`/`NEMUS_JUDGE_MODEL` (threaded through for claude/opencode where
+  supported; thinking is pi-only). The digest now includes **verbatim “re-steer”
+  quotes** (the user corrections/redirects that are the sharpest coaching signal)
+  and classifies each workspace's context file as **missing / boilerplate /
+  substantive** (distinguishing “has an AGENTS.md” from “has a *useful* one”), on
+  top of the error-signature clusters.
 
 ## [0.3.1] - 2026-08-30
 

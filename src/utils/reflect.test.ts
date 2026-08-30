@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { distillTranscript, parseReflectionReport } from './reflect';
+import { distillTranscript, parseReflectionReport, classifyAgentsMd, isCorrectionPrompt } from './reflect';
 
 const J = (o: unknown) => JSON.stringify(o);
 
@@ -15,6 +15,8 @@ describe('distillTranscript', () => {
       J({ type: 'message', message: { role: 'toolResult', toolName: 'bash', isError: true, content: [{ type: 'text', text: 'command failed: boom' }] } }),
       // claude: user prompt as plain string
       J({ type: 'user', message: { role: 'user', content: 'claude style prompt' } }),
+      // a correction/re-steer → captured verbatim in reSteerSamples
+      J({ type: 'user', message: { role: 'user', content: 'no, that is wrong — revert that change' } }),
       // claude: assistant tool_use
       J({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Edit' }] } }),
       // claude: tool_result-only user message → an error, NOT a prompt
@@ -31,13 +33,14 @@ describe('distillTranscript', () => {
 
     const d = distillTranscript(lines, { sessionId: 's1', agentType: 'pi' });
     expect(d.turns).toBe(2);
-    expect(d.userPrompts).toEqual(['do the thing', 'claude style prompt']);
+    expect(d.userPrompts).toEqual(['do the thing', 'claude style prompt', 'no, that is wrong — revert that change']);
     expect(d.tools.sort()).toEqual(['Edit', 'bash', 'git', 'grep']);
     expect(d.errors).toContain('command failed: boom'); // explicit isError:true
     expect(d.errors).toContain('file not found'); // explicit is_error:true
     expect(d.errors).toContain('fatal: not a git repository'); // unflagged + strong signal
     expect(d.errors).not.toContain('0 results for error'); // unflagged benign 'error' mention
     expect(d.errors.some((e) => e.includes('flagged success'))).toBe(false); // isError:false trusted
+    expect(d.reSteerSamples).toEqual(['no, that is wrong — revert that change']); // captured verbatim
   });
 
   it('is bounded and tolerant of empty input', () => {
@@ -47,6 +50,26 @@ describe('distillTranscript', () => {
       errors: [],
       tools: [],
     });
+  });
+});
+
+describe('classifyAgentsMd', () => {
+  it('distinguishes missing / boilerplate / substantive', () => {
+    expect(classifyAgentsMd('')).toBe('missing');
+    expect(classifyAgentsMd(null)).toBe('missing');
+    // Generated template: headings + markers, little real guidance.
+    expect(classifyAgentsMd('# Workspace\n\nThis workspace was created with Workspace Manager.\n<!-- ws-rules:v2 -->\n## Notes\n- \n')).toBe('boilerplate');
+    // Real, rule-heavy content.
+    const real = Array.from({ length: 12 }, (_, i) => `- Always run the ${i} integration suite before opening a pull request here`).join('\n');
+    expect(classifyAgentsMd(`# Rules\n${real}`)).toBe('substantive');
+  });
+});
+
+describe('isCorrectionPrompt', () => {
+  it('flags corrections, not normal instructions', () => {
+    expect(isCorrectionPrompt('no, revert that')).toBe(true);
+    expect(isCorrectionPrompt('actually use the other repo instead')).toBe(true);
+    expect(isCorrectionPrompt('add a health check to the api')).toBe(false);
   });
 });
 

@@ -33,7 +33,7 @@ describe('spawnCollect (stdin-hang regression)', () => {
 
 describe('agentAttempts', () => {
   it('claude: preferred (schema + lean flags) then a plain fallback', () => {
-    const a = agentAttempts('claude', 'P', '{"type":"object"}');
+    const a = agentAttempts('claude', 'P', { schema: '{"type":"object"}' });
     expect(a[0]).toEqual({ cmd: 'claude', args: expect.arrayContaining(['-p', 'P', '--output-format', 'json', '--json-schema', '{"type":"object"}']) });
     expect(a[1]).toEqual({ cmd: 'claude', args: ['-p', 'P'] });
   });
@@ -42,6 +42,23 @@ describe('agentAttempts', () => {
     expect(pi[0].args).toEqual(expect.arrayContaining(['--no-tools', '--no-skills', '-p', 'P']));
     expect(pi[1]).toEqual({ cmd: 'pi', args: ['-p', 'P'] });
     expect(agentAttempts('opencode', 'P')).toEqual([{ cmd: 'opencode', args: ['run', 'P'] }]);
+  });
+  it('threads --model (all) and --thinking (pi only) through both attempts', () => {
+    const pi = agentAttempts('pi', 'P', { model: 'haiku', thinking: 'low' });
+    expect(pi[0].args).toEqual(expect.arrayContaining(['--model', 'haiku', '--thinking', 'low', '-p', 'P']));
+    expect(pi[1].args).toEqual(expect.arrayContaining(['--model', 'haiku', '--thinking', 'low', '-p', 'P']));
+    const cl = agentAttempts('claude', 'P', { model: 'sonnet' });
+    expect(cl[0].args).toEqual(expect.arrayContaining(['--model', 'sonnet']));
+    expect(cl[0].args).not.toContain('--thinking'); // thinking is pi-only
+    expect(agentAttempts('opencode', 'P', { model: 'gpt' })[0].args).toEqual(['run', 'P', '--model', 'gpt']);
+  });
+});
+
+describe('runAgentRaw thinking default', () => {
+  it('applies the low-thinking default for pi', () => {
+    let seen: string[] = [];
+    runAgentRaw('P', { agentType: 'pi', exec: (cmd, args) => ((seen = [cmd, ...args]), 'ok') });
+    expect(seen).toEqual(expect.arrayContaining(['--thinking', 'low']));
   });
 });
 

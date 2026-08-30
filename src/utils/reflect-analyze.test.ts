@@ -1,11 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-  normalizeErrorSignature,
-  isCorrectionPrompt,
-  analyzeCorpus,
-  buildAnalysisPrompt,
-} from './reflect-analyze';
-import { ReflectionCorpus } from './reflect';
+import { normalizeErrorSignature, analyzeCorpus, buildAnalysisPrompt } from './reflect-analyze';
+import { ReflectionCorpus, isCorrectionPrompt } from './reflect';
 
 describe('normalizeErrorSignature', () => {
   it('collapses paths, numbers, and hashes so variants cluster', () => {
@@ -47,11 +42,13 @@ const corpus: ReflectionCorpus = {
       repoCount: 1,
       repos: ['api'],
       contextFiles: ['AGENTS.md'],
+      contextQuality: 'substantive',
       session: {
         sessionId: 's1',
         agentType: 'pi',
         turns: 40,
         userPrompts: ['fix the sync bug', 'no that is wrong, revert'],
+        reSteerSamples: ['no that is wrong, revert'],
         errors: [
           'fatal: not a git repository (at /Users/a/pay-app/api)',
           'fatal: not a git repository (at /Users/a/pay-app/web)',
@@ -65,16 +62,18 @@ const corpus: ReflectionCorpus = {
       repoCount: 0,
       repos: [],
       contextFiles: [], // missing context
+      contextQuality: 'missing',
       session: {
         sessionId: 's2',
         agentType: 'pi',
         turns: 12,
         userPrompts: ['add tests'],
+        reSteerSamples: [],
         errors: ['fatal: not a git repository (at /home/b/ledger)'],
         tools: ['bash'],
       },
     },
-    { name: 'idle-ws', repoCount: 0, repos: [], contextFiles: ['CLAUDE.md'], session: null },
+    { name: 'idle-ws', repoCount: 0, repos: [], contextFiles: ['CLAUDE.md'], contextQuality: 'boilerplate', session: null },
   ],
 };
 
@@ -96,13 +95,15 @@ describe('analyzeCorpus', () => {
     expect(top.example).toContain('fatal: not a git repository');
   });
 
-  it('reports tools, missing-context, and per-workspace facts', () => {
+  it('reports tools, context quality, re-steers, and per-workspace facts', () => {
     expect(a.topTools[0]).toEqual({ tool: 'bash', sessions: 2 });
     expect(a.workspacesMissingContext).toEqual(['ledger']);
+    expect(a.workspacesBoilerplateContext).toEqual(['idle-ws']);
+    expect(a.reSteerSamples).toEqual(['no that is wrong, revert']);
     const pay = a.workspaces.find((w) => w.name === 'pay-app')!;
-    expect(pay).toMatchObject({ turns: 40, failures: 3, hasContext: true });
+    expect(pay).toMatchObject({ turns: 40, failures: 3, contextQuality: 'substantive' });
     expect(pay.topFailure).toContain('not a git repository');
-    expect(a.workspaces.find((w) => w.name === 'idle-ws')).toMatchObject({ turns: 0, failures: 0 });
+    expect(a.workspaces.find((w) => w.name === 'idle-ws')).toMatchObject({ turns: 0, failures: 0, contextQuality: 'boilerplate' });
   });
 });
 
@@ -113,7 +114,10 @@ describe('buildAnalysisPrompt', () => {
     expect(p).toContain('Sessions analyzed: 2 across 3 workspaces (52 total turns).');
     expect(p).toContain('Top recurring failures');
     expect(p).toMatch(/\[3\u00d7 in 2 ws\]/); // the clustered failure
-    expect(p).toContain('missing a context file (AGENTS.md/CLAUDE.md): ledger');
+    expect(p).toContain('NO context file (AGENTS.md/CLAUDE.md): ledger');
+    expect(p).toContain('boilerplate/template: idle-ws');
+    expect(p).toContain('Verbatim user corrections');
+    expect(p).toContain('no that is wrong, revert');
     expect(p).toContain('bash(2)');
     expect(p).toMatch(/ONLY a JSON object/);
     // Compact: even this corpus stays well under a few KB.

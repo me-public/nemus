@@ -1,4 +1,4 @@
-import { ReflectionCorpus } from './reflect';
+import { ReflectionCorpus, ContextQuality, isCorrectionPrompt } from './reflect';
 
 /**
  * Deterministic analysis layer for `reflect`.
@@ -39,7 +39,8 @@ export interface WorkspaceFact {
   name: string;
   turns: number;
   failures: number;
-  hasContext: boolean;
+  /** Whether the primary context file is missing / boilerplate / substantive. */
+  contextQuality: ContextQuality;
   /** The workspace's single most frequent failure signature, if any. */
   topFailure?: string;
 }
@@ -54,8 +55,13 @@ export interface AnalysisReport {
   topTools: ToolStat[];
   /** How many user prompts looked like corrections/retries (a friction signal). */
   correctionSignals: number;
-  /** Workspaces with NO context file (AGENTS.md/CLAUDE.md/…). */
+  /** Verbatim user re-steer messages across sessions (the sharpest coaching
+   *  signal), most-recent-workspace first, bounded. */
+  reSteerSamples: string[];
+  /** Workspaces with NO context file at all. */
   workspacesMissingContext: string[];
+  /** Workspaces whose context file exists but is just boilerplate/template. */
+  workspacesBoilerplateContext: string[];
   /** Skills already installed (so the judge suggests genuine gaps). */
   availableSkills: string[];
   /** One compact line of facts per workspace, for grounding. */
@@ -85,16 +91,6 @@ export function normalizeErrorSignature(raw: string): string {
   return s.slice(0, 100);
 }
 
-// A conservative "the user corrected / redirected the agent" cue. Soft signal —
-// counted in aggregate, never quoted, so occasional false positives are fine.
-const CORRECTION_RE =
-  /\b(no|nope|wrong|incorrect|revert|undo|instead|actually|you (missed|forgot|broke|didn'?t)|that'?s? (wrong|not right|incorrect)|not what|don'?t)\b/i;
-
-/** Whether a single user prompt reads like a correction/retry. Exported for tests. */
-export function isCorrectionPrompt(prompt: string): boolean {
-  return CORRECTION_RE.test(prompt ?? '');
-}
-
 // ------------------------------------------------------------------ analyze
 
 export interface AnalyzeOptions {
@@ -104,6 +100,8 @@ export interface AnalyzeOptions {
   topTools?: number;
   /** Max chars of a raw error kept as the example (default 160). */
   exampleChars?: number;
+  /** Max verbatim re-steer samples to surface to the judge (default 8). */
+  maxReSteer?: number;
 }
 
 /**
@@ -114,22 +112,25 @@ export function analyzeCorpus(corpus: ReflectionCorpus, opts: AnalyzeOptions = {
   const topErrorsK = opts.topErrors ?? 8;
   const topToolsK = opts.topTools ?? 10;
   const exampleChars = opts.exampleChars ?? 160;
+  const maxReSteer = opts.maxReSteer ?? 8;
 
   const errorMap = new Map<string, { count: number; ws: Set<string>; example: string }>();
   const toolMap = new Map<string, number>();
   const workspacesMissingContext: string[] = [];
+  const workspacesBoilerplateContext: string[] = [];
+  const reSteerSamples: string[] = [];
   const workspaces: WorkspaceFact[] = [];
   let sessionsAnalyzed = 0;
   let totalTurns = 0;
   let correctionSignals = 0;
 
   for (const ws of corpus.workspaces) {
-    const hasContext = ws.contextFiles.length > 0;
-    if (!hasContext) workspacesMissingContext.push(ws.name);
+    if (ws.contextQuality === 'missing') workspacesMissingContext.push(ws.name);
+    else if (ws.contextQuality === 'boilerplate') workspacesBoilerplateContext.push(ws.name);
 
     const s = ws.session;
     if (!s) {
-      workspaces.push({ name: ws.name, turns: 0, failures: 0, hasContext });
+      workspaces.push({ name: ws.name, turns: 0, failures: 0, contextQuality: ws.contextQuality });
       continue;
     }
 
@@ -137,6 +138,9 @@ export function analyzeCorpus(corpus: ReflectionCorpus, opts: AnalyzeOptions = {
     totalTurns += s.turns;
     for (const t of s.tools) toolMap.set(t, (toolMap.get(t) ?? 0) + 1);
     correctionSignals += s.userPrompts.filter(isCorrectionPrompt).length;
+    for (const q of s.reSteerSamples) {
+      if (reSteerSamples.length < maxReSteer) reSteerSamples.push(q);
+    }
 
     // Per-workspace signature tally (drives the global map + this ws's topFailure).
     const localSig = new Map<string, number>();
@@ -154,7 +158,7 @@ export function analyzeCorpus(corpus: ReflectionCorpus, opts: AnalyzeOptions = {
     }
     const topFailure = [...localSig.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
 
-    workspaces.push({ name: ws.name, turns: s.turns, failures: s.errors.length, hasContext, topFailure });
+    workspaces.push({ name: ws.name, turns: s.turns, failures: s.errors.length, contextQuality: ws.contextQuality, topFailure });
   }
 
   const topErrors: ErrorCluster[] = [...errorMap.entries()]
@@ -175,7 +179,9 @@ export function analyzeCorpus(corpus: ReflectionCorpus, opts: AnalyzeOptions = {
     topErrors,
     topTools,
     correctionSignals,
+    reSteerSamples,
     workspacesMissingContext,
+    workspacesBoilerplateContext,
     availableSkills: corpus.availableSkills,
     workspaces,
   };
@@ -205,8 +211,14 @@ export function buildAnalysisPrompt(a: AnalysisReport): string {
     `Sessions analyzed: ${a.sessionsAnalyzed} across ${a.totalWorkspaces} workspaces (${a.totalTurns} total turns).`,
     `Installed skills (don't re-suggest; find genuine gaps): ${a.availableSkills.join(', ') || '(none)'}`,
     `User correction/retry signals: ${a.correctionSignals} prompt(s) looked like corrections.`,
-    `Workspaces missing a context file (AGENTS.md/CLAUDE.md): ${a.workspacesMissingContext.join(', ') || '(none)'}`,
+    `Workspaces with NO context file (AGENTS.md/CLAUDE.md): ${a.workspacesMissingContext.join(', ') || '(none)'}`,
+    `Workspaces whose context file is just boilerplate/template: ${a.workspacesBoilerplateContext.join(', ') || '(none)'}`,
   );
+
+  if (a.reSteerSamples.length) {
+    L.push('', 'Verbatim user corrections/re-steers (the sharpest signal — quote/act on these):');
+    for (const q of a.reSteerSamples) L.push(`  - “${q.replace(/\n/g, ' ')}”`);
+  }
 
   L.push('', 'Top recurring failures (count × workspaces — example):');
   if (a.topErrors.length === 0) L.push('  (none captured)');
@@ -219,9 +231,8 @@ export function buildAnalysisPrompt(a: AnalysisReport): string {
 
   L.push('', 'Per-workspace:');
   for (const w of a.workspaces) {
-    const ctx = w.hasContext ? 'context:yes' : 'context:MISSING';
     const top = w.topFailure ? ` · top failure: ${w.topFailure}` : '';
-    L.push(`  - ${w.name}: ${w.turns} turns, ${w.failures} failures, ${ctx}${top}`);
+    L.push(`  - ${w.name}: ${w.turns} turns, ${w.failures} failures, context:${w.contextQuality}${top}`);
   }
 
   L.push(

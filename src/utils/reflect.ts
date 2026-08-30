@@ -13,11 +13,17 @@ export interface SessionDigest {
   turns: number;
   /** Human prompts the user sent (the raw material for judging prompt quality). */
   userPrompts: string[];
+  /** Verbatim user “re-steer” messages (corrections/redirects) — the highest-
+   *  signal quotes for the judge to coach on. Subset of userPrompts, bounded. */
+  reSteerSamples: string[];
   /** Error/failure snippets from tool results (missing skills/tests show up here). */
   errors: string[];
   /** Distinct tool names the agent used. */
   tools: string[];
 }
+
+/** How useful a workspace's context file (AGENTS.md/CLAUDE.md) actually is. */
+export type ContextQuality = 'missing' | 'boilerplate' | 'substantive';
 
 export interface WorkspaceDigest {
   name: string;
@@ -25,6 +31,8 @@ export interface WorkspaceDigest {
   repos: string[];
   /** Context files present at the workspace root, e.g. ['AGENTS.md']. */
   contextFiles: string[];
+  /** Whether the primary context file is missing / boilerplate / substantive. */
+  contextQuality: ContextQuality;
   session: SessionDigest | null;
 }
 
@@ -62,8 +70,21 @@ export interface ReflectionReport {
 // fraction of the tokens (~halving the prompt), so the judge actually finishes.
 const MAX_PROMPTS = 12;
 const MAX_ERRORS = 15;
+const MAX_RESTEER = 6;
 const PROMPT_CHARS = 400;
 const ERROR_CHARS = 200;
+const RESTEER_CHARS = 240;
+
+// A conservative “the user corrected / redirected the agent” cue. Soft signal:
+// used to count re-steers and to capture the verbatim message for the judge.
+const CORRECTION_RE =
+  /\b(no|nope|wrong|incorrect|revert|undo|instead|actually|you (missed|forgot|broke|didn'?t)|that'?s? (wrong|not right|incorrect)|not what|don'?t)\b/i;
+
+/** Whether a single user prompt reads like a correction/redirect. Exported +
+ *  shared with the analyzer so the two never diverge. */
+export function isCorrectionPrompt(prompt: string): boolean {
+  return CORRECTION_RE.test(prompt ?? '');
+}
 
 /** Flatten a message `content` (string or content-block array) to plain text. */
 function contentToText(content: unknown): string {
@@ -105,6 +126,7 @@ export function distillTranscript(
   meta: { sessionId: string; agentType: string },
 ): SessionDigest {
   const userPrompts: string[] = [];
+  const reSteerSamples: string[] = [];
   const errors: string[] = [];
   const tools = new Set<string>();
   let turns = 0;
@@ -160,14 +182,60 @@ export function distillTranscript(
         Array.isArray(content) && content.length > 0 && content.every((b: any) => b?.type === 'tool_result');
       if (!isToolResultOnly) {
         const text = contentToText(content).trim();
-        if (text && !text.startsWith('<') && userPrompts.length < MAX_PROMPTS) {
-          userPrompts.push(text.slice(0, PROMPT_CHARS));
+        if (text && !text.startsWith('<')) {
+          if (userPrompts.length < MAX_PROMPTS) userPrompts.push(text.slice(0, PROMPT_CHARS));
+          // Capture corrections verbatim (bounded) — the sharpest coaching signal.
+          if (reSteerSamples.length < MAX_RESTEER && isCorrectionPrompt(text)) {
+            reSteerSamples.push(text.slice(0, RESTEER_CHARS));
+          }
         }
       }
     }
   }
 
-  return { sessionId: meta.sessionId, agentType: meta.agentType, turns, userPrompts, errors, tools: [...tools] };
+  return { sessionId: meta.sessionId, agentType: meta.agentType, turns, userPrompts, reSteerSamples, errors, tools: [...tools] };
+}
+
+// ------------------------------------------------------- context classification
+
+// Lines that are structural/boilerplate rather than real, custom guidance.
+const BOILERPLATE_MARKERS = [
+  'ws-rules:',
+  'this workspace was created with',
+  'workspace manager',
+  'saved context',
+  'add your own notes here',
+  'common workflows',
+];
+
+/**
+ * Classify an AGENTS.md/CLAUDE.md by how much *real* guidance it carries, so the
+ * judge can tell “no context” from “has a file but it's the generated template.”
+ * Heuristic + pure: count substantive lines (real prose/rules), discounting
+ * headings, list scaffolding, code fences, and known generated boilerplate.
+ */
+export function classifyAgentsMd(content: string | null | undefined): ContextQuality {
+  if (!content || !content.trim()) return 'missing';
+  let substantive = 0;
+  let inFence = false;
+  for (const rawLine of content.split('\n')) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (line.startsWith('```')) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    if (line.startsWith('#')) continue; // heading
+    if (line.startsWith('|') || /^[-=]{3,}$/.test(line)) continue; // table / rule
+    if (line.startsWith('<!--') || line.startsWith('|---')) continue;
+    const lower = line.toLowerCase();
+    if (BOILERPLATE_MARKERS.some((m) => lower.includes(m))) continue;
+    // A real instruction line: enough words to be more than a label.
+    const words = line.replace(/[*_`>#-]/g, ' ').trim().split(/\s+/).filter(Boolean);
+    if (words.length >= 5) substantive++;
+  }
+  return substantive >= 10 ? 'substantive' : 'boilerplate';
 }
 
 // --------------------------------------------------------- corpus gathering
@@ -242,17 +310,23 @@ async function listAvailableSkills(): Promise<string[]> {
   return [...names].sort();
 }
 
-async function contextFilesFor(workspacePath: string): Promise<string[]> {
+/** Which context files exist at the workspace root, plus how substantive the
+ *  primary one is (missing/boilerplate/substantive). One read per present file. */
+async function contextFilesFor(workspacePath: string): Promise<{ files: string[]; quality: ContextQuality }> {
   const present: string[] = [];
+  let quality: ContextQuality = 'missing';
   for (const name of getAllKnownContextFileNames()) {
     try {
-      await fs.access(path.join(workspacePath, name));
+      const content = await fs.readFile(path.join(workspacePath, name), 'utf-8');
       present.push(name);
+      // Classify the first present file, then keep the best classification seen.
+      const c = classifyAgentsMd(content);
+      if (quality === 'missing' || (quality === 'boilerplate' && c === 'substantive')) quality = c;
     } catch {
-      /* not present */
+      /* not present / unreadable */
     }
   }
-  return present;
+  return { files: present, quality };
 }
 
 /** Fired as each workspace is read + distilled, so the CLI can show live,
@@ -286,11 +360,13 @@ export async function gatherReflectionCorpus(
   for (let index = 0; index < recent.length; index++) {
     const s = recent[index];
     const meta = metaByName.get(s.workspaceName);
+    const context = await contextFilesFor(s.workspacePath);
     const digest: WorkspaceDigest = {
       name: s.workspaceName,
       repoCount: meta?.metadata?.repositories?.length ?? 0,
       repos: (meta?.metadata?.repositories ?? []).map((r) => r.name),
-      contextFiles: await contextFilesFor(s.workspacePath),
+      contextFiles: context.files,
+      contextQuality: context.quality,
       session: await readDigestForSession(s),
     };
     digests.push(digest);

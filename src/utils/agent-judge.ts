@@ -56,6 +56,10 @@ export function spawnCollect(
 export interface JudgeOptions {
   /** JSON schema string passed to `claude --json-schema` (ignored by others). */
   schema?: string;
+  /** Model override (`--model`), agent-native pattern/id. */
+  model?: string;
+  /** Thinking level (`--thinking`, pi only): off|minimal|low|medium|high|xhigh|max. */
+  thinking?: string;
   timeoutMs?: number;
   maxBuffer?: number;
   /** Injected for tests. Defaults to the real (blocking) child_process runner. */
@@ -73,24 +77,59 @@ export interface AgentAttempt {
   args: string[];
 }
 
+export interface AttemptOptions {
+  schema?: string;
+  model?: string;
+  thinking?: string;
+}
+
+/**
+ * Default thinking level for the judge. The judge is a mechanical transform
+ * (facts → recommendations), not deep reasoning, so a heavy default like Opus
+ * @ medium thinking just makes it slow. `low` keeps pi fast; override per-run.
+ */
+export const DEFAULT_JUDGE_THINKING = 'low';
+
 /**
  * The ordered invocation attempts for an agent (preferred → fallback), as pure
  * data so both the sync and async runners share ONE flag ladder (and it's
- * unit-testable without spawning anything).
+ * unit-testable without spawning anything). `--model` applies to all; pi also
+ * takes `--thinking` (the speed lever); both are ignored where unsupported.
  */
-export function agentAttempts(agentType: JudgeAgentType, prompt: string, schema?: string): AgentAttempt[] {
+export function agentAttempts(agentType: JudgeAgentType, prompt: string, opts: AttemptOptions = {}): AgentAttempt[] {
+  const { schema, model, thinking } = opts;
   if (agentType === 'claude') {
     const preferred = ['-p', prompt, '--output-format', 'json', '--bare', '--strict-mcp-config', '--disable-slash-commands'];
+    if (model) preferred.push('--model', model);
     if (schema) preferred.push('--json-schema', schema);
     // Older claude may reject the newer flags — fall back to the plainest form.
-    return [{ cmd: 'claude', args: preferred }, { cmd: 'claude', args: ['-p', prompt] }];
+    const plain = ['-p', prompt];
+    if (model) plain.push('--model', model);
+    return [{ cmd: 'claude', args: preferred }, { cmd: 'claude', args: plain }];
   }
   if (agentType === 'opencode') {
-    return [{ cmd: 'opencode', args: ['run', prompt] }];
+    const args = ['run', prompt];
+    if (model) args.push('--model', model);
+    return [{ cmd: 'opencode', args }];
   }
   // pi (and any other): run as lean as possible so a bloated env can't hang it.
   const piLean = ['--no-extensions', '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-tools', '--no-session'];
-  return [{ cmd: 'pi', args: [...piLean, '-p', prompt] }, { cmd: 'pi', args: ['-p', prompt] }];
+  const tune: string[] = [];
+  if (model) tune.push('--model', model);
+  if (thinking) tune.push('--thinking', thinking);
+  return [
+    { cmd: 'pi', args: [...piLean, ...tune, '-p', prompt] },
+    { cmd: 'pi', args: [...tune, '-p', prompt] },
+  ];
+}
+
+/** Resolve the attempt options for a run, applying the pi thinking default. */
+function attemptOptions(agentType: JudgeAgentType, opts: JudgeOptions): AttemptOptions {
+  return {
+    schema: opts.schema,
+    model: opts.model,
+    thinking: opts.thinking ?? (agentType === 'pi' ? DEFAULT_JUDGE_THINKING : undefined),
+  };
 }
 
 function wrapJudgeError(err: any, agentType: string): Error {
@@ -123,7 +162,7 @@ export function runAgentRaw(prompt: string, opts: JudgeOptions = {}): string {
     // can't hang the synchronous call — the sync twin of spawnCollect's fix.
     ((cmd, args, o) => execFileSync(cmd, args, { encoding: 'utf-8', input: '', timeout: o.timeout, maxBuffer: o.maxBuffer }));
 
-  const attempts = agentAttempts(agentType, prompt, opts.schema);
+  const attempts = agentAttempts(agentType, prompt, attemptOptions(agentType, opts));
   let lastErr: any;
   for (const a of attempts) {
     try {
@@ -146,7 +185,7 @@ export async function runAgentRawAsync(prompt: string, opts: JudgeOptions = {}):
   const maxBuffer = opts.maxBuffer ?? DEFAULT_MAX_BUFFER;
   const exec = opts.execAsync ?? ((cmd, args, o) => spawnCollect(cmd, args, o));
 
-  const attempts = agentAttempts(agentType, prompt, opts.schema);
+  const attempts = agentAttempts(agentType, prompt, attemptOptions(agentType, opts));
   let lastErr: any;
   for (const a of attempts) {
     try {

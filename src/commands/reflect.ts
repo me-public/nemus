@@ -19,6 +19,8 @@ export function registerReflectCommand(parent: Command) {
     .alias('retro')
     .description('Analyze your recent workspace sessions and suggest skill/prompt/context improvements (LLM-as-a-judge)')
     .option('-n, --limit <n>', 'How many recent workspaces to analyze', '10')
+    .option('--model <model>', 'Judge model override (agent-native pattern/id)')
+    .option('--thinking <level>', 'Judge thinking level for pi: off|minimal|low|medium|high|xhigh|max')
     .option('--json', 'Output the report as JSON')
     .option('--dry-run', 'Print the assembled corpus + judge prompt without calling the agent')
     .action(async (opts) => {
@@ -26,7 +28,7 @@ export function registerReflectCommand(parent: Command) {
     });
 }
 
-async function handleReflect(opts: { limit?: string; json?: boolean; dryRun?: boolean }) {
+async function handleReflect(opts: { limit?: string; model?: string; thinking?: string; json?: boolean; dryRun?: boolean }) {
   const limit = Math.max(1, Number.parseInt(opts.limit ?? '10', 10) || 10);
   try {
     const showProgress = !opts.json && !opts.dryRun;
@@ -62,12 +64,14 @@ async function handleReflect(opts: { limit?: string; json?: boolean; dryRun?: bo
     // (non-blocking) so a live spinner shows it's alive, not hung. Timeout is
     // overridable for slow local models.
     const timeoutMs = Number.parseInt(process.env.NEMUS_JUDGE_TIMEOUT_MS ?? '', 10) || undefined;
+    const model = opts.model ?? process.env.NEMUS_JUDGE_MODEL ?? undefined;
+    const thinking = opts.thinking ?? process.env.NEMUS_JUDGE_THINKING ?? undefined;
     const stopSpinner = opts.json
       ? () => {}
       : startSpinner(`Judging ${withSessions} session(s) with your configured agent (this can take a minute)…`);
     let parsed: unknown;
     try {
-      parsed = await runAgentJsonAsync(prompt, { schema: REFLECT_SCHEMA, timeoutMs });
+      parsed = await runAgentJsonAsync(prompt, { schema: REFLECT_SCHEMA, timeoutMs, model, thinking });
     } finally {
       stopSpinner();
     }
