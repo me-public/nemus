@@ -140,6 +140,10 @@ function runExtraction(cmd: string, fullArgs: string[], fallbackArgs?: string[])
   const exec = (args: string[]) =>
     execFileSync(cmd, args, {
       encoding: 'utf-8',
+      // `input: ''` closes the child's stdin (EOF) so a stdin-reading agent (pi)
+      // can't block this synchronous call forever in a headless/piped context
+      // — the same hang the async judge hit, guarded here for `nemus -- "…"`.
+      input: '',
       timeout: EXTRACTION_TIMEOUT_MS,
       maxBuffer: 10 * 1024 * 1024,
     });
