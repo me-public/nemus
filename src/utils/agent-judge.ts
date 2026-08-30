@@ -1,8 +1,51 @@
-import { execFile, execFileSync } from 'child_process';
-import { promisify } from 'util';
+import { execFileSync, spawn } from 'child_process';
 import { getPrimaryAgent } from './agent-config';
 
-const execFileAsync = promisify(execFile);
+/**
+ * Run a child to completion, capturing stdout, with stdin set to /dev/null.
+ *
+ * The stdin part is load-bearing: agents like `pi` block waiting on stdin if
+ * it's an open pipe (the default for execFile), which made the judge hang until
+ * the timeout regardless of prompt size or model speed. `stdio: ['ignore', …]`
+ * gives the child an immediate EOF, exactly like a non-interactive shell.
+ */
+export function spawnCollect(
+  cmd: string,
+  args: string[],
+  opts: { timeout: number; maxBuffer: number },
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: opts.timeout,
+      killSignal: 'SIGKILL',
+    });
+    // Decode as UTF-8 at the stream boundary so a multi-byte char split across
+    // two chunks isn't corrupted (which would break JSON.parse downstream).
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    let stdout = '';
+    let stderr = '';
+    let overflow = false;
+    child.stdout.on('data', (d) => {
+      stdout += d;
+      if (stdout.length > opts.maxBuffer) {
+        overflow = true;
+        child.kill('SIGKILL');
+      }
+    });
+    child.stderr.on('data', (d) => {
+      stderr += d;
+    });
+    child.on('error', (e) => reject(e));
+    child.on('close', (code, signal) => {
+      if (overflow) return reject(Object.assign(new Error('maxBuffer exceeded'), { stdout, stderr }));
+      if (signal) return reject(Object.assign(new Error(`killed by ${signal}`), { killed: true, signal, stdout, stderr }));
+      if (code !== 0) return reject(Object.assign(new Error(`exit ${code}`), { code, stdout, stderr }));
+      resolve(stdout);
+    });
+  });
+}
 
 /**
  * Run the user's configured coding agent headlessly as an "LLM-as-a-judge":
@@ -17,6 +60,10 @@ const execFileAsync = promisify(execFile);
 export interface JudgeOptions {
   /** JSON schema string passed to `claude --json-schema` (ignored by others). */
   schema?: string;
+  /** Model override (`--model`), agent-native pattern/id. */
+  model?: string;
+  /** Thinking level (`--thinking`, pi only): off|minimal|low|medium|high|xhigh|max. */
+  thinking?: string;
   timeoutMs?: number;
   maxBuffer?: number;
   /** Injected for tests. Defaults to the real (blocking) child_process runner. */
@@ -34,24 +81,61 @@ export interface AgentAttempt {
   args: string[];
 }
 
+export interface AttemptOptions {
+  schema?: string;
+  model?: string;
+  thinking?: string;
+}
+
+/**
+ * Default thinking level for the judge. The judge is a mechanical transform
+ * (facts → recommendations), not deep reasoning, so a heavy default like Opus
+ * @ medium thinking just makes it slow. `low` keeps pi fast; override per-run.
+ */
+export const DEFAULT_JUDGE_THINKING = 'low';
+
 /**
  * The ordered invocation attempts for an agent (preferred → fallback), as pure
  * data so both the sync and async runners share ONE flag ladder (and it's
- * unit-testable without spawning anything).
+ * unit-testable without spawning anything). `--model` applies to all; pi also
+ * takes `--thinking` (the speed lever); both are ignored where unsupported.
  */
-export function agentAttempts(agentType: JudgeAgentType, prompt: string, schema?: string): AgentAttempt[] {
+export function agentAttempts(agentType: JudgeAgentType, prompt: string, opts: AttemptOptions = {}): AgentAttempt[] {
+  const { schema, model, thinking } = opts;
   if (agentType === 'claude') {
     const preferred = ['-p', prompt, '--output-format', 'json', '--bare', '--strict-mcp-config', '--disable-slash-commands'];
+    if (model) preferred.push('--model', model);
     if (schema) preferred.push('--json-schema', schema);
     // Older claude may reject the newer flags — fall back to the plainest form.
-    return [{ cmd: 'claude', args: preferred }, { cmd: 'claude', args: ['-p', prompt] }];
+    const plain = ['-p', prompt];
+    if (model) plain.push('--model', model);
+    return [{ cmd: 'claude', args: preferred }, { cmd: 'claude', args: plain }];
   }
   if (agentType === 'opencode') {
-    return [{ cmd: 'opencode', args: ['run', prompt] }];
+    const args = ['run', prompt];
+    if (model) args.push('--model', model);
+    return [{ cmd: 'opencode', args }];
   }
   // pi (and any other): run as lean as possible so a bloated env can't hang it.
   const piLean = ['--no-extensions', '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-tools', '--no-session'];
-  return [{ cmd: 'pi', args: [...piLean, '-p', prompt] }, { cmd: 'pi', args: ['-p', prompt] }];
+  const modelArgs = model ? ['--model', model] : [];
+  const tune = thinking ? [...modelArgs, '--thinking', thinking] : modelArgs;
+  // Fallback keeps the stable --model but DROPS --thinking: --thinking is the
+  // newest flag and the most likely reason an older pi rejects the first
+  // attempt, so the safety net must not carry it (else both attempts fail).
+  return [
+    { cmd: 'pi', args: [...piLean, ...tune, '-p', prompt] },
+    { cmd: 'pi', args: [...modelArgs, '-p', prompt] },
+  ];
+}
+
+/** Resolve the attempt options for a run, applying the pi thinking default. */
+function attemptOptions(agentType: JudgeAgentType, opts: JudgeOptions): AttemptOptions {
+  return {
+    schema: opts.schema,
+    model: opts.model,
+    thinking: opts.thinking ?? (agentType === 'pi' ? DEFAULT_JUDGE_THINKING : undefined),
+  };
 }
 
 function wrapJudgeError(err: any, agentType: string): Error {
@@ -80,9 +164,11 @@ export function runAgentRaw(prompt: string, opts: JudgeOptions = {}): string {
   const maxBuffer = opts.maxBuffer ?? DEFAULT_MAX_BUFFER;
   const exec =
     opts.exec ??
-    ((cmd, args, o) => execFileSync(cmd, args, { encoding: 'utf-8', timeout: o.timeout, maxBuffer: o.maxBuffer }));
+    // `input: ''` closes the child's stdin (EOF) so a stdin-reading agent (pi)
+    // can't hang the synchronous call — the sync twin of spawnCollect's fix.
+    ((cmd, args, o) => execFileSync(cmd, args, { encoding: 'utf-8', input: '', timeout: o.timeout, maxBuffer: o.maxBuffer }));
 
-  const attempts = agentAttempts(agentType, prompt, opts.schema);
+  const attempts = agentAttempts(agentType, prompt, attemptOptions(agentType, opts));
   let lastErr: any;
   for (const a of attempts) {
     try {
@@ -103,12 +189,9 @@ export async function runAgentRawAsync(prompt: string, opts: JudgeOptions = {}):
   const agentType = opts.agentType ?? getPrimaryAgent().type;
   const timeout = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const maxBuffer = opts.maxBuffer ?? DEFAULT_MAX_BUFFER;
-  const exec =
-    opts.execAsync ??
-    (async (cmd, args, o) =>
-      (await execFileAsync(cmd, args, { encoding: 'utf-8', timeout: o.timeout, maxBuffer: o.maxBuffer })).stdout.toString());
+  const exec = opts.execAsync ?? ((cmd, args, o) => spawnCollect(cmd, args, o));
 
-  const attempts = agentAttempts(agentType, prompt, opts.schema);
+  const attempts = agentAttempts(agentType, prompt, attemptOptions(agentType, opts));
   let lastErr: any;
   for (const a of attempts) {
     try {

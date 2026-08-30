@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { distillTranscript, buildJudgePrompt, parseReflectionReport, ReflectionCorpus } from './reflect';
+import { distillTranscript, parseReflectionReport, classifyAgentsMd, isCorrectionPrompt } from './reflect';
 
 const J = (o: unknown) => JSON.stringify(o);
 
@@ -15,6 +15,8 @@ describe('distillTranscript', () => {
       J({ type: 'message', message: { role: 'toolResult', toolName: 'bash', isError: true, content: [{ type: 'text', text: 'command failed: boom' }] } }),
       // claude: user prompt as plain string
       J({ type: 'user', message: { role: 'user', content: 'claude style prompt' } }),
+      // a correction/re-steer → captured verbatim in reSteerSamples
+      J({ type: 'user', message: { role: 'user', content: 'no, that is wrong — revert that change' } }),
       // claude: assistant tool_use
       J({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Edit' }] } }),
       // claude: tool_result-only user message → an error, NOT a prompt
@@ -31,13 +33,14 @@ describe('distillTranscript', () => {
 
     const d = distillTranscript(lines, { sessionId: 's1', agentType: 'pi' });
     expect(d.turns).toBe(2);
-    expect(d.userPrompts).toEqual(['do the thing', 'claude style prompt']);
+    expect(d.userPrompts).toEqual(['do the thing', 'claude style prompt', 'no, that is wrong — revert that change']);
     expect(d.tools.sort()).toEqual(['Edit', 'bash', 'git', 'grep']);
     expect(d.errors).toContain('command failed: boom'); // explicit isError:true
     expect(d.errors).toContain('file not found'); // explicit is_error:true
     expect(d.errors).toContain('fatal: not a git repository'); // unflagged + strong signal
     expect(d.errors).not.toContain('0 results for error'); // unflagged benign 'error' mention
     expect(d.errors.some((e) => e.includes('flagged success'))).toBe(false); // isError:false trusted
+    expect(d.reSteerSamples).toEqual(['no, that is wrong — revert that change']); // captured verbatim
   });
 
   it('is bounded and tolerant of empty input', () => {
@@ -50,32 +53,32 @@ describe('distillTranscript', () => {
   });
 });
 
-const corpus: ReflectionCorpus = {
-  generatedAt: '2026-01-01T00:00:00Z',
-  availableSkills: ['redash', 'datadog'],
-  workspaces: [
-    {
-      name: 'pay-app',
-      repoCount: 1,
-      repos: ['api'],
-      contextFiles: ['AGENTS.md'],
-      session: { sessionId: 's', agentType: 'pi', turns: 12, userPrompts: ['fix the sync bug'], errors: ['gh_pr_create: not a git repository'], tools: ['bash', 'edit'] },
-    },
-    { name: 'empty-ws', repoCount: 0, repos: [], contextFiles: [], session: null },
-  ],
-};
+describe('classifyAgentsMd', () => {
+  it('distinguishes missing / boilerplate / substantive', () => {
+    expect(classifyAgentsMd('')).toBe('missing');
+    expect(classifyAgentsMd(null)).toBe('missing');
+    // Generated template: headings + markers, little real guidance.
+    expect(classifyAgentsMd('# Workspace\n\nThis workspace was created with Workspace Manager.\n<!-- ws-rules:v2 -->\n## Notes\n- \n')).toBe('boilerplate');
+    // Real, rule-heavy content.
+    const real = Array.from({ length: 12 }, (_, i) => `- Always run the ${i} integration suite before opening a pull request here`).join('\n');
+    expect(classifyAgentsMd(`# Rules\n${real}`)).toBe('substantive');
+  });
 
-describe('buildJudgePrompt', () => {
-  const p = buildJudgePrompt(corpus);
-  it('frames the judge task and includes the evidence + guardrails', () => {
-    expect(p).toContain('LLM as a judge');
-    expect(p).toContain('redash, datadog'); // available skills (do not re-suggest)
-    expect(p).toContain('## pay-app');
-    expect(p).toContain('fix the sync bug');
-    expect(p).toContain('gh_pr_create: not a git repository');
-    expect(p).toContain('no recent agent session found'); // empty-ws
-    expect(p).toContain('context files: NONE'); // empty-ws has none
-    expect(p).toMatch(/ONLY a JSON object/);
+  it('is newline-independent: a whitespace-collapsed substantive file still classifies substantive', () => {
+    // Regression for the collapse bug: same content, newlines squashed to spaces.
+    const real = Array.from({ length: 12 }, (_, i) => `- Always run the ${i} integration suite before opening a pull request here`).join('\n');
+    const multiline = `# Rules\n${real}`;
+    const collapsed = multiline.replace(/\s+/g, ' ');
+    expect(classifyAgentsMd(collapsed)).toBe(classifyAgentsMd(multiline));
+    expect(classifyAgentsMd(collapsed)).toBe('substantive');
+  });
+});
+
+describe('isCorrectionPrompt', () => {
+  it('flags corrections, not normal instructions', () => {
+    expect(isCorrectionPrompt('no, revert that')).toBe(true);
+    expect(isCorrectionPrompt('actually use the other repo instead')).toBe(true);
+    expect(isCorrectionPrompt('add a health check to the api')).toBe(false);
   });
 });
 

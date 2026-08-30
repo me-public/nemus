@@ -13,11 +13,17 @@ export interface SessionDigest {
   turns: number;
   /** Human prompts the user sent (the raw material for judging prompt quality). */
   userPrompts: string[];
+  /** Verbatim user “re-steer” messages (corrections/redirects) — the highest-
+   *  signal quotes for the judge to coach on. Subset of userPrompts, bounded. */
+  reSteerSamples: string[];
   /** Error/failure snippets from tool results (missing skills/tests show up here). */
   errors: string[];
   /** Distinct tool names the agent used. */
   tools: string[];
 }
+
+/** How useful a workspace's context file (AGENTS.md/CLAUDE.md) actually is. */
+export type ContextQuality = 'missing' | 'boilerplate' | 'substantive';
 
 export interface WorkspaceDigest {
   name: string;
@@ -25,6 +31,8 @@ export interface WorkspaceDigest {
   repos: string[];
   /** Context files present at the workspace root, e.g. ['AGENTS.md']. */
   contextFiles: string[];
+  /** Whether the primary context file is missing / boilerplate / substantive. */
+  contextQuality: ContextQuality;
   session: SessionDigest | null;
 }
 
@@ -62,8 +70,21 @@ export interface ReflectionReport {
 // fraction of the tokens (~halving the prompt), so the judge actually finishes.
 const MAX_PROMPTS = 12;
 const MAX_ERRORS = 15;
+const MAX_RESTEER = 6;
 const PROMPT_CHARS = 400;
 const ERROR_CHARS = 200;
+const RESTEER_CHARS = 240;
+
+// A conservative “the user corrected / redirected the agent” cue. Soft signal:
+// used to count re-steers and to capture the verbatim message for the judge.
+const CORRECTION_RE =
+  /\b(no|nope|wrong|incorrect|revert|undo|instead|actually|you (missed|forgot|broke|didn'?t)|that'?s? (wrong|not right|incorrect)|not what|don'?t)\b/i;
+
+/** Whether a single user prompt reads like a correction/redirect. Exported +
+ *  shared with the analyzer so the two never diverge. */
+export function isCorrectionPrompt(prompt: string): boolean {
+  return CORRECTION_RE.test(prompt ?? '');
+}
 
 /** Flatten a message `content` (string or content-block array) to plain text. */
 function contentToText(content: unknown): string {
@@ -105,6 +126,7 @@ export function distillTranscript(
   meta: { sessionId: string; agentType: string },
 ): SessionDigest {
   const userPrompts: string[] = [];
+  const reSteerSamples: string[] = [];
   const errors: string[] = [];
   const tools = new Set<string>();
   let turns = 0;
@@ -160,14 +182,57 @@ export function distillTranscript(
         Array.isArray(content) && content.length > 0 && content.every((b: any) => b?.type === 'tool_result');
       if (!isToolResultOnly) {
         const text = contentToText(content).trim();
-        if (text && !text.startsWith('<') && userPrompts.length < MAX_PROMPTS) {
-          userPrompts.push(text.slice(0, PROMPT_CHARS));
+        if (text && !text.startsWith('<')) {
+          if (userPrompts.length < MAX_PROMPTS) userPrompts.push(text.slice(0, PROMPT_CHARS));
+          // Capture corrections verbatim (bounded) — the sharpest coaching signal.
+          if (reSteerSamples.length < MAX_RESTEER && isCorrectionPrompt(text)) {
+            reSteerSamples.push(text.slice(0, RESTEER_CHARS));
+          }
         }
       }
     }
   }
 
-  return { sessionId: meta.sessionId, agentType: meta.agentType, turns, userPrompts, errors, tools: [...tools] };
+  return { sessionId: meta.sessionId, agentType: meta.agentType, turns, userPrompts, reSteerSamples, errors, tools: [...tools] };
+}
+
+// ------------------------------------------------------- context classification
+
+// Lines that are structural/boilerplate rather than real, custom guidance.
+const BOILERPLATE_MARKERS = [
+  'ws-rules:',
+  'this workspace was created with',
+  'workspace manager',
+  'saved context',
+  'add your own notes here',
+  'common workflows',
+];
+
+/**
+ * Classify an AGENTS.md/CLAUDE.md by how much *real* guidance it carries, so the
+ * judge can tell “no context” from “has a file but it's the generated template.”
+ * Heuristic + pure.
+ *
+ * Deliberately **newline-independent**: it measures the volume of non-boilerplate
+ * prose (word count) plus heading count via a whitespace-tolerant regex, rather
+ * than splitting on lines. A line-anchored version would misclassify any excerpt
+ * whose newlines were collapsed to spaces upstream (a real bug class caught in a
+ * sibling implementation) — here even a fully single-lined file classifies the
+ * same as its multi-line original.
+ */
+export function classifyAgentsMd(content: string | null | undefined): ContextQuality {
+  if (!content || !content.trim()) return 'missing';
+  let s = content.replace(/\r\n/g, '\n').toLowerCase();
+  s = s.replace(/```[\s\S]*?```/g, ' '); // drop fenced code
+  s = s.replace(/<!--[\s\S]*?-->/g, ' '); // drop HTML comments
+  for (const m of BOILERPLATE_MARKERS) s = s.split(m).join(' '); // drop generated boilerplate (markers are lowercase)
+  // Headings: a `#` run at start OR after any whitespace (so a collapsed,
+  // single-line excerpt still counts them), followed by a space.
+  const headings = (s.match(/(?:^|\s)#{1,6}\s/g) || []).length;
+  // Remaining non-boilerplate words (markdown punctuation stripped).
+  const words = s.replace(/[#|>*_`~-]/g, ' ').split(/\s+/).filter((w) => w.length > 1).length;
+  if (words < 40) return 'boilerplate';
+  return headings >= 2 || words >= 60 ? 'substantive' : 'boilerplate';
 }
 
 // --------------------------------------------------------- corpus gathering
@@ -242,17 +307,23 @@ async function listAvailableSkills(): Promise<string[]> {
   return [...names].sort();
 }
 
-async function contextFilesFor(workspacePath: string): Promise<string[]> {
+/** Which context files exist at the workspace root, plus how substantive the
+ *  primary one is (missing/boilerplate/substantive). One read per present file. */
+async function contextFilesFor(workspacePath: string): Promise<{ files: string[]; quality: ContextQuality }> {
   const present: string[] = [];
+  let quality: ContextQuality = 'missing';
   for (const name of getAllKnownContextFileNames()) {
     try {
-      await fs.access(path.join(workspacePath, name));
+      const content = await fs.readFile(path.join(workspacePath, name), 'utf-8');
       present.push(name);
+      // Classify the first present file, then keep the best classification seen.
+      const c = classifyAgentsMd(content);
+      if (quality === 'missing' || (quality === 'boilerplate' && c === 'substantive')) quality = c;
     } catch {
-      /* not present */
+      /* not present / unreadable */
     }
   }
-  return present;
+  return { files: present, quality };
 }
 
 /** Fired as each workspace is read + distilled, so the CLI can show live,
@@ -286,11 +357,13 @@ export async function gatherReflectionCorpus(
   for (let index = 0; index < recent.length; index++) {
     const s = recent[index];
     const meta = metaByName.get(s.workspaceName);
+    const context = await contextFilesFor(s.workspacePath);
     const digest: WorkspaceDigest = {
       name: s.workspaceName,
       repoCount: meta?.metadata?.repositories?.length ?? 0,
       repos: (meta?.metadata?.repositories ?? []).map((r) => r.name),
-      contextFiles: await contextFilesFor(s.workspacePath),
+      contextFiles: context.files,
+      contextQuality: context.quality,
       session: await readDigestForSession(s),
     };
     digests.push(digest);
@@ -326,56 +399,8 @@ export const REFLECT_SCHEMA = JSON.stringify({
   required: ['summary', 'recommendations'],
 });
 
-/**
- * Build the LLM-as-a-judge prompt. The judge sees distilled recent sessions and
- * is asked to recommend concrete improvements to the user's SETUP (skills,
- * AGENTS.md/context rules, connectivity/tests, prompt habits, workflow) — not to
- * redo the tasks. Output is strict JSON matching REFLECT_SCHEMA.
- */
-export function buildJudgePrompt(corpus: ReflectionCorpus): string {
-  const lines: string[] = [];
-  lines.push(
-    'You are an expert reviewer ("LLM as a judge") analyzing an engineer\'s recent AI coding-agent sessions.',
-    'Goal: recommend concrete improvements to their SETUP so the agent works better next time —',
-    'which skills to add and WHERE, which AGENTS.md/context rules are missing, missing connectivity/',
-    'smoke tests, and prompt habits to change. Judge the setup, do NOT redo the tasks.',
-    '',
-    'Base every recommendation on evidence in the sessions below (repeated failures, retries, vague',
-    'prompts, missing context). Prefer a few high-signal, actionable items over many generic ones.',
-    'When you suggest a skill or an AGENTS.md rule, include a short concrete `example` snippet.',
-    '',
-    `Globally installed skills (don't re-suggest these; suggest genuinely missing ones): ${corpus.availableSkills.join(', ') || '(none)'}`,
-    '',
-    `Recent workspaces (${corpus.workspaces.length}):`,
-  );
-
-  for (const ws of corpus.workspaces) {
-    lines.push(`\n## ${ws.name}`);
-    lines.push(`repos: ${ws.repos.join(', ') || '(none)'} | context files: ${ws.contextFiles.join(', ') || 'NONE'}`);
-    if (!ws.session) {
-      lines.push('session: (no recent agent session found)');
-      continue;
-    }
-    lines.push(`session: ${ws.session.turns} turns, tools used: ${ws.session.tools.join(', ') || '(none)'}`);
-    if (ws.session.userPrompts.length) {
-      lines.push('user prompts:');
-      for (const p of ws.session.userPrompts) lines.push(`  - ${p.replace(/\n/g, ' ')}`);
-    }
-    if (ws.session.errors.length) {
-      lines.push('errors/failures observed:');
-      for (const e of ws.session.errors) lines.push(`  - ${e.replace(/\n/g, ' ')}`);
-    }
-  }
-
-  lines.push(
-    '',
-    'Respond with ONLY a JSON object of this shape (no prose, no markdown fence):',
-    '{"summary": string, "recommendations": [{"kind":"skill|context|test|prompt|connectivity|workflow|other",',
-    '"title": string, "detail": string, "target": string(optional workspace/repo/path),',
-    '"priority":"high|medium|low", "example": string(optional snippet)}]}',
-  );
-  return lines.join('\n');
-}
+// The judge prompt is now built from pre-computed FACTS (see reflect-analyze.ts
+// `buildAnalysisPrompt`), not raw transcripts, so the LLM call stays small/fast.
 
 // ----------------------------------------------------------- response parse
 

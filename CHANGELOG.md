@@ -7,19 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-08-30
+
 ### Fixed
 
-- **`reflect` now shows live progress and no longer looks hung.** The judge call
-  ran synchronously (`execFileSync`), which blocked the event loop, and a
-  10-workspace run could hit the 180s cap and die with a raw
-  `spawnSync pi ETIMEDOUT`. Now: (1) the gather phase prints a **per-workspace
-  line** as each session is read (`✓ 1/3 my-workspace  635 turns · 12 prompts ·
-  13 failures`); (2) the judge runs **async** behind a live spinner with elapsed
-  seconds; (3) the timeout is raised to 300s, overridable via
-  `NEMUS_JUDGE_TIMEOUT_MS`, and a timeout now yields an **actionable** message
-  ("try a smaller --limit, a faster agent, or raise the cap"); (4) the judge
-  prompt is leaner (fewer prompts/errors per session) so a local model actually
-  finishes.
+- **`reflect` no longer hangs/times out — the real root cause was open stdin.**
+  The judge was spawned with its **stdin left as an open pipe** (`execFile`'s
+  default), so a stdin-reading agent like `pi` blocked forever waiting on input
+  and the run died at the timeout — regardless of prompt size or model. The
+  child now gets stdin `ignore` (async) / `input: ''` (sync) → immediate EOF,
+  and a real run drops from *timeout* to **~40s**. Regression-tested with a
+  stdin-reading child that would otherwise hang.
+
+### Changed
+
+- **`reflect` now does the analysis in code and hands the LLM only compact
+  facts.** A new deterministic layer (`reflect-analyze.ts`) clusters recurring
+  failures into normalized **signatures** (paths/numbers/hashes stripped) with
+  counts + which workspaces they span, tallies tool usage, flags
+  correction/retry loops, and lists workspaces missing a context file. The judge
+  prompt is built from those aggregates, so it stays **~5KB regardless of how
+  many workspaces** are analyzed (was ~25KB and growing), the call is faster and
+  cheaper, less raw prompt text leaves your machine, and every recommendation is
+  grounded in a real count. Output shape (`--json`, the report) is unchanged;
+  `--dry-run` now shows the computed facts.
+- **Faster judge + richer signal.** The judge now runs pi at **`--thinking low`**
+  by default (it's a mechanical facts→recommendations transform, not deep
+  reasoning) — overridable with `--thinking`/`NEMUS_JUDGE_THINKING` and
+  `--model`/`NEMUS_JUDGE_MODEL` (threaded through for claude/opencode where
+  supported; thinking is pi-only). The digest now includes **verbatim “re-steer”
+  quotes** (the user corrections/redirects that are the sharpest coaching signal)
+  and classifies each workspace's context file as **missing / boilerplate /
+  substantive** (distinguishing “has an AGENTS.md” from “has a *useful* one”), on
+  top of the error-signature clusters.
+
+## [0.3.1] - 2026-08-30
+
+### Fixed
+
+- **`reflect` shows live progress instead of looking hung.** The gather phase
+  prints a **per-workspace line** as each session is read (`✓ 1/3 my-workspace
+  635 turns · 12 prompts · 13 failures`); the judge runs **async** behind a live
+  spinner with elapsed seconds; the timeout is raised to 300s (overridable via
+  `NEMUS_JUDGE_TIMEOUT_MS`) with an **actionable** message on timeout.
 
 ## [0.3.0] - 2026-08-27
 
