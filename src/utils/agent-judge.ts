@@ -1,8 +1,47 @@
-import { execFile, execFileSync } from 'child_process';
-import { promisify } from 'util';
+import { execFileSync, spawn } from 'child_process';
 import { getPrimaryAgent } from './agent-config';
 
-const execFileAsync = promisify(execFile);
+/**
+ * Run a child to completion, capturing stdout, with stdin set to /dev/null.
+ *
+ * The stdin part is load-bearing: agents like `pi` block waiting on stdin if
+ * it's an open pipe (the default for execFile), which made the judge hang until
+ * the timeout regardless of prompt size or model speed. `stdio: ['ignore', …]`
+ * gives the child an immediate EOF, exactly like a non-interactive shell.
+ */
+export function spawnCollect(
+  cmd: string,
+  args: string[],
+  opts: { timeout: number; maxBuffer: number },
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: opts.timeout,
+      killSignal: 'SIGKILL',
+    });
+    let stdout = '';
+    let stderr = '';
+    let overflow = false;
+    child.stdout.on('data', (d) => {
+      stdout += d;
+      if (stdout.length > opts.maxBuffer) {
+        overflow = true;
+        child.kill('SIGKILL');
+      }
+    });
+    child.stderr.on('data', (d) => {
+      stderr += d;
+    });
+    child.on('error', (e) => reject(e));
+    child.on('close', (code, signal) => {
+      if (overflow) return reject(Object.assign(new Error('maxBuffer exceeded'), { stdout, stderr }));
+      if (signal) return reject(Object.assign(new Error(`killed by ${signal}`), { killed: true, signal, stdout, stderr }));
+      if (code !== 0) return reject(Object.assign(new Error(`exit ${code}`), { code, stdout, stderr }));
+      resolve(stdout);
+    });
+  });
+}
 
 /**
  * Run the user's configured coding agent headlessly as an "LLM-as-a-judge":
@@ -80,7 +119,9 @@ export function runAgentRaw(prompt: string, opts: JudgeOptions = {}): string {
   const maxBuffer = opts.maxBuffer ?? DEFAULT_MAX_BUFFER;
   const exec =
     opts.exec ??
-    ((cmd, args, o) => execFileSync(cmd, args, { encoding: 'utf-8', timeout: o.timeout, maxBuffer: o.maxBuffer }));
+    // `input: ''` closes the child's stdin (EOF) so a stdin-reading agent (pi)
+    // can't hang the synchronous call — the sync twin of spawnCollect's fix.
+    ((cmd, args, o) => execFileSync(cmd, args, { encoding: 'utf-8', input: '', timeout: o.timeout, maxBuffer: o.maxBuffer }));
 
   const attempts = agentAttempts(agentType, prompt, opts.schema);
   let lastErr: any;
@@ -103,10 +144,7 @@ export async function runAgentRawAsync(prompt: string, opts: JudgeOptions = {}):
   const agentType = opts.agentType ?? getPrimaryAgent().type;
   const timeout = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const maxBuffer = opts.maxBuffer ?? DEFAULT_MAX_BUFFER;
-  const exec =
-    opts.execAsync ??
-    (async (cmd, args, o) =>
-      (await execFileAsync(cmd, args, { encoding: 'utf-8', timeout: o.timeout, maxBuffer: o.maxBuffer })).stdout.toString());
+  const exec = opts.execAsync ?? ((cmd, args, o) => spawnCollect(cmd, args, o));
 
   const attempts = agentAttempts(agentType, prompt, opts.schema);
   let lastErr: any;

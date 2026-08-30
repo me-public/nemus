@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseAgentJson, runAgentRaw, runAgentRawAsync, agentAttempts } from './agent-judge';
+import { parseAgentJson, runAgentRaw, runAgentRawAsync, agentAttempts, spawnCollect } from './agent-judge';
 
 describe('parseAgentJson', () => {
   it('unwraps the common agent envelopes and shapes', () => {
@@ -13,6 +13,21 @@ describe('parseAgentJson', () => {
 
   it('throws when there is no JSON at all', () => {
     expect(() => parseAgentJson('totally not json')).toThrow(/did not return JSON/);
+  });
+});
+
+describe('spawnCollect (stdin-hang regression)', () => {
+  it('gives the child stdin EOF so a stdin-reading process does NOT hang', async () => {
+    // `cat` with no args reads stdin to EOF. If stdin were an open pipe (the old
+    // execFile default) this would block until the timeout and reject; with
+    // stdin ignored it gets immediate EOF and exits 0 fast. 2s timeout << any hang.
+    const out = await spawnCollect('cat', [], { timeout: 2000, maxBuffer: 1 << 20 });
+    expect(out).toBe('');
+  });
+
+  it('captures stdout and rejects on non-zero exit', async () => {
+    await expect(spawnCollect('node', ['-e', 'process.stdout.write("hi")'], { timeout: 5000, maxBuffer: 1 << 20 })).resolves.toBe('hi');
+    await expect(spawnCollect('node', ['-e', 'process.exit(3)'], { timeout: 5000, maxBuffer: 1 << 20 })).rejects.toThrow(/exit 3/);
   });
 });
 

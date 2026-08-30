@@ -326,56 +326,8 @@ export const REFLECT_SCHEMA = JSON.stringify({
   required: ['summary', 'recommendations'],
 });
 
-/**
- * Build the LLM-as-a-judge prompt. The judge sees distilled recent sessions and
- * is asked to recommend concrete improvements to the user's SETUP (skills,
- * AGENTS.md/context rules, connectivity/tests, prompt habits, workflow) — not to
- * redo the tasks. Output is strict JSON matching REFLECT_SCHEMA.
- */
-export function buildJudgePrompt(corpus: ReflectionCorpus): string {
-  const lines: string[] = [];
-  lines.push(
-    'You are an expert reviewer ("LLM as a judge") analyzing an engineer\'s recent AI coding-agent sessions.',
-    'Goal: recommend concrete improvements to their SETUP so the agent works better next time —',
-    'which skills to add and WHERE, which AGENTS.md/context rules are missing, missing connectivity/',
-    'smoke tests, and prompt habits to change. Judge the setup, do NOT redo the tasks.',
-    '',
-    'Base every recommendation on evidence in the sessions below (repeated failures, retries, vague',
-    'prompts, missing context). Prefer a few high-signal, actionable items over many generic ones.',
-    'When you suggest a skill or an AGENTS.md rule, include a short concrete `example` snippet.',
-    '',
-    `Globally installed skills (don't re-suggest these; suggest genuinely missing ones): ${corpus.availableSkills.join(', ') || '(none)'}`,
-    '',
-    `Recent workspaces (${corpus.workspaces.length}):`,
-  );
-
-  for (const ws of corpus.workspaces) {
-    lines.push(`\n## ${ws.name}`);
-    lines.push(`repos: ${ws.repos.join(', ') || '(none)'} | context files: ${ws.contextFiles.join(', ') || 'NONE'}`);
-    if (!ws.session) {
-      lines.push('session: (no recent agent session found)');
-      continue;
-    }
-    lines.push(`session: ${ws.session.turns} turns, tools used: ${ws.session.tools.join(', ') || '(none)'}`);
-    if (ws.session.userPrompts.length) {
-      lines.push('user prompts:');
-      for (const p of ws.session.userPrompts) lines.push(`  - ${p.replace(/\n/g, ' ')}`);
-    }
-    if (ws.session.errors.length) {
-      lines.push('errors/failures observed:');
-      for (const e of ws.session.errors) lines.push(`  - ${e.replace(/\n/g, ' ')}`);
-    }
-  }
-
-  lines.push(
-    '',
-    'Respond with ONLY a JSON object of this shape (no prose, no markdown fence):',
-    '{"summary": string, "recommendations": [{"kind":"skill|context|test|prompt|connectivity|workflow|other",',
-    '"title": string, "detail": string, "target": string(optional workspace/repo/path),',
-    '"priority":"high|medium|low", "example": string(optional snippet)}]}',
-  );
-  return lines.join('\n');
-}
+// The judge prompt is now built from pre-computed FACTS (see reflect-analyze.ts
+// `buildAnalysisPrompt`), not raw transcripts, so the LLM call stays small/fast.
 
 // ----------------------------------------------------------- response parse
 

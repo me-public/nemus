@@ -4,13 +4,13 @@ import { outputJson, outputJsonError } from '../utils/output';
 import { colorize } from '../utils/colors';
 import {
   gatherReflectionCorpus,
-  buildJudgePrompt,
   parseReflectionReport,
   REFLECT_SCHEMA,
   ReflectionReport,
   ReflectProgress,
   Recommendation,
 } from '../utils/reflect';
+import { analyzeCorpus, buildAnalysisPrompt } from '../utils/reflect-analyze';
 import { runAgentJsonAsync } from '../utils/agent-judge';
 
 export function registerReflectCommand(parent: Command) {
@@ -36,11 +36,15 @@ async function handleReflect(opts: { limit?: string; json?: boolean; dryRun?: bo
 
     const corpus = await gatherReflectionCorpus(limit, showProgress ? printProgress : undefined);
     const withSessions = corpus.workspaces.filter((w) => w.session).length;
-    const prompt = buildJudgePrompt(corpus);
+    // A script does the heavy analysis (clustering failures, counting tools,
+    // spotting correction loops); the LLM only ever sees these compact facts,
+    // so the judge call stays small + fast regardless of workspace count.
+    const analysis = analyzeCorpus(corpus);
+    const prompt = buildAnalysisPrompt(analysis);
 
     if (opts.dryRun) {
-      // No LLM call — surface exactly what the judge would see.
-      if (opts.json) outputJson({ corpus, prompt });
+      // No LLM call — surface the computed facts + exactly what the judge sees.
+      if (opts.json) outputJson({ analysis, prompt });
       else {
         process.stdout.write(prompt + '\n');
       }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { distillTranscript, buildJudgePrompt, parseReflectionReport, ReflectionCorpus } from './reflect';
+import { distillTranscript, parseReflectionReport } from './reflect';
 
 const J = (o: unknown) => JSON.stringify(o);
 
@@ -47,35 +47,6 @@ describe('distillTranscript', () => {
       errors: [],
       tools: [],
     });
-  });
-});
-
-const corpus: ReflectionCorpus = {
-  generatedAt: '2026-01-01T00:00:00Z',
-  availableSkills: ['redash', 'datadog'],
-  workspaces: [
-    {
-      name: 'pay-app',
-      repoCount: 1,
-      repos: ['api'],
-      contextFiles: ['AGENTS.md'],
-      session: { sessionId: 's', agentType: 'pi', turns: 12, userPrompts: ['fix the sync bug'], errors: ['gh_pr_create: not a git repository'], tools: ['bash', 'edit'] },
-    },
-    { name: 'empty-ws', repoCount: 0, repos: [], contextFiles: [], session: null },
-  ],
-};
-
-describe('buildJudgePrompt', () => {
-  const p = buildJudgePrompt(corpus);
-  it('frames the judge task and includes the evidence + guardrails', () => {
-    expect(p).toContain('LLM as a judge');
-    expect(p).toContain('redash, datadog'); // available skills (do not re-suggest)
-    expect(p).toContain('## pay-app');
-    expect(p).toContain('fix the sync bug');
-    expect(p).toContain('gh_pr_create: not a git repository');
-    expect(p).toContain('no recent agent session found'); // empty-ws
-    expect(p).toContain('context files: NONE'); // empty-ws has none
-    expect(p).toMatch(/ONLY a JSON object/);
   });
 });
 
