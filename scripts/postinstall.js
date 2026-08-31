@@ -12,7 +12,7 @@
 
 'use strict';
 
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -25,15 +25,18 @@ const SHELL_SCRIPT = path.join(PKG_ROOT, 'install-shell-integration.sh');
 const CLI_BIN = path.join(PKG_ROOT, 'bin', 'workspace.js');
 
 // ── First-time interactive setup ─────────────────────────────────────────────
-// On a FRESH install with an interactive terminal, run `nemus configure` right
-// away so setup happens after install instead of the user having to remember to.
-// `configure` is a superset of this script's work — it installs the shell
-// integration + (optionally) the MCP server and prints the source reminder — so
-// on success we exit here. We fall through to the non-interactive path when:
-// there's already a config (an upgrade, not a first install), stdin/stdout
-// aren't TTYs (piped/scripted installs — inquirer would hang or EOF), the user
-// opted out (NEMUS_SKIP_CONFIGURE), or the CLI/build isn't present. That keeps
-// the worst case identical to today's behavior: a printed tip, never a hang.
+// On a FRESH install, run `nemus configure` right away so setup happens after
+// install instead of the user having to remember to. `configure` is a superset
+// of this script's work — it installs the shell integration + (optionally) the
+// MCP server and prints the source reminder — so on success we exit here.
+//
+// npm runs postinstall with stdio PIPED (not a TTY) unless `--foreground-scripts`
+// is set, so we can't gate on process.std*.isTTY (it's falsy during a normal
+// `npm i -g`, so the prompt would never fire). Instead we reach the controlling
+// terminal directly via /dev/tty — openable during an interactive install even
+// though npm piped our own stdio — and wire configure's stdio to it. With no
+// controlling terminal (piped/scripted installs) the open fails and we fall
+// through to the non-interactive tip path, so an install can never hang.
 function cacheDir() {
   return (
     process.env.NEMUS_CACHE_DIR ||
@@ -42,22 +45,44 @@ function cacheDir() {
   );
 }
 
-function shouldRunConfigure() {
-  if (process.env.NEMUS_SKIP_CONFIGURE) return false;
-  if (!process.stdin.isTTY || !process.stdout.isTTY) return false;
-  if (!fs.existsSync(CLI_BIN)) return false;
-  // Fresh install only — don't re-prompt on every `npm i -g` upgrade.
-  if (fs.existsSync(path.join(cacheDir(), 'config.json'))) return false;
-  return true;
+// NEMUS_SKIP_CONFIGURE opts out — but only for real values: `0`/`false`/empty do
+// NOT skip (a user setting `=0` means "don't skip").
+function optedOut() {
+  const v = (process.env.NEMUS_SKIP_CONFIGURE || '').trim().toLowerCase();
+  return v !== '' && v !== '0' && v !== 'false';
 }
 
-if (shouldRunConfigure()) {
+// The config marker `configure` writes (utils/config.ts: saveUserConfig ->
+// <NEMUS_CACHE_DIR|WORKSPACE_MANAGER_CACHE_DIR|~/.nemus>/config.json). Same
+// precedence as here, so its presence reliably means "already configured".
+function alreadyConfigured() {
+  return fs.existsSync(path.join(cacheDir(), 'config.json'));
+}
+
+// A read/write fd on the controlling terminal, or null if there isn't one.
+function openControllingTty() {
+  if (process.platform === 'win32') return null; // no /dev/tty; shell integration is bash/zsh anyway
   try {
-    execSync(`node "${CLI_BIN}" configure`, { stdio: 'inherit' });
-    process.exit(0); // configure handled shell integration + reminder
+    return fs.openSync('/dev/tty', 'r+');
   } catch {
-    // Canceled / non-interactive after all — fall through to the standard setup
-    // + tip below so the install still leaves things in a working state.
+    return null;
+  }
+}
+
+if (!optedOut() && fs.existsSync(CLI_BIN) && !alreadyConfigured()) {
+  const tty = openControllingTty();
+  if (tty !== null) {
+    try {
+      // argv form (no shell) so an odd package path with quotes/$/backticks is
+      // safe; stdio wired to the real terminal so inquirer can prompt.
+      execFileSync('node', [CLI_BIN, 'configure'], { stdio: [tty, tty, tty] });
+      fs.closeSync(tty);
+      process.exit(0); // configure handled shell integration + reminder
+    } catch {
+      try { fs.closeSync(tty); } catch { /* ignore */ }
+      // Canceled / failed — fall through to the standard setup + tip below so the
+      // install still leaves things in a working state.
+    }
   }
 }
 

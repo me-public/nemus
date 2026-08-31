@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   automatically (it installs the shell integration + optional MCP server and
   prints the activation reminder) instead of only suggesting you run it. It runs
   **only on a first install** (skipped once `~/.nemus/config.json` exists, so
-  upgrades never re-prompt) and **only with a TTY** — piped/scripted/CI installs,
+  upgrades never re-prompt) and **only when a controlling terminal is reachable**
+  (via `/dev/tty`, since npm pipes postinstall stdio) — piped/scripted/CI installs,
   or `NEMUS_SKIP_CONFIGURE=1`, fall back to the previous non-interactive path
   (shell integration + a printed tip), so an install can never hang.
 
