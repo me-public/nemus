@@ -33,6 +33,14 @@ skip {
     saw_func = 1
     next
   }
+  if (/\.nemus\/shell-integration\.sh/ && /source/) {
+    # Current installs keep the functions in a generated file and leave only
+    # this source line in the RC file.
+    skip = 0
+    saw_func = 0
+    buf = ""
+    next
+  }
   # Non-function line: block is over — emit any buffered lines
   skip = 0
   if (buf != "") printf "%s", buf
