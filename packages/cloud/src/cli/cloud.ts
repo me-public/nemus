@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from 'node:fs';
-import { createProvisioner } from '../provision/registry';
-import { iacModuleDir } from '../provision/modules';
-import { createRunner } from '../runner/registry';
-import { TargetDescriptor, TaskSpec } from '../runner/types';
+import { createProvisioner, provisionerNames } from '../provision/registry';
+import { iacModuleDir, listIacModules } from '../provision/modules';
+import { createRunner, runnerNames } from '../runner/registry';
+import { registeredForges } from '../gitforge/registry';
+import { Capabilities, TargetDescriptor, TaskSpec } from '../runner/types';
 
 /**
  * `nemus-cloud` — the thin CLI that ties the P2 seams together:
@@ -21,6 +22,10 @@ export interface CloudCliDeps {
   createProvisioner: typeof createProvisioner;
   createRunner: typeof createRunner;
   iacModuleDir: (name: string) => string;
+  runnerNames: () => string[];
+  provisionerNames: () => string[];
+  registeredForges: () => string[];
+  listIacModules: () => string[];
   readFile: (path: string) => string;
   writeFile: (path: string, content: string) => void;
   log: (s: string) => void;
@@ -33,6 +38,10 @@ const defaultDeps: CloudCliDeps = {
   createProvisioner,
   createRunner,
   iacModuleDir,
+  runnerNames,
+  provisionerNames,
+  registeredForges,
+  listIacModules,
   readFile: (p) => readFileSync(p, 'utf8'),
   writeFile: (p, c) => writeFileSync(p, c),
   log: (s) => process.stdout.write(s + '\n'),
@@ -297,9 +306,91 @@ async function launchSpec(spec: TaskSpec, flags: Flags, deps: CloudCliDeps): Pro
   return 0;
 }
 
+// ------------------------------------------------------------- runners/list
+
+export interface RegistrySnapshot {
+  runners: Array<{ name: string; capabilities: Capabilities | null; error?: string }>;
+  provisioners: string[];
+  forges: string[];
+  modules: Array<{ name: string; runner: string | null }>;
+}
+
+/** Read every registry (+ each runner's declared Capabilities, + each shipped
+ *  module's target runner) into a plain object. Pure over the injected deps, so
+ *  it's unit-tested without touching real backends. */
+export function collectRegistry(deps: CloudCliDeps): RegistrySnapshot {
+  const runners = deps.runnerNames().sort().map((name) => {
+    try {
+      return { name, capabilities: deps.createRunner(name).capabilities };
+    } catch (e) {
+      return { name, capabilities: null, error: (e as Error).message };
+    }
+  });
+  const modules = deps.listIacModules().map((name) => ({ name, runner: moduleRunner(deps, name) }));
+  return {
+    runners,
+    provisioners: deps.provisionerNames().sort(),
+    forges: deps.registeredForges().sort(),
+    modules,
+  };
+}
+
+/** Best-effort: read a shipped module's `outputs.tf` and pull out the runner it
+ *  targets. Our modules emit a single `output "target"` whose value MAP carries a
+ *  `runner = "..."` entry (see each module's outputs.tf) — NOT the block form
+ *  `output "runner" { value = ... }` — so a flat `runner = "..."` match is
+ *  correct here (guarded against the real files by a test). Returns null if
+ *  unreadable, so a hand-written module without the entry just omits the arrow. */
+function moduleRunner(deps: CloudCliDeps, name: string): string | null {
+  try {
+    const tf = deps.readFile(`${deps.iacModuleDir(name)}/outputs.tf`);
+    return /\brunner\s*=\s*"([a-z0-9-]+)"/i.exec(tf)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+const CAP_KEYS: Array<[keyof Capabilities, string]> = [
+  ['exec', 'exec'],
+  ['logStream', 'logs'],
+  ['portForward', 'port'],
+  ['persistentDisk', 'disk'],
+  ['secretStore', 'secrets'],
+];
+
+function cmdRunners(flags: Flags, deps: CloudCliDeps): number {
+  const snap = collectRegistry(deps);
+  if (bool(flags, 'json')) {
+    deps.log(JSON.stringify(snap, null, 2));
+    return 0;
+  }
+  const tick = (b: boolean) => (b ? 'yes' : ' - ');
+  const width = Math.max(6, ...snap.runners.map((r) => r.name.length));
+  deps.log('Runners (where a task executes):');
+  for (const r of snap.runners) {
+    if (!r.capabilities) {
+      deps.log(`  ${r.name.padEnd(width)}  (unavailable: ${r.error})`);
+      continue;
+    }
+    const caps = CAP_KEYS.map(([k, label]) => `${label} ${tick(r.capabilities![k])}`).join('  ');
+    deps.log(`  ${r.name.padEnd(width)}  ${caps}`);
+  }
+  deps.log('');
+  deps.log(`Provisioners (stand up a target):  ${snap.provisioners.join(', ') || '(none)'}`);
+  deps.log(`Git forges (code host):            ${snap.forges.join(', ') || '(none)'}`);
+  deps.log('');
+  deps.log('Shipped IaC modules (nemus-cloud up --module <name>):');
+  if (snap.modules.length === 0) deps.log('  (none)');
+  for (const m of snap.modules) {
+    deps.log(`  ${m.name}${m.runner ? ` → ${m.runner} runner` : ''}`);
+  }
+  return 0;
+}
+
 const USAGE = `nemus-cloud — provision + run Nemus agents on your own infra
 
 Usage:
+  nemus-cloud runners [--json]                     list runners + capabilities, provisioners, modules, forges
   nemus-cloud up    --module <name|--module-dir dir> [--var k=v]... [--provisioner opentofu] [--out FILE]
   nemus-cloud down  [--target FILE] --module <name|--module-dir dir> [--var k=v]...
   nemus-cloud run   --image REF --repos a,b --task "..." [--target FILE]
@@ -319,6 +410,9 @@ export async function main(argv: string[], deps: CloudCliDeps = defaultDeps): Pr
   const { cmd, flags } = parseArgs(argv);
   try {
     switch (cmd) {
+      case 'runners':
+      case 'ls':
+        return cmdRunners(flags, deps);
       case 'up':
         return await cmdUp(flags, deps);
       case 'down':

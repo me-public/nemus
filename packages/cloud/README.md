@@ -180,6 +180,10 @@ what's available.
 A thin, dependency-free CLI ties the seams together end-to-end:
 
 ```bash
+# 0) see what's registered — runners + their capabilities, provisioners,
+#    shipped IaC modules, and git forges (add --json for machine output)
+nemus-cloud runners
+
 # 1) provision a target (writes .nemus-target.json)
 nemus-cloud up --module fargate --var region=us-east-1 --var name=nemus
 
@@ -195,7 +199,11 @@ nemus-cloud fix-pr --image ghcr.io/acme/agent:latest \
 nemus-cloud down --module fargate
 ```
 
-`up`/`down` drive the `OpenTofuProvisioner`; `run` builds the agent env contract
+`runners` (alias `ls`) is the discovery front door: it instantiates every
+registered runner to read its declared `Capabilities`, lists the provisioners and
+git forges, and maps each shipped IaC module to the runner it targets — so you
+can see what a backend supports before choosing one, and `--json` feeds it to
+scripts. `up`/`down` drive the `OpenTofuProvisioner`; `run` builds the agent env contract
 + a tag-safe `TaskSpec` and launches it via the target's `Runner`, optionally
 streaming logs (`--follow`) and waiting for the exit code (`--wait`). Run
 `nemus-cloud help` for all flags.
