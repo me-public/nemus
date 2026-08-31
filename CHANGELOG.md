@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-08-31
+
+### Changed
+
+- **Shell integration now keeps generated functions out of shell RC files.**
+  Nemus stores them in `~/.nemus/shell-integration.sh` and adds only a guarded
+  source line to `.zshrc` or `.bashrc`. Existing inline installations migrate
+  without losing surrounding user configuration.
+
 ## [0.3.3] - 2026-08-30
 
 ### Added
