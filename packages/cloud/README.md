@@ -68,7 +68,7 @@ work against a local Docker socket, it doesn't belong in core.
 | --- | --- | --- | --- | --- |
 | `docker` | local Docker/Podman | a Docker socket | ✅ | ✅ |
 | `aws-fargate` | AWS ECS Fargate | `aws` CLI + the `iac/fargate` target | ✖ | ✅ (CloudWatch) |
-| `kubernetes` | a Kubernetes **Job**, any cluster (EKS/GKE/AKS/k3s/kind/on-prem) | `kubectl` + a reachable context | ✅ (`kubectl exec`) | ✅ (`kubectl logs -f`) |
+| `kubernetes` | a Kubernetes **Job**, any cluster (EKS/GKE/AKS/k3s/kind/on-prem) | `kubectl` + a reachable context (optionally the `iac/kubernetes` target) | ✅ (`kubectl exec`) | ✅ (`kubectl logs -f`) |
 
 The **`kubernetes`** runner is the clearest proof the seam isn't Fargate-shaped:
 it shells `kubectl`, renders a `batch/v1` Job (`backoffLimit: 0`, one-shot,
@@ -108,8 +108,10 @@ const target = await p.up();   // tofu init + apply -> TargetDescriptor
 await p.down(target);          // tofu destroy
 ```
 
-Shipped modules live under [`iac/`](./iac): `iac/fargate/` (AWS ECS Fargate,
-validated with real `tofu validate`). Fly and others are just more modules.
+Shipped modules live under [`iac/`](./iac), each validated with real `tofu
+validate`: `iac/fargate/` (AWS ECS Fargate) and `iac/kubernetes/` (a namespace +
+run service account + optional pull secret/RBAC, emitting a `kubernetes`-runner
+target for any cluster). Fly and others are just more modules.
 
 The shipped module is a **template** — running `tofu` against `iacModuleDir(...)`
 directly writes state under `node_modules`. For anything real, **copy it to your

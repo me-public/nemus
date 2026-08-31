@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { OpenTofuProvisioner, parseTargetDescriptor } from './opentofu';
 import { createProvisioner, provisionerNames, registerProvisioner } from './registry';
@@ -99,5 +99,24 @@ describe('iacModuleDir', () => {
     // the whole point of the helper: the path is real (require.resolve on a
     // dir throws MODULE_NOT_FOUND, which is the bug it replaces)
     expect(existsSync(path.join(dir, 'versions.tf'))).toBe(true);
+  });
+
+  it('ships the kubernetes module with all four .tf files', () => {
+    const dir = iacModuleDir('kubernetes');
+    expect(dir.endsWith(path.join('iac', 'kubernetes'))).toBe(true);
+    for (const f of ['versions.tf', 'variables.tf', 'main.tf', 'outputs.tf']) {
+      expect(existsSync(path.join(dir, f))).toBe(true);
+    }
+  });
+
+  it('the kubernetes module emits a kubernetes-runner target descriptor', () => {
+    // Guard the module<->runner contract without needing a cluster: the output
+    // block must declare runner = "kubernetes" and the four extra handles the
+    // KubernetesJobRunner reads.
+    const outputs = readFileSync(path.join(iacModuleDir('kubernetes'), 'outputs.tf'), 'utf8');
+    expect(outputs).toMatch(/runner\s*=\s*"kubernetes"/);
+    for (const key of ['namespace', 'context', 'service_account', 'image_pull_secret', 'tofu_vars']) {
+      expect(outputs).toContain(key);
+    }
   });
 });
