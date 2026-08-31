@@ -28,6 +28,11 @@ locals {
 data "external" "current_context" {
   count   = var.kube_context == "" ? 1 : 0
   program = ["sh", "${path.module}/scripts/current-context.sh"]
+  # Resolve from the SAME kubeconfig the provider provisions against, or a
+  # non-default kube_config_path would pin a different cluster's current-context.
+  query = {
+    kubeconfig = var.kube_config_path
+  }
 }
 
 resource "kubernetes_namespace" "this" {

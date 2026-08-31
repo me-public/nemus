@@ -130,14 +130,16 @@ describe('iacModuleDir', () => {
 describe('iac/kubernetes current-context helper', () => {
   const script = path.join(iacModuleDir('kubernetes'), 'scripts', 'current-context.sh');
 
-  // Run the helper with `kubectl` stubbed on PATH via a temp dir.
-  function runWith(kubectlBody: string): string {
+  // Run the helper with `kubectl` stubbed on PATH via a temp dir. `query` is fed
+  // on stdin exactly as the `data "external"` protocol does.
+  function runWith(kubectlBody: string, query = ''): string {
     const dir = mkdtempSync(path.join(tmpdir(), 'nemus-kctx-'));
     try {
       const shim = path.join(dir, 'kubectl');
       writeFileSync(shim, `#!/bin/sh\n${kubectlBody}\n`, { mode: 0o755 });
       return execFileSync('sh', [script], {
         env: { ...process.env, PATH: `${dir}:${process.env.PATH ?? ''}` },
+        input: query,
         encoding: 'utf8',
       }).trim();
     } finally {
@@ -157,5 +159,16 @@ describe('iac/kubernetes current-context helper', () => {
 
   it('JSON-escapes a quote in the context name', () => {
     expect(runWith('printf \'weird"ctx\\n\'')).toBe('{"context":"weird\\"ctx"}');
+  });
+
+  it('threads the query kubeconfig through to kubectl --kubeconfig', () => {
+    // Stub echoes kubectl's argv so we can see the flag the script built.
+    const out = runWith('echo "ctx:$*"', '{"kubeconfig":"/custom/cfg"}');
+    expect(out).toBe('{"context":"ctx:--kubeconfig=/custom/cfg config current-context"}');
+  });
+
+  it('expands a leading ~ in the kubeconfig path', () => {
+    const out = runWith('echo "ctx:$*"', '{"kubeconfig":"~/.kube/config"}');
+    expect(out).toContain(`--kubeconfig=${process.env.HOME}/.kube/config`);
   });
 });
