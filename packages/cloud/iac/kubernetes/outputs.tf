@@ -10,7 +10,7 @@ output "target" {
     runner  = "kubernetes"
     extra = {
       namespace         = local.namespace
-      context           = var.kube_context
+      context           = local.effective_context
       service_account   = kubernetes_service_account.this.metadata[0].name
       image_pull_secret = local.create_pull_secret ? kubernetes_secret.pull[0].metadata[0].name : ""
       # Handed back so `down` can re-derive the module's vars. (core reads
@@ -20,7 +20,7 @@ output "target" {
         namespace        = var.namespace
         create_namespace = var.create_namespace
         kube_config_path = var.kube_config_path
-        kube_context     = var.kube_context
+        kube_context     = local.effective_context
       }
     }
   }

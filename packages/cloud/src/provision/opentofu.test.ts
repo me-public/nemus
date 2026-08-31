@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { OpenTofuProvisioner, parseTargetDescriptor } from './opentofu';
 import { createProvisioner, provisionerNames, registerProvisioner } from './registry';
@@ -118,5 +120,42 @@ describe('iacModuleDir', () => {
     for (const key of ['namespace', 'context', 'service_account', 'image_pull_secret', 'tofu_vars']) {
       expect(outputs).toContain(key);
     }
+    // The descriptor must pin the RESOLVED context, not pass an empty
+    // var.kube_context (ambient current-context) straight through.
+    expect(outputs).toContain('local.effective_context');
+    expect(outputs).not.toMatch(/context\s*=\s*var\.kube_context/);
+  });
+});
+
+describe('iac/kubernetes current-context helper', () => {
+  const script = path.join(iacModuleDir('kubernetes'), 'scripts', 'current-context.sh');
+
+  // Run the helper with `kubectl` stubbed on PATH via a temp dir.
+  function runWith(kubectlBody: string): string {
+    const dir = mkdtempSync(path.join(tmpdir(), 'nemus-kctx-'));
+    try {
+      const shim = path.join(dir, 'kubectl');
+      writeFileSync(shim, `#!/bin/sh\n${kubectlBody}\n`, { mode: 0o755 });
+      return execFileSync('sh', [script], {
+        env: { ...process.env, PATH: `${dir}:${process.env.PATH ?? ''}` },
+        encoding: 'utf8',
+      }).trim();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  it('emits the active context as JSON', () => {
+    expect(runWith('echo arn:aws:eks:us-east-1:1:cluster/prod')).toBe(
+      '{"context":"arn:aws:eks:us-east-1:1:cluster/prod"}',
+    );
+  });
+
+  it('falls back to an empty context (exit 0) when kubectl fails', () => {
+    expect(runWith('echo "not set" >&2; exit 1')).toBe('{"context":""}');
+  });
+
+  it('JSON-escapes a quote in the context name', () => {
+    expect(runWith('printf \'weird"ctx\\n\'')).toBe('{"context":"weird\\"ctx"}');
   });
 });

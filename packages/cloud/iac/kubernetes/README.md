@@ -48,7 +48,7 @@ tofu output -json target
 | `namespace` | `nemus` | namespace the Jobs run in |
 | `create_namespace` | `true` | set `false` to reuse an existing namespace |
 | `kube_config_path` | `~/.kube/config` | kubeconfig used to provision |
-| `kube_context` | `""` | context to target; empty → current-context. Also handed to the runner |
+| `kube_context` | `""` | context to target; empty → resolve + **pin** the active context at apply time (needs `kubectl` on this path). Handed to the runner |
 | `image_pull_secret_dockerconfigjson` | `""` | a docker `config.json` for a private registry; empty → no pull secret |
 | `grant_namespace_pod_access` | `false` | opt-in Role letting the SA read its own pods/logs |
 | `labels` | `{}` | extra labels on every object |
@@ -61,6 +61,13 @@ tofu output -json target
 - **This is a template.** Running `tofu` against the copy shipped under
   `node_modules` writes `.terraform/` + state there (fragile / sometimes
   read-only). Copy this directory into your own working dir first.
+- **Context pinning.** An empty `kube_context` doesn't pass `""` (ambient
+  current-context) through to the descriptor — the module resolves the active
+  context at apply time via `kubectl config current-context` and pins THAT, so a
+  later run or a `down()` on another machine can't silently retarget a different
+  cluster. That resolution needs `kubectl` on the provisioning host; pass an
+  explicit `kube_context` to avoid the dependency entirely. If nothing resolves,
+  it falls back to `""` (honestly ambient, as before).
 - **State** is local by default. For a team — or to `down()` from a *different*
   machine than the one that ran `up()` — add your own
   [backend](https://opentofu.org/docs/language/settings/backends/configuration/)

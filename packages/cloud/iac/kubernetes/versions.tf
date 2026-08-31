@@ -5,6 +5,11 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.30"
     }
+    # Used only to resolve the active context when the caller doesn't pin one.
+    external = {
+      source  = "hashicorp/external"
+      version = "~> 2.3"
+    }
   }
 }
 

@@ -23,7 +23,7 @@ variable "kube_config_path" {
 }
 
 variable "kube_context" {
-  description = "kubeconfig context to target. Empty uses the current-context. Also handed to the runner so kubectl targets the same cluster."
+  description = "kubeconfig context to target. Empty resolves the active context at apply time and pins THAT into the descriptor (needs kubectl on the ambient path). Handed to the runner so kubectl targets the same cluster."
   type        = string
   default     = ""
 }

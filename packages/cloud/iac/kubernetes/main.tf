@@ -12,6 +12,22 @@ locals {
   # Whether a pull secret was supplied is a boolean, not the secret itself, so
   # unmark it — otherwise it taints `count` and the `target` output as sensitive.
   create_pull_secret = nonsensitive(var.image_pull_secret_dockerconfigjson != "")
+
+  # The context the descriptor pins. If the caller passed one, use it verbatim;
+  # otherwise resolve the active context at apply time (below) so the runner and
+  # a later `down()` target the cluster we provisioned — not whatever
+  # current-context happens to be set then. Falls back to "" if kubectl can't
+  # resolve one (honest: same ambient behavior as before, just not silently).
+  effective_context = var.kube_context != "" ? var.kube_context : (
+    length(data.external.current_context) > 0 ? data.external.current_context[0].result.context : ""
+  )
+}
+
+# Only shells kubectl on the ambient path (no pinned context) — callers who pass
+# kube_context pay no provision-time kubectl dependency.
+data "external" "current_context" {
+  count   = var.kube_context == "" ? 1 : 0
+  program = ["sh", "${path.module}/scripts/current-context.sh"]
 }
 
 resource "kubernetes_namespace" "this" {
