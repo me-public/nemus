@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseArgs, parseVars, buildRunTaskSpec, buildFixPrTaskSpec, main, CloudCliDeps } from './cloud';
+import { parseArgs, parseVars, buildRunTaskSpec, buildFixPrTaskSpec, collectRegistry, main, CloudCliDeps } from './cloud';
 import { TargetDescriptor, LogLine, Status } from '../runner/types';
 
 describe('parseArgs', () => {
@@ -133,6 +133,10 @@ function harness(overrides: Partial<CloudCliDeps> = {}) {
       };
     }) as any,
     iacModuleDir: (n) => `/iac/${n}`,
+    runnerNames: () => ['docker', 'aws-fargate', 'kubernetes'],
+    provisionerNames: () => ['opentofu', 'terraform'],
+    registeredForges: () => ['github', 'gitlab'],
+    listIacModules: () => ['fargate', 'kubernetes'],
     readFile: (p) => { if (!files.has(p)) throw new Error('ENOENT'); return files.get(p)!; },
     writeFile: (p, c) => { files.set(p, c); },
     log: (s) => out.push(s),
@@ -143,6 +147,69 @@ function harness(overrides: Partial<CloudCliDeps> = {}) {
   };
   return { deps, files, out, calls, target };
 }
+
+describe('runners command', () => {
+  // A capability-bearing createRunner so the snapshot reflects real flags.
+  const capsOverride = {
+    createRunner: ((name: string) => ({
+      id: name,
+      capabilities: {
+        exec: name !== 'aws-fargate',
+        logStream: true,
+        persistentDisk: name === 'docker',
+        secretStore: false,
+        portForward: name !== 'aws-fargate',
+      },
+    })) as any,
+  };
+
+  it('collectRegistry reads every registry + per-runner caps + module\u2192runner', () => {
+    const { deps, files } = harness(capsOverride);
+    files.set('/iac/fargate/outputs.tf', 'runner = "aws-fargate"');
+    files.set('/iac/kubernetes/outputs.tf', 'runner = "kubernetes"');
+    const snap = collectRegistry(deps);
+    expect(snap.runners.map((r) => r.name)).toEqual(['aws-fargate', 'docker', 'kubernetes']); // sorted
+    expect(snap.runners.find((r) => r.name === 'docker')!.capabilities!.persistentDisk).toBe(true);
+    expect(snap.provisioners).toEqual(['opentofu', 'terraform']);
+    expect(snap.forges).toEqual(['github', 'gitlab']);
+    expect(snap.modules).toEqual([
+      { name: 'fargate', runner: 'aws-fargate' },
+      { name: 'kubernetes', runner: 'kubernetes' },
+    ]);
+  });
+
+  it('a runner that fails to construct is reported, not fatal', () => {
+    const { deps } = harness({
+      createRunner: ((name: string) => {
+        if (name === 'kubernetes') throw new Error('no kubectl');
+        return { id: name, capabilities: { exec: true, logStream: true, persistentDisk: false, secretStore: false, portForward: false } } as any;
+      }) as any,
+    });
+    const snap = collectRegistry(deps);
+    const k = snap.runners.find((r) => r.name === 'kubernetes')!;
+    expect(k.capabilities).toBeNull();
+    expect(k.error).toMatch(/no kubectl/);
+  });
+
+  it('main runners --json prints the snapshot and exits 0', async () => {
+    const { deps, out } = harness(capsOverride);
+    const code = await main(['runners', '--json'], deps);
+    expect(code).toBe(0);
+    const printed = JSON.parse(out.join('\n'));
+    expect(printed.runners.map((r: any) => r.name)).toContain('kubernetes');
+    expect(printed.forges).toEqual(['github', 'gitlab']);
+  });
+
+  it('main runners prints a human table', async () => {
+    const { deps, out } = harness(capsOverride);
+    const code = await main(['runners'], deps);
+    expect(code).toBe(0);
+    const text = out.join('\n');
+    expect(text).toMatch(/Runners \(where a task executes\)/);
+    expect(text).toMatch(/kubernetes/);
+    expect(text).toMatch(/Git forges/);
+  });
+});
 
 describe('main dispatch', () => {
   it('up: provisions and writes the descriptor file', async () => {

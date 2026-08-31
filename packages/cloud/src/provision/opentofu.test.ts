@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { OpenTofuProvisioner, parseTargetDescriptor } from './opentofu';
 import { createProvisioner, provisionerNames, registerProvisioner } from './registry';
-import { iacModuleDir } from './modules';
+import { iacModuleDir, listIacModules } from './modules';
 import { Exec, ExecResultRaw } from '../agent/exec';
 
 function recorder(outputs: Record<string, ExecResultRaw> = {}) {
@@ -101,6 +101,10 @@ describe('iacModuleDir', () => {
     // the whole point of the helper: the path is real (require.resolve on a
     // dir throws MODULE_NOT_FOUND, which is the bug it replaces)
     expect(existsSync(path.join(dir, 'versions.tf'))).toBe(true);
+  });
+
+  it('listIacModules discovers the shipped modules (fargate + kubernetes)', () => {
+    expect(listIacModules()).toEqual(expect.arrayContaining(['fargate', 'kubernetes']));
   });
 
   it('ships the kubernetes module with all four .tf files', () => {

@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 /**
@@ -16,4 +17,29 @@ import * as path from 'node:path';
  */
 export function iacModuleDir(name: string): string {
   return path.join(__dirname, '..', '..', 'iac', name);
+}
+
+/** The directory holding all shipped IaC modules (the parent of every
+ * {@link iacModuleDir}). */
+export function iacModulesRoot(): string {
+  return path.join(__dirname, '..', '..', 'iac');
+}
+
+/**
+ * Names of the shipped IaC modules (a module = a subdir with a `versions.tf`),
+ * sorted. Used by `nemus-cloud runners` to show what `--module <name>` accepts.
+ * Returns `[]` if the directory is missing rather than throwing.
+ */
+export function listIacModules(): string[] {
+  const root = iacModulesRoot();
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(root, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  return entries
+    .filter((e) => e.isDirectory() && fs.existsSync(path.join(root, e.name, 'versions.tf')))
+    .map((e) => e.name)
+    .sort();
 }
