@@ -336,11 +336,15 @@ export function collectRegistry(deps: CloudCliDeps): RegistrySnapshot {
 }
 
 /** Best-effort: read a shipped module's `outputs.tf` and pull out the runner it
- *  targets (`runner = "..."`). Returns null if unreadable. */
+ *  targets. Our modules emit a single `output "target"` whose value MAP carries a
+ *  `runner = "..."` entry (see each module's outputs.tf) — NOT the block form
+ *  `output "runner" { value = ... }` — so a flat `runner = "..."` match is
+ *  correct here (guarded against the real files by a test). Returns null if
+ *  unreadable, so a hand-written module without the entry just omits the arrow. */
 function moduleRunner(deps: CloudCliDeps, name: string): string | null {
   try {
     const tf = deps.readFile(`${deps.iacModuleDir(name)}/outputs.tf`);
-    return /runner\s*=\s*"([a-z0-9-]+)"/i.exec(tf)?.[1] ?? null;
+    return /\brunner\s*=\s*"([a-z0-9-]+)"/i.exec(tf)?.[1] ?? null;
   } catch {
     return null;
   }

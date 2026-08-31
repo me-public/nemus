@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { parseArgs, parseVars, buildRunTaskSpec, buildFixPrTaskSpec, collectRegistry, main, CloudCliDeps } from './cloud';
+import { createRunner, runnerNames } from '../runner/registry';
+import { provisionerNames } from '../provision/registry';
+import { iacModuleDir, listIacModules } from '../provision/modules';
+import { registeredForges } from '../gitforge/registry';
 import { TargetDescriptor, LogLine, Status } from '../runner/types';
 
 describe('parseArgs', () => {
@@ -208,6 +213,26 @@ describe('runners command', () => {
     expect(text).toMatch(/Runners \(where a task executes\)/);
     expect(text).toMatch(/kubernetes/);
     expect(text).toMatch(/Git forges/);
+  });
+
+  // Regression guard (review): moduleRunner must parse the REAL shipped
+  // outputs.tf, not just the flat test fixtures. Our modules emit a single
+  // `output "target"` whose value map has `runner = "..."`; if someone reformats
+  // them to the block form this catches the silently-blanked mapping.
+  it('maps the real shipped modules to their runners (real fs + registries)', () => {
+    const realDeps: CloudCliDeps = {
+      ...harness().deps,
+      createRunner,
+      runnerNames,
+      provisionerNames,
+      registeredForges,
+      iacModuleDir,
+      listIacModules,
+      readFile: (p) => readFileSync(p, 'utf8'),
+    };
+    const byName = Object.fromEntries(collectRegistry(realDeps).modules.map((m) => [m.name, m.runner]));
+    expect(byName.fargate).toBe('aws-fargate');
+    expect(byName.kubernetes).toBe('kubernetes');
   });
 });
 
