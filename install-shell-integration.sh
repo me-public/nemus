@@ -491,30 +491,17 @@ else
   exit 1
 fi
 
-# Keep the generated functions out of the user's shell config. The same file
-# works in both bash and zsh; the RC file only needs this guarded source line.
-SHELL_INTEGRATION_DIR="$HOME/.nemus"
-SHELL_INTEGRATION_FILE="$SHELL_INTEGRATION_DIR/shell-integration.sh"
-SOURCE_LINE='[ -f "$HOME/.nemus/shell-integration.sh" ] && source "$HOME/.nemus/shell-integration.sh"'
-
-mkdir -p "$SHELL_INTEGRATION_DIR"
-SHELL_TMPFILE=$(mktemp "$SHELL_INTEGRATION_DIR/.shell-integration.XXXXXX")
-printf '%s\n' "$SHELL_FUNCTION" > "$SHELL_TMPFILE"
-mv "$SHELL_TMPFILE" "$SHELL_INTEGRATION_FILE"
-
-append_source_line() {
-  printf '\n# Nemus - Shell Integration\n%s\n' "$SOURCE_LINE" >> "$1"
-}
-
-# Check if already installed
-if grep -Fq "$SOURCE_LINE" "$RC_FILE" 2>/dev/null; then
+# Check if already installed (version marker is in the grep below)
+if grep -q "Shell Integration (v50)" "$RC_FILE" 2>/dev/null; then
   echo "✅ Shell integration already up to date in $RC_FILE"
 elif grep -q "# Nemus - Shell Integration" "$RC_FILE" 2>/dev/null; then
   # Old version installed — remove it and install new version
   echo "🔄 Upgrading shell integration in $RC_FILE..."
   TMPFILE=$(mktemp)
   awk -f "$SCRIPT_DIR/remove-shell-block.awk" "$RC_FILE" > "$TMPFILE"
-  append_source_line "$TMPFILE"
+  # Append new shell integration to temp file so mv is atomic
+  echo "" >> "$TMPFILE"
+  echo "$SHELL_FUNCTION" >> "$TMPFILE"
   cp "$RC_FILE" "${RC_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
   chmod --reference="$RC_FILE" "$TMPFILE" 2>/dev/null || chmod "$(stat -f '%Lp' "$RC_FILE")" "$TMPFILE" 2>/dev/null || true
   mv "$TMPFILE" "$RC_FILE"
@@ -527,8 +514,9 @@ else
     echo "📦 Backup created: ${RC_FILE}.backup.*"
   fi
 
-  # Append the source line (creates the file if it doesn't exist)
-  append_source_line "$RC_FILE"
+  # Append shell function (creates the file if it doesn't exist)
+  echo "" >> "$RC_FILE"
+  echo "$SHELL_FUNCTION" >> "$RC_FILE"
 
   echo "✅ Shell integration installed in $RC_FILE"
   echo ""

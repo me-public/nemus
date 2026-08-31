@@ -299,66 +299,6 @@ echo "Test 12: 'nem' with no args → runs binary with no args"
   assert_eq "pwd unchanged (no CD)" "$TEMP_DIR" "$(pwd)"
 )
 
-# ── Test 12a: installer keeps functions out of the RC file ──────────
-echo ""
-echo "Test 12a: installer writes functions to ~/.nemus and sources them from .zshrc"
-(
-  INSTALL_HOME="$TEMP_DIR/install-home"
-  mkdir -p "$INSTALL_HOME"
-  cat > "$INSTALL_HOME/.zshrc" << 'RCEOF'
-export USER_SETTING=kept
-RCEOF
-
-  HOME="$INSTALL_HOME" bash "$SCRIPT_DIR/install-shell-integration.sh" zsh >/dev/null
-
-  assert_eq "generated integration file exists" "1" "$([ -f "$INSTALL_HOME/.nemus/shell-integration.sh" ] && echo 1 || echo 0)"
-  assert_eq "functions moved to generated file" "1" "$(grep -c '^nemus()' "$INSTALL_HOME/.nemus/shell-integration.sh")"
-  assert_eq "functions absent from .zshrc" "0" "$(grep -c '^nemus()' "$INSTALL_HOME/.zshrc")"
-  assert_eq "source line added once" "1" "$(grep -Fc '[ -f "$HOME/.nemus/shell-integration.sh" ] && source "$HOME/.nemus/shell-integration.sh"' "$INSTALL_HOME/.zshrc")"
-  assert_eq "user setting preserved" "1" "$(grep -c 'USER_SETTING=kept' "$INSTALL_HOME/.zshrc")"
-
-  HOME="$INSTALL_HOME" bash "$SCRIPT_DIR/install-shell-integration.sh" zsh >/dev/null
-  assert_eq "reinstall does not duplicate source line" "1" "$(grep -Fc '[ -f "$HOME/.nemus/shell-integration.sh" ] && source "$HOME/.nemus/shell-integration.sh"' "$INSTALL_HOME/.zshrc")"
-
-  cat >> "$INSTALL_HOME/.zshrc" << 'RCEOF'
-# user content after integration
-user_function() { echo kept; }
-RCEOF
-  TMPFILE=$(mktemp)
-  awk -f "$SCRIPT_DIR/remove-shell-block.awk" "$INSTALL_HOME/.zshrc" > "$TMPFILE"
-  mv "$TMPFILE" "$INSTALL_HOME/.zshrc"
-  assert_eq "source line can be removed" "0" "$(grep -Fc 'shell-integration.sh' "$INSTALL_HOME/.zshrc")"
-  assert_eq "function after source line preserved" "1" "$(grep -c 'user_function()' "$INSTALL_HOME/.zshrc")"
-  assert_eq "comment after source line preserved" "1" "$(grep -c '# user content after integration' "$INSTALL_HOME/.zshrc")"
-)
-
-# ── Test 12b: installer migrates the legacy inline block ────────────
-echo ""
-echo "Test 12b: installer migrates an inline block without touching user content"
-(
-  INSTALL_HOME="$TEMP_DIR/migration-home"
-  mkdir -p "$INSTALL_HOME"
-  cat > "$INSTALL_HOME/.zshrc" << 'RCEOF'
-export BEFORE=yes
-
-# Nemus - Shell Integration (v50)
-nemus() {
-  command nemus "$@"
-}
-
-# user content after integration
-export AFTER=yes
-RCEOF
-
-  HOME="$INSTALL_HOME" bash "$SCRIPT_DIR/install-shell-integration.sh" zsh >/dev/null
-
-  assert_eq "legacy function removed from .zshrc" "0" "$(grep -c '^nemus()' "$INSTALL_HOME/.zshrc")"
-  assert_eq "source line added" "1" "$(grep -Fc '[ -f "$HOME/.nemus/shell-integration.sh" ] && source "$HOME/.nemus/shell-integration.sh"' "$INSTALL_HOME/.zshrc")"
-  assert_eq "content before integration preserved" "1" "$(grep -c 'BEFORE=yes' "$INSTALL_HOME/.zshrc")"
-  assert_eq "content after integration preserved" "1" "$(grep -c 'AFTER=yes' "$INSTALL_HOME/.zshrc")"
-  assert_eq "comment after integration preserved" "1" "$(grep -c '# user content after integration' "$INSTALL_HOME/.zshrc")"
-)
-
 # ── Test 13: upgrade removes old block and preserves rest ──────────
 echo ""
 echo "Test 13: upgrade from old version preserves rest of RC file"
