@@ -75,7 +75,10 @@ if (!optedOut() && fs.existsSync(CLI_BIN) && !alreadyConfigured()) {
     try {
       // argv form (no shell) so an odd package path with quotes/$/backticks is
       // safe; stdio wired to the real terminal so inquirer can prompt.
-      execFileSync('node', [CLI_BIN, 'configure'], { stdio: [tty, tty, tty] });
+      // process.execPath (not 'node') — node may not be on PATH during a
+      // lifecycle script (nvm/Windows), and an ENOENT here would be swallowed by
+      // the catch, silently skipping configure in the very case this targets.
+      execFileSync(process.execPath, [CLI_BIN, 'configure'], { stdio: [tty, tty, tty] });
       fs.closeSync(tty);
       process.exit(0); // configure handled shell integration + reminder
     } catch {
