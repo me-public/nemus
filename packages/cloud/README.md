@@ -62,6 +62,32 @@ await runner.status(handle); // { state: 'succeeded' | 'failed' | … }
 The **`docker` runner is the portability boundary's proof**: if a feature can't
 work against a local Docker socket, it doesn't belong in core.
 
+### Built-in runners
+
+| Runner (`TargetDescriptor.runner`) | Backend | Needs | `exec` | `logStream` |
+| --- | --- | --- | --- | --- |
+| `docker` | local Docker/Podman | a Docker socket | ✅ | ✅ |
+| `aws-fargate` | AWS ECS Fargate | `aws` CLI + the `iac/fargate` target | ✖ | ✅ (CloudWatch) |
+| `kubernetes` | a Kubernetes **Job**, any cluster (EKS/GKE/AKS/k3s/kind/on-prem) | `kubectl` + a reachable context | ✅ (`kubectl exec`) | ✅ (`kubectl logs -f`) |
+
+The **`kubernetes`** runner is the clearest proof the seam isn't Fargate-shaped:
+it shells `kubectl`, renders a `batch/v1` Job (`backoffLimit: 0`, one-shot,
+`ttlSecondsAfterFinished` GC), and needs no IaC — hand-write a descriptor to
+target any cluster you already have:
+
+```ts
+const runner = createRunner('kubernetes');
+const handle = await runner.launch(spec, {
+  version: 1,
+  runner: 'kubernetes',
+  extra: { namespace: 'agents', context: 'my-cluster', service_account: 'nemus-agent', image_pull_secret: 'ghcr-pull' },
+});
+```
+
+All of a runner's I/O (`kubectl`/`aws`/`docker` invocation, log streaming, and —
+for k8s — the manifest write) is injectable, so every backend is unit-tested
+without a cloud account or a cluster.
+
 ## The provisioning seam: IaC modules
 
 Provisioning (stand up a place to run) is split from execution (run a task).

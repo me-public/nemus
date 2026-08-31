@@ -18,6 +18,8 @@ export { DockerRunner } from './runner/docker';
 export type { DockerRunnerOptions, CommandRunner, LogStreamer } from './runner/docker';
 export { FargateRunner, mapFargateState } from './runner/fargate';
 export type { FargateRunnerOptions } from './runner/fargate';
+export { KubernetesJobRunner, mapJobState, k8sResources } from './runner/kubernetes';
+export type { KubernetesRunnerOptions, ManifestWriter } from './runner/kubernetes';
 export { createRunner, registerRunner, runnerNames } from './runner/registry';
 export type { RunnerFactory } from './runner/registry';
 
