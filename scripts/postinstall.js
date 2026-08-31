@@ -14,6 +14,7 @@
 
 const { execSync } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 // Skip in CI environments
@@ -21,6 +22,44 @@ if (process.env.CI) process.exit(0);
 
 const PKG_ROOT = path.join(__dirname, '..');
 const SHELL_SCRIPT = path.join(PKG_ROOT, 'install-shell-integration.sh');
+const CLI_BIN = path.join(PKG_ROOT, 'bin', 'workspace.js');
+
+// ── First-time interactive setup ─────────────────────────────────────────────
+// On a FRESH install with an interactive terminal, run `nemus configure` right
+// away so setup happens after install instead of the user having to remember to.
+// `configure` is a superset of this script's work — it installs the shell
+// integration + (optionally) the MCP server and prints the source reminder — so
+// on success we exit here. We fall through to the non-interactive path when:
+// there's already a config (an upgrade, not a first install), stdin/stdout
+// aren't TTYs (piped/scripted installs — inquirer would hang or EOF), the user
+// opted out (NEMUS_SKIP_CONFIGURE), or the CLI/build isn't present. That keeps
+// the worst case identical to today's behavior: a printed tip, never a hang.
+function cacheDir() {
+  return (
+    process.env.NEMUS_CACHE_DIR ||
+    process.env.WORKSPACE_MANAGER_CACHE_DIR ||
+    path.join(os.homedir(), '.nemus')
+  );
+}
+
+function shouldRunConfigure() {
+  if (process.env.NEMUS_SKIP_CONFIGURE) return false;
+  if (!process.stdin.isTTY || !process.stdout.isTTY) return false;
+  if (!fs.existsSync(CLI_BIN)) return false;
+  // Fresh install only — don't re-prompt on every `npm i -g` upgrade.
+  if (fs.existsSync(path.join(cacheDir(), 'config.json'))) return false;
+  return true;
+}
+
+if (shouldRunConfigure()) {
+  try {
+    execSync(`node "${CLI_BIN}" configure`, { stdio: 'inherit' });
+    process.exit(0); // configure handled shell integration + reminder
+  } catch {
+    // Canceled / non-interactive after all — fall through to the standard setup
+    // + tip below so the install still leaves things in a working state.
+  }
+}
 
 const shell = process.env.SHELL || '';
 const shellType = shell.endsWith('/zsh') ? 'zsh'
