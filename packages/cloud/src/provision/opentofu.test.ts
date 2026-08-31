@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { OpenTofuProvisioner, parseTargetDescriptor } from './opentofu';
 import { createProvisioner, provisionerNames, registerProvisioner } from './registry';
@@ -99,5 +101,74 @@ describe('iacModuleDir', () => {
     // the whole point of the helper: the path is real (require.resolve on a
     // dir throws MODULE_NOT_FOUND, which is the bug it replaces)
     expect(existsSync(path.join(dir, 'versions.tf'))).toBe(true);
+  });
+
+  it('ships the kubernetes module with all four .tf files', () => {
+    const dir = iacModuleDir('kubernetes');
+    expect(dir.endsWith(path.join('iac', 'kubernetes'))).toBe(true);
+    for (const f of ['versions.tf', 'variables.tf', 'main.tf', 'outputs.tf']) {
+      expect(existsSync(path.join(dir, f))).toBe(true);
+    }
+  });
+
+  it('the kubernetes module emits a kubernetes-runner target descriptor', () => {
+    // Guard the module<->runner contract without needing a cluster: the output
+    // block must declare runner = "kubernetes" and the four extra handles the
+    // KubernetesJobRunner reads.
+    const outputs = readFileSync(path.join(iacModuleDir('kubernetes'), 'outputs.tf'), 'utf8');
+    expect(outputs).toMatch(/runner\s*=\s*"kubernetes"/);
+    for (const key of ['namespace', 'context', 'service_account', 'image_pull_secret', 'tofu_vars']) {
+      expect(outputs).toContain(key);
+    }
+    // The descriptor must pin the RESOLVED context, not pass an empty
+    // var.kube_context (ambient current-context) straight through.
+    expect(outputs).toContain('local.effective_context');
+    expect(outputs).not.toMatch(/context\s*=\s*var\.kube_context/);
+  });
+});
+
+describe('iac/kubernetes current-context helper', () => {
+  const script = path.join(iacModuleDir('kubernetes'), 'scripts', 'current-context.sh');
+
+  // Run the helper with `kubectl` stubbed on PATH via a temp dir. `query` is fed
+  // on stdin exactly as the `data "external"` protocol does.
+  function runWith(kubectlBody: string, query = ''): string {
+    const dir = mkdtempSync(path.join(tmpdir(), 'nemus-kctx-'));
+    try {
+      const shim = path.join(dir, 'kubectl');
+      writeFileSync(shim, `#!/bin/sh\n${kubectlBody}\n`, { mode: 0o755 });
+      return execFileSync('sh', [script], {
+        env: { ...process.env, PATH: `${dir}:${process.env.PATH ?? ''}` },
+        input: query,
+        encoding: 'utf8',
+      }).trim();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  it('emits the active context as JSON', () => {
+    expect(runWith('echo arn:aws:eks:us-east-1:1:cluster/prod')).toBe(
+      '{"context":"arn:aws:eks:us-east-1:1:cluster/prod"}',
+    );
+  });
+
+  it('falls back to an empty context (exit 0) when kubectl fails', () => {
+    expect(runWith('echo "not set" >&2; exit 1')).toBe('{"context":""}');
+  });
+
+  it('JSON-escapes a quote in the context name', () => {
+    expect(runWith('printf \'weird"ctx\\n\'')).toBe('{"context":"weird\\"ctx"}');
+  });
+
+  it('threads the query kubeconfig through to kubectl --kubeconfig', () => {
+    // Stub echoes kubectl's argv so we can see the flag the script built.
+    const out = runWith('echo "ctx:$*"', '{"kubeconfig":"/custom/cfg"}');
+    expect(out).toBe('{"context":"ctx:--kubeconfig=/custom/cfg config current-context"}');
+  });
+
+  it('expands a leading ~ in the kubeconfig path', () => {
+    const out = runWith('echo "ctx:$*"', '{"kubeconfig":"~/.kube/config"}');
+    expect(out).toContain(`--kubeconfig=${process.env.HOME}/.kube/config`);
   });
 });
