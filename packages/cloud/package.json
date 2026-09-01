@@ -34,6 +34,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "e2e:kind": "npm run build && node e2e/kind-k8s-smoke.mjs",
     "clean": "rm -rf dist"
   }
 }

@@ -139,6 +139,11 @@ describe('KubernetesJobRunner.logs / stop', () => {
     for await (const l of runner.logs(handle)) lines.push(l);
     expect(lines).toEqual([{ stream: 'stdout', line: 'hello' }]);
     expect(streamed[0]).toEqual(expect.arrayContaining(['logs', 'job/j', '--follow', '--namespace', 'agents']));
+    // Must WAIT for the pod (--pod-running-timeout), not --ignore-errors, which
+    // makes --follow give up in ~40ms when the container is still creating
+    // (proven by the kind e2e). Guard against regressing to the old flag.
+    expect(streamed[0].some((a) => a.startsWith('--pod-running-timeout='))).toBe(true);
+    expect(streamed[0]).not.toContain('--ignore-errors');
 
     await runner.stop(handle);
     expect(calls[0]).toEqual(expect.arrayContaining(['delete', 'job', 'j', '--wait=false', '--ignore-not-found']));
