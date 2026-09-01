@@ -67,7 +67,7 @@ export interface UserConfig {
   autoReportBugs: boolean;
 }
 
-const DEFAULTS: UserConfig = {
+export const CONFIG_DEFAULTS: UserConfig = {
   workspacesDir: path.join(HOME_DIR, 'workspaces'),
   githubOrg: '',
   autoLaunchClaude: true,
@@ -80,6 +80,9 @@ const DEFAULTS: UserConfig = {
   claudeWorkspaceStatusLine: true,
   autoReportBugs: false,
 };
+
+// Internal alias retained for the many references below.
+const DEFAULTS = CONFIG_DEFAULTS;
 
 function loadConfigFileSync(): Partial<UserConfig> {
   try {

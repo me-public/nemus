@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-01
+
+### Added
+
+- **`nemus config` command** for non-interactive configuration:
+  `config get [key]`, `set <key> <value>`, `unset <key>`, `list` (alias `ls`),
+  and `path`. Values are validated and coerced per field (booleans accept
+  `true/false/yes/no/on/off/1/0`; enums like `cloneProtocol` are checked), an
+  unknown key or invalid value exits non-zero with a clear message, and
+  `get`/`list` support `--json`. Complements the interactive `configure` wizard
+  and pairs well with `--quiet` for scripting.
+
 ## [0.5.0] - 2026-09-01
 
 ### Added
