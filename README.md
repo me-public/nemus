@@ -243,6 +243,14 @@ The workspace-scoped ones (`status`/`doctor`/`analyze-deps`) need an explicit
 workspace name with `--json` (they never prompt). On failure, `--json` prints a
 parseable `{ "ok": false, "error": … }` to stdout and exits non-zero.
 
+### Global flags
+
+- `--no-color` — disable ANSI color. Nemus also honors the standard
+  [`NO_COLOR`](https://no-color.org) env var and auto-disables color when stdout
+  isn't a TTY (piped/redirected); `FORCE_COLOR=1` forces it on.
+- `-q, --quiet` — suppress routine progress logs (info/success/step) while still
+  showing warnings and errors. Data (including `--json`) is unaffected.
+
 ### Shell completions
 
 Tab-complete subcommands and workspace names. `nemus completion <shell>` prints

@@ -5,6 +5,14 @@ import { colors, colorize } from './colors';
 // --json | jq …) and for non-TTY consumers. Use `outputJson`/stdout for data.
 const logStream = (line: string): void => console.error(line);
 
+// `--quiet` silences routine progress (info/success/step) while KEEPING warnings
+// and errors, which a script or human still needs to see.
+let quiet = false;
+export const setQuiet = (on: boolean): void => {
+  quiet = on;
+};
+export const isQuiet = (): boolean => quiet;
+
 const getTimestamp = (): string => {
   const now = new Date();
   return now.toLocaleTimeString('en-US', {
@@ -16,10 +24,12 @@ const getTimestamp = (): string => {
 };
 
 export const logInfo = (message: string): void => {
+  if (quiet) return;
   logStream(`${colors.gray}[${getTimestamp()}]${colors.reset} ${message}`);
 };
 
 export const logSuccess = (message: string): void => {
+  if (quiet) return;
   logStream(`${colors.gray}[${getTimestamp()}]${colors.reset} ${colorize('✓', 'green')} ${message}`);
 };
 
@@ -32,6 +42,7 @@ export const logWarning = (message: string): void => {
 };
 
 export const logStep = (stepOrMessage: number | string, total?: number, message?: string): void => {
+  if (quiet) return;
   if (typeof stepOrMessage === 'string') {
     // Single parameter version: just a message
     logStream(`${colors.gray}[${getTimestamp()}]${colors.reset} ${colorize('▸', 'cyan')} ${stepOrMessage}`);

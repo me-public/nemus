@@ -1,17 +1,5 @@
 import { colors } from './colors';
 
-const g = colors.green;
-const d = colors.dim;
-const b = colors.bright;
-const r = colors.reset;
-
-export const BANNER = `
-${d}    ╭──────────────────────────────────────╮${r}
-${d}    │${r}  ${g}>_${r}  ${b}Nemus${r}                           ${d}│${r}
-${d}    │${r}       ${d}multi-repo workspaces${r}          ${d}│${r}
-${d}    ╰──────────────────────────────────────╯${r}
-`;
-
 export const BANNER_PLAIN = `
     ╭──────────────────────────────────────╮
     │  >_  Nemus                           │
@@ -19,6 +7,18 @@ export const BANNER_PLAIN = `
     ╰──────────────────────────────────────╯
 `;
 
+// Rendered live (not captured at import) so --no-color / NO_COLOR applied before
+// this is called produce a plain banner. With color off, every colors.* is ''.
+export const renderBanner = (): string => {
+  const { green: g, dim: d, bright: b, reset: r } = colors;
+  return `
+${d}    ╭──────────────────────────────────────╮${r}
+${d}    │${r}  ${g}>_${r}  ${b}Nemus${r}                           ${d}│${r}
+${d}    │${r}       ${d}multi-repo workspaces${r}          ${d}│${r}
+${d}    ╰──────────────────────────────────────╯${r}
+`;
+};
+
 export const printBanner = (): void => {
-  console.log(BANNER);
+  console.log(renderBanner());
 };

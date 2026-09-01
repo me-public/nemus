@@ -1,28 +1,34 @@
 import { Command } from 'commander';
 import * as path from 'path';
 import * as fs from 'fs';
-import { colors } from './utils/colors';
+import { colors, setColorEnabled } from './utils/colors';
+import { setQuiet } from './utils/logger';
 
 // Read version from package.json
 const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
 
-const g = colors.green;
-const d = colors.dim;
-const b = colors.bright;
-const r = colors.reset;
+// Apply --no-color / --quiet BEFORE commander parses, so they affect the help
+// banner and every log line (a preAction hook is too late for help output, and
+// ES imports run before any hook). colors.ts already applied NO_COLOR / non-TTY.
+if (process.argv.includes('--no-color')) setColorEnabled(false);
+if (process.argv.includes('--quiet') || process.argv.includes('-q')) setQuiet(true);
 
-const INNER = 38;
-const titleLine = `>_  Nemus`;
-const titlePad = ' '.repeat(Math.max(0, INNER - 2 - titleLine.length));
-const versionLine = `v${pkg.version} · multi-repo workspaces`;
-const versionPad = ' '.repeat(Math.max(0, INNER - 7 - versionLine.length));
-const bar = '─'.repeat(INNER);
-const bannerText = `
+// Rendered live so the pre-scan above (or NO_COLOR) yields a plain banner.
+function renderBanner(): string {
+  const { green: g, dim: d, bright: b, reset: r } = colors;
+  const INNER = 38;
+  const titleLine = `>_  Nemus`;
+  const titlePad = ' '.repeat(Math.max(0, INNER - 2 - titleLine.length));
+  const versionLine = `v${pkg.version} · multi-repo workspaces`;
+  const versionPad = ' '.repeat(Math.max(0, INNER - 7 - versionLine.length));
+  const bar = '─'.repeat(INNER);
+  return `
 ${d}    ╭${bar}╮${r}
 ${d}    │${r}  ${g}>_${r}  ${b}Nemus${r}${titlePad}${d}│${r}
 ${d}    │${r}       ${d}${versionLine}${r}${versionPad}${d}│${r}
 ${d}    ╰${bar}╯${r}
 `;
+}
 
 export const program = new Command();
 
@@ -32,7 +38,9 @@ program
   .version(pkg.version, '-V, --version')
   .option('-f, --force-refresh', 'Force refresh GitHub repos (skip cache)')
   .option('-y, --yes', 'Skip confirmations')
-  .addHelpText('before', bannerText);
+  .option('--no-color', 'Disable colored output (also honors NO_COLOR)')
+  .option('-q, --quiet', 'Suppress progress logs (keep warnings + errors)')
+  .addHelpText('before', () => renderBanner());
 
 // Register top-level commands
 import { registerCreateCommand } from './commands/create';
