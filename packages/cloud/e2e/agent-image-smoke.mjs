@@ -46,13 +46,19 @@ async function runImage(env) {
   const handle = await runner.launch({ image, env, labels: { 'nemus.e2e': 'image' } }, target);
   try {
     let status = await runner.status(handle);
-    for (let i = 0; i < 30 && status.state !== 'succeeded' && status.state !== 'failed'; i++) {
+    let waited = 0;
+    for (; waited < 30 && status.state !== 'succeeded' && status.state !== 'failed'; waited++) {
       await sleep(1000);
       status = await runner.status(handle);
+    }
+    if (status.state !== 'succeeded' && status.state !== 'failed') {
+      console.log(`  ! timed out after ${waited}s waiting for the container to exit (last state=${status.state}); assertions below may be misleading`);
     }
     let logs = '';
     for await (const { line } of runner.logs(handle)) logs += line + '\n';
     // result.json is written inside the (now-exited) container; copy it out.
+    // Safe because DockerRunner.launch uses `docker run -d` (NOT --rm) — the
+    // exited container persists until stop() does the `docker rm -f`.
     const tmp = `/tmp/nemus-e2e-result-${handle.id.slice(0, 12)}.json`;
     let result = null;
     try {
