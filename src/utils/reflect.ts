@@ -63,6 +63,95 @@ export interface ReflectionReport {
   recommendations: Recommendation[];
 }
 
+// ------------------------------------------------------------ report rendering
+
+export type Priority = Recommendation['priority'];
+
+/** Count recommendations by priority. */
+export function severityCounts(recs: Recommendation[]): Record<Priority, number> {
+  const counts: Record<Priority, number> = { high: 0, medium: 0, low: 0 };
+  for (const r of recs) counts[r.priority]++;
+  return counts;
+}
+
+/** "3 high · 2 medium · 1 low", omitting zero buckets; '' when there are none. */
+export function severitySummary(recs: Recommendation[]): string {
+  const c = severityCounts(recs);
+  return (['high', 'medium', 'low'] as Priority[])
+    .filter((p) => c[p] > 0)
+    .map((p) => `${c[p]} ${p}`)
+    .join(' · ');
+}
+
+const MD_KIND_LABEL: Record<RecommendationKind, string> = {
+  skill: 'Skill',
+  context: 'Context/AGENTS.md',
+  test: 'Test',
+  prompt: 'Prompt',
+  connectivity: 'Connectivity',
+  workflow: 'Workflow',
+  other: 'Other',
+};
+
+const PRIORITY_HEADING: Record<Priority, string> = {
+  high: 'High priority',
+  medium: 'Medium priority',
+  low: 'Low priority',
+};
+
+/** A fenced code block whose fence is guaranteed longer than any backtick run
+ *  inside `body`, so the snippet can't break out of its own fence. */
+function fencedBlock(body: string): string {
+  const longest = Math.max(0, ...(body.match(/`+/g) ?? []).map((m) => m.length));
+  const fence = '`'.repeat(Math.max(3, longest + 1));
+  return `${fence}\n${body}\n${fence}`;
+}
+
+/**
+ * Render a reflection report as clean Markdown — for pasting into an issue/PR or
+ * saving alongside the JSON. Pure (no color, no I/O) so it's unit-tested.
+ * Recommendations are grouped by severity (high→low); each carries its kind,
+ * optional target, detail, and a fenced example.
+ */
+export function renderReportMarkdown(
+  report: ReflectionReport,
+  meta: { analyzed: number; workspaces: number; workspace?: string; generatedAt?: string },
+): string {
+  const lines: string[] = ['# Reflection', ''];
+  const scope = meta.workspace
+    ? `workspace **${meta.workspace}**`
+    : `${meta.analyzed} session${meta.analyzed === 1 ? '' : 's'} across ${meta.workspaces} workspace${meta.workspaces === 1 ? '' : 's'}`;
+  const stamp = meta.generatedAt ? ` · ${meta.generatedAt}` : '';
+  lines.push(`_${scope}${stamp}_`, '');
+
+  if (report.summary.trim()) lines.push(report.summary.trim(), '');
+
+  if (report.recommendations.length === 0) {
+    lines.push('## Recommendations', '', '_No specific recommendations — looks solid._', '');
+    return lines.join('\n');
+  }
+
+  lines.push('## Recommendations', '', `**${severitySummary(report.recommendations)}**`, '');
+
+  for (const priority of ['high', 'medium', 'low'] as Priority[]) {
+    const group = report.recommendations.filter((r) => r.priority === priority);
+    if (group.length === 0) continue;
+    lines.push(`### ${PRIORITY_HEADING[priority]}`, '');
+    for (const r of group) {
+      const target = r.target ? ` (\`${r.target}\`)` : '';
+      lines.push(`- **[${MD_KIND_LABEL[r.kind]}] ${r.title}**${target}`);
+      if (r.detail.trim()) {
+        lines.push(...r.detail.trim().split('\n').map((l) => `  ${l}`));
+      }
+      if (r.example?.trim()) {
+        lines.push('', ...fencedBlock(r.example.trim()).split('\n').map((l) => `  ${l}`));
+      }
+      lines.push('');
+    }
+  }
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
+}
+
 // --------------------------------------------------------- transcript distill
 
 // Kept deliberately lean: the judge runs on the user's own (often local, slow)

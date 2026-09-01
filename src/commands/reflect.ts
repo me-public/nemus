@@ -6,6 +6,8 @@ import {
   gatherReflectionCorpus,
   parseReflectionReport,
   saveReflectionReport,
+  renderReportMarkdown,
+  severitySummary,
   REFLECT_SCHEMA,
   ReflectionReport,
   ReflectProgress,
@@ -24,6 +26,7 @@ export function registerReflectCommand(parent: Command) {
     .option('--model <model>', 'Judge model override (agent-native pattern/id)')
     .option('--thinking <level>', 'Judge thinking level for pi: off|minimal|low|medium|high|xhigh|max')
     .option('--json', 'Output the report as JSON')
+    .option('--markdown', 'Output the report as Markdown (paste into an issue/PR)')
     .option('--no-save', 'Do not save the report to ~/.nemus/reflect/')
     .option('--dry-run', 'Print the assembled corpus + judge prompt without calling the agent')
     .action(async (opts) => {
@@ -37,12 +40,13 @@ async function handleReflect(opts: {
   model?: string;
   thinking?: string;
   json?: boolean;
+  markdown?: boolean;
   save?: boolean; // commander sets `save: false` for --no-save
   dryRun?: boolean;
 }) {
   const limit = Math.max(1, Number.parseInt(opts.limit ?? '10', 10) || 10);
   try {
-    const showProgress = !opts.json && !opts.dryRun;
+    const showProgress = !opts.json && !opts.markdown && !opts.dryRun;
     if (showProgress) {
       logStep(
         opts.workspace
@@ -85,7 +89,7 @@ async function handleReflect(opts: {
     const timeoutMs = Number.parseInt(process.env.NEMUS_JUDGE_TIMEOUT_MS ?? '', 10) || undefined;
     const model = opts.model ?? process.env.NEMUS_JUDGE_MODEL ?? undefined;
     const thinking = opts.thinking ?? process.env.NEMUS_JUDGE_THINKING ?? undefined;
-    const stopSpinner = opts.json
+    const stopSpinner = opts.json || opts.markdown
       ? () => {}
       : startSpinner(`Judging ${withSessions} session(s) with your configured agent (this can take a minute)…`);
     let parsed: unknown;
@@ -112,6 +116,20 @@ async function handleReflect(opts: {
 
     if (opts.json) {
       outputJson({ analyzed: withSessions, workspaces: corpus.workspaces.length, ...report, savedTo });
+      return;
+    }
+    if (opts.markdown) {
+      // DATA channel: markdown to stdout, nothing else (a 'Saved report' note
+      // would corrupt a redirected .md file), so surface the path on stderr.
+      process.stdout.write(
+        renderReportMarkdown(report, {
+          analyzed: withSessions,
+          workspaces: corpus.workspaces.length,
+          workspace: opts.workspace,
+          generatedAt: new Date().toISOString(),
+        }),
+      );
+      if (savedTo) logInfo(`Saved report to ${colorize(savedTo, 'dim')}`);
       return;
     }
     printReport(report, corpus.workspaces.length, withSessions);
@@ -195,6 +213,8 @@ function printReport(report: ReflectionReport, workspaces: number, analyzed: num
     console.log('\n  ' + colorize('No specific recommendations — looks solid.', 'green') + '\n');
     return;
   }
+
+  console.log('\n  ' + colorize(severitySummary(report.recommendations), 'dim'));
 
   // High priority first.
   const order = { high: 0, medium: 1, low: 2 };
