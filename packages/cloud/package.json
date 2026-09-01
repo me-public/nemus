@@ -36,6 +36,7 @@
     "test": "vitest run",
     "e2e:kind": "npm run build && node e2e/kind-k8s-smoke.mjs",
     "e2e:docker": "npm run build && node e2e/docker-smoke.mjs",
+    "e2e:image": "npm run build && docker build -f image/Dockerfile -t nemus-cloud-agent:e2e ../.. && node e2e/agent-image-smoke.mjs",
     "clean": "rm -rf dist"
   }
 }

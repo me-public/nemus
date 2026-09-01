@@ -111,11 +111,22 @@ run them by hand:
 # in-box docker runner (needs a running Docker/Podman daemon)
 npm run -w @nemus-cli/cloud e2e:docker
 
+# the agent IMAGE itself (builds nemus-cloud-agent, runs it via the docker runner)
+npm run -w @nemus-cli/cloud e2e:image
+
 # kubernetes runner against a throwaway kind cluster
 kind create cluster --name nemus-e2e
 NEMUS_E2E_CONTEXT=kind-nemus-e2e npm run -w @nemus-cli/cloud e2e:kind
 kind delete cluster --name nemus-e2e
 ```
+
+`e2e:image` runs the **real agent image** (`nemus-cloud-agent`) through the real
+`DockerRunner` and asserts the image contract — entrypoint wiring, the env
+contract, a valid `result.json`, exit-code → runner `status`, and that the git
+token is never leaked into logs/`result.json`. The happy path (clone → agent →
+open PR) needs a live forge + model credentials and opens real PRs, so it stays
+**unit**-tested (`run.ts` / `agent.test.ts`); this covers the parts that need a
+real container on deterministic, no-network, no-secret, no-side-effect paths.
 
 The kind test refuses to run without an explicit `NEMUS_E2E_CONTEXT` (so it can't
 touch a real cluster by accident); the docker test refuses if the daemon isn't
