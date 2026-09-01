@@ -319,6 +319,20 @@ repos, create/update workspaces, check status, and more directly from a prompt.
 
 Run `nemus --help` for the full command reference.
 
+## Cloud (optional, self-hosted)
+
+Nemus is **local-first** — everything above runs entirely on your machine. If you
+want to hand a task to an agent that runs **headlessly on infrastructure you own**
+(local Docker, AWS Fargate, or any Kubernetes cluster) and opens a PR for you,
+there's an **optional, opt-in** package: [`@nemus-cli/cloud`](./packages/cloud).
+
+It's a separate, vendor-neutral package built from swappable seams — runners
+(`docker`, `aws-fargate`, `kubernetes`), IaC provisioners (OpenTofu/Terraform
+modules), git forges (GitHub/GitLab), a bounded CI-fix loop, and notifiers — with
+no cloud SDK in the core CLI. It is **not published to npm**; it lives in this
+repo for you to build and run yourself. See
+[`packages/cloud/README.md`](./packages/cloud/README.md) to get started.
+
 ## Configuration
 
 `nemus configure` writes `~/.nemus/config.json`. Environment
