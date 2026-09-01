@@ -100,24 +100,29 @@ without a cloud account or a cluster.
 > (`status()` can't shorten it: a Job keeps a stuck pod `active`, so it reads
 > `running` until `backoffLimit` too.)
 
-### Live end-to-end (real cluster)
+### Live end-to-end (real backends)
 
-The unit tests mock `kubectl`; a separate smoke test drives the **real**
-`KubernetesJobRunner` against an actual cluster (launch → status → exec → logs →
-stop). It needs a cluster + a public image, so it's **not** part of `npm test`/CI
-— run it by hand against a throwaway [kind](https://kind.sigs.k8s.io) cluster:
+The unit tests mock the CLIs; separate smoke tests drive the **real** runners
+against an actual daemon/cluster (launch → status → exec → logs → stop). They need
+a real backend + pull a public image, so they're **not** part of `npm test`/CI —
+run them by hand:
 
 ```bash
+# in-box docker runner (needs a running Docker/Podman daemon)
+npm run -w @nemus-cli/cloud e2e:docker
+
+# kubernetes runner against a throwaway kind cluster
 kind create cluster --name nemus-e2e
 NEMUS_E2E_CONTEXT=kind-nemus-e2e npm run -w @nemus-cli/cloud e2e:kind
 kind delete cluster --name nemus-e2e
 ```
 
-It refuses to run without an explicit `NEMUS_E2E_CONTEXT` (so it can't touch a
-real cluster by accident). This test is what caught the `logs --follow` bug the
-unit tests couldn't: `--ignore-errors` made `--follow` give up in ~40ms when the
-container was still `ContainerCreating`; the runner now uses
-`--pod-running-timeout` to wait for the pod, then follow to completion.
+The kind test refuses to run without an explicit `NEMUS_E2E_CONTEXT` (so it can't
+touch a real cluster by accident); the docker test refuses if the daemon isn't
+reachable. The kind test is what caught the `logs --follow` bug the unit tests
+couldn't: `--ignore-errors` made `--follow` give up in ~40ms when the container
+was still `ContainerCreating`; the runner now uses `--pod-running-timeout` to wait
+for the pod, then follow to completion.
 
 ## The provisioning seam: IaC modules
 
