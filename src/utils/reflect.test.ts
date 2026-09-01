@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { distillTranscript, parseReflectionReport, classifyAgentsMd, isCorrectionPrompt, saveReflectionReport } from './reflect';
+import { distillTranscript, parseReflectionReport, classifyAgentsMd, isCorrectionPrompt, saveReflectionReport, severityCounts, severitySummary, renderReportMarkdown, ReflectionReport } from './reflect';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -122,5 +122,63 @@ describe('parseReflectionReport', () => {
   it('tolerates a malformed top-level object', () => {
     expect(parseReflectionReport(null)).toEqual({ summary: '', recommendations: [] });
     expect(parseReflectionReport({ recommendations: 'nope' })).toEqual({ summary: '', recommendations: [] });
+  });
+});
+
+describe('severityCounts / severitySummary', () => {
+  const recs = (ps: Array<'high' | 'medium' | 'low'>) =>
+    ps.map((priority) => ({ kind: 'other' as const, title: 't', detail: 'd', priority }));
+
+  it('counts by priority', () => {
+    expect(severityCounts(recs(['high', 'high', 'low']))).toEqual({ high: 2, medium: 0, low: 1 });
+  });
+  it('summary omits empty buckets and is empty for none', () => {
+    expect(severitySummary(recs(['high', 'medium', 'medium']))).toBe('1 high · 2 medium');
+    expect(severitySummary([])).toBe('');
+  });
+});
+
+describe('renderReportMarkdown', () => {
+  const report: ReflectionReport = {
+    summary: 'Overall fine.',
+    recommendations: [
+      { kind: 'skill', title: 'Add deploy skill', detail: 'manual steps', priority: 'high', target: 'acme/api', example: 'name: deploy' },
+      { kind: 'context', title: 'Doc lint', detail: 'guessed', priority: 'medium' },
+    ],
+  };
+
+  it('groups by severity with a count line and headings', () => {
+    const md = renderReportMarkdown(report, { analyzed: 5, workspaces: 3, generatedAt: '2026-09-01T12:00:00Z' });
+    expect(md).toMatch(/^# Reflection/);
+    expect(md).toContain('_5 sessions across 3 workspaces · 2026-09-01T12:00:00Z_');
+    expect(md).toContain('**1 high · 1 medium**');
+    expect(md).toContain('### High priority');
+    expect(md).toContain('### Medium priority');
+    // high appears before medium
+    expect(md.indexOf('### High priority')).toBeLessThan(md.indexOf('### Medium priority'));
+    expect(md).toContain('- **[Skill] Add deploy skill** (`acme/api`)');
+    expect(md).toContain('- **[Context/AGENTS.md] Doc lint**');
+    expect(md.endsWith('\n')).toBe(true);
+  });
+
+  it('uses a single-workspace scope line', () => {
+    const md = renderReportMarkdown(report, { analyzed: 1, workspaces: 1, workspace: 'my-ws' });
+    expect(md).toContain('_workspace **my-ws**_');
+  });
+
+  it('escapes an example that itself contains a triple-backtick fence', () => {
+    const r: ReflectionReport = {
+      summary: '',
+      recommendations: [{ kind: 'other', title: 'x', detail: '', priority: 'low', example: 'a ```b``` c' }],
+    };
+    const md = renderReportMarkdown(r, { analyzed: 1, workspaces: 1 });
+    expect(md).toContain('````'); // fence longer than the inner run
+    expect(md).toContain('a ```b``` c');
+  });
+
+  it('renders a clean empty state', () => {
+    const md = renderReportMarkdown({ summary: 'All good.', recommendations: [] }, { analyzed: 2, workspaces: 2 });
+    expect(md).toContain('_No specific recommendations — looks solid._');
+    expect(md).not.toContain('### High');
   });
 });

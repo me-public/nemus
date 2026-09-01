@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-01
+
+### Added
+
+- **`nemus reflect --markdown`** — render the reflection report as clean,
+  severity-grouped Markdown to stdout (pipe into a file or an issue:
+  `nemus reflect --markdown > reflection.md`). Fenced example snippets are
+  escaped so they can't break out of their own code block.
+- The human `reflect` report now prints a **severity summary line**
+  (e.g. `2 high · 1 medium`).
+
 ## [0.6.0] - 2026-09-01
 
 ### Added

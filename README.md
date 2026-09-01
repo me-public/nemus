@@ -311,8 +311,12 @@ nemus snapshot restore <id>   # (sr)
 nemus reflect                 # (retro) analyze your last 10 workspaces' sessions
 nemus reflect --limit 5       # narrow the window
 nemus reflect --json          # structured report for tooling
+nemus reflect --markdown      # Markdown report (grouped by severity) to paste/save
 nemus reflect --dry-run       # show what the judge sees, without calling the agent
 ```
+
+`--markdown` writes a clean, severity-grouped report to stdout — pipe it into a
+file or an issue: `nemus reflect --markdown > reflection.md`.
 
 `reflect` reads your recent agent **session transcripts** (Claude + pi), distills
 the prompts you sent, the failures the agent hit, and the tools it used, then asks
