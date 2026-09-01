@@ -243,6 +243,23 @@ The workspace-scoped ones (`status`/`doctor`/`analyze-deps`) need an explicit
 workspace name with `--json` (they never prompt). On failure, `--json` prints a
 parseable `{ "ok": false, "error": … }` to stdout and exits non-zero.
 
+### Configuration
+
+Run `nemus configure` for the interactive wizard, or manage settings
+non-interactively (handy for scripts and dotfiles):
+
+```bash
+nemus config list                     # all keys, values, and descriptions
+nemus config get cloneProtocol        # print one value (raw, for scripts)
+nemus config set cloneProtocol https  # validated + coerced per key
+nemus config set autoReportBugs yes   # booleans accept true/false/yes/no/on/off/1/0
+nemus config unset githubOrg          # reset a key to its default
+nemus config path                     # print the config file location
+```
+
+`get`/`list` also accept `--json`. An unknown key or an invalid value exits
+non-zero with a clear message (e.g. `cloneProtocol must be one of: ssh, https`).
+
 ### Global flags
 
 - `--no-color` — disable ANSI color. Nemus also honors the standard
