@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-01
+
+### Added
+
+- **`nemus reflect history`** and **`nemus reflect show [id]`** to review saved
+  reports (under `~/.nemus/reflect/`) without re-running the judge. `show`
+  defaults to the latest, accepts an id or id-prefix, and supports
+  `--json` / `--markdown` / `--group-by`.
+- **`nemus reflect --group-by kind|priority`** (default `priority`) to control
+  how recommendations are grouped in both the human and Markdown output.
+
 ## [0.7.0] - 2026-09-01
 
 ### Added

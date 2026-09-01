@@ -8,10 +8,14 @@ import {
   saveReflectionReport,
   renderReportMarkdown,
   severitySummary,
+  groupRecommendations,
+  listSavedReports,
+  loadSavedReport,
   REFLECT_SCHEMA,
   ReflectionReport,
   ReflectProgress,
   Recommendation,
+  GroupBy,
 } from '../utils/reflect';
 import { analyzeCorpus, buildAnalysisPrompt } from '../utils/reflect-analyze';
 import { runAgentJsonAsync } from '../utils/agent-judge';
@@ -20,18 +24,46 @@ export function registerReflectCommand(parent: Command) {
   parent
     .command('reflect')
     .alias('retro')
-    .description('Analyze your recent workspace sessions and suggest skill/prompt/context improvements (LLM-as-a-judge)')
+    .description('Analyze recent sessions for improvements, or review saved reports ("history"/"show")')
+    .argument('[subcommand]', '"history" or "show" — omit to run a new analysis')
+    .argument('[id]', 'report id when using "show" (default: latest)')
     .option('-n, --limit <n>', 'How many recent workspaces to analyze', '10')
     .option('-w, --workspace <name>', 'Analyze a single workspace by name (ignores --limit)')
     .option('--model <model>', 'Judge model override (agent-native pattern/id)')
     .option('--thinking <level>', 'Judge thinking level for pi: off|minimal|low|medium|high|xhigh|max')
     .option('--json', 'Output the report as JSON')
     .option('--markdown', 'Output the report as Markdown (paste into an issue/PR)')
+    .option('--group-by <how>', 'Group recommendations by: priority | kind', 'priority')
     .option('--no-save', 'Do not save the report to ~/.nemus/reflect/')
     .option('--dry-run', 'Print the assembled corpus + judge prompt without calling the agent')
-    .action(async (opts) => {
-      await handleReflect(opts);
+    .addHelpText(
+      'after',
+      '\nSaved reports:\n  nemus reflect history            List saved reports (newest first)\n  nemus reflect show [id]          Print a saved report (default: latest)\n',
+    )
+    // history/show are positional (not commander subcommands) on purpose: as
+    // subcommands they would share --json/--markdown/--group-by with this parent
+    // command, and the only commander fix (enablePositionalOptions on the root)
+    // breaks global flags placed after a subcommand (e.g. `nemus list --quiet`).
+    .action(async (subcommand: string | undefined, id: string | undefined, opts) => {
+      if (subcommand === 'history') return handleHistory(opts);
+      if (subcommand === 'show') return handleShow(id, opts);
+      if (subcommand !== undefined) {
+        const msg = `Unknown reflect subcommand "${subcommand}" (expected "history" or "show").`;
+        if (opts.json) outputJsonError(msg);
+        else logError(msg);
+        process.exit(1);
+      }
+      return handleReflect(opts);
     });
+}
+
+/** Validate --group-by; returns the value or exits non-zero with a clear error. */
+function resolveGroupBy(raw: string | undefined, json?: boolean): GroupBy {
+  if (raw === undefined || raw === 'priority' || raw === 'kind') return (raw ?? 'priority') as GroupBy;
+  const msg = `--group-by must be "priority" or "kind"; got "${raw}"`;
+  if (json) outputJsonError(msg);
+  else logError(msg);
+  process.exit(1);
 }
 
 async function handleReflect(opts: {
@@ -41,10 +73,12 @@ async function handleReflect(opts: {
   thinking?: string;
   json?: boolean;
   markdown?: boolean;
+  groupBy?: string;
   save?: boolean; // commander sets `save: false` for --no-save
   dryRun?: boolean;
 }) {
   const limit = Math.max(1, Number.parseInt(opts.limit ?? '10', 10) || 10);
+  const groupBy = resolveGroupBy(opts.groupBy, opts.json);
   try {
     const showProgress = !opts.json && !opts.markdown && !opts.dryRun;
     if (showProgress) {
@@ -122,17 +156,21 @@ async function handleReflect(opts: {
       // DATA channel: markdown to stdout, nothing else (a 'Saved report' note
       // would corrupt a redirected .md file), so surface the path on stderr.
       process.stdout.write(
-        renderReportMarkdown(report, {
-          analyzed: withSessions,
-          workspaces: corpus.workspaces.length,
-          workspace: opts.workspace,
-          generatedAt: new Date().toISOString(),
-        }),
+        renderReportMarkdown(
+          report,
+          {
+            analyzed: withSessions,
+            workspaces: corpus.workspaces.length,
+            workspace: opts.workspace,
+            generatedAt: new Date().toISOString(),
+          },
+          groupBy,
+        ),
       );
       if (savedTo) logInfo(`Saved report to ${colorize(savedTo, 'dim')}`);
       return;
     }
-    printReport(report, corpus.workspaces.length, withSessions);
+    printReport(report, corpus.workspaces.length, withSessions, groupBy);
     if (savedTo) logInfo(`Saved report to ${colorize(savedTo, 'dim')}`);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'reflect failed';
@@ -201,7 +239,7 @@ function priorityBadge(p: Recommendation['priority']): string {
   return colorize('● low', 'gray');
 }
 
-function printReport(report: ReflectionReport, workspaces: number, analyzed: number) {
+function printReport(report: ReflectionReport, workspaces: number, analyzed: number, groupBy: GroupBy = 'priority') {
   console.log('');
   console.log(colorize('  Reflection', 'bright') + colorize(`  (${analyzed} sessions across ${workspaces} workspaces)`, 'dim'));
   console.log(colorize('  ' + '─'.repeat(56), 'dim'));
@@ -216,19 +254,88 @@ function printReport(report: ReflectionReport, workspaces: number, analyzed: num
 
   console.log('\n  ' + colorize(severitySummary(report.recommendations), 'dim'));
 
-  // High priority first.
-  const order = { high: 0, medium: 1, low: 2 };
-  const recs = [...report.recommendations].sort((a, b) => order[a.priority] - order[b.priority]);
-
-  console.log('');
-  for (const r of recs) {
-    const target = r.target ? colorize(`  [${r.target}]`, 'cyan') : '';
-    console.log(`  ${priorityBadge(r.priority)}  ${colorize(KIND_LABEL[r.kind], 'bright')}  ${r.title}${target}`);
-    if (r.detail) console.log(`      ${r.detail.replace(/\n/g, '\n      ')}`);
-    if (r.example) {
-      console.log(colorize('      example:', 'dim'));
-      console.log(colorize(r.example.replace(/^/gm, '        '), 'dim'));
+  for (const group of groupRecommendations(report.recommendations, groupBy)) {
+    console.log('\n  ' + colorize(group.heading, 'bright'));
+    for (const r of group.recs) {
+      const target = r.target ? colorize(`  [${r.target}]`, 'cyan') : '';
+      // Under a kind heading show the priority badge; under a priority heading
+      // show the kind label (the heading conveys the other axis).
+      const lead = groupBy === 'kind' ? priorityBadge(r.priority) : colorize(KIND_LABEL[r.kind], 'bright');
+      console.log(`    ${lead}  ${r.title}${target}`);
+      if (r.detail) console.log(`      ${r.detail.replace(/\n/g, '\n      ')}`);
+      if (r.example) {
+        console.log(colorize('      example:', 'dim'));
+        console.log(colorize(r.example.replace(/^/gm, '        '), 'dim'));
+      }
     }
-    console.log('');
   }
+  console.log('');
+}
+
+async function handleHistory(opts: { json?: boolean }) {
+  const reports = await listSavedReports();
+  if (opts.json) {
+    outputJson({
+      count: reports.length,
+      reports: reports.map((r) => ({
+        id: r.id,
+        generatedAt: r.generatedAt,
+        analyzed: r.analyzed,
+        workspaces: r.workspaces,
+        workspace: r.workspace,
+        recommendations: r.report.recommendations.length,
+        severity: severitySummary(r.report.recommendations),
+      })),
+    });
+    return;
+  }
+  if (reports.length === 0) {
+    logInfo('No saved reflection reports yet. Run `nemus reflect` to create one.');
+    return;
+  }
+  console.log('');
+  console.log(colorize('  Saved reflections', 'bright') + colorize(`  (${reports.length})`, 'dim'));
+  console.log(colorize('  ' + '─'.repeat(56), 'dim'));
+  for (const r of reports) {
+    const when = r.generatedAt ? new Date(r.generatedAt).toLocaleString() : r.id;
+    const scope = r.workspace ? colorize(` ${r.workspace}`, 'cyan') : colorize(` ${r.analyzed} sessions`, 'dim');
+    const sev = r.report.recommendations.length
+      ? colorize(`  ${severitySummary(r.report.recommendations)}`, 'dim')
+      : colorize('  no recs', 'green');
+    console.log(`  ${colorize(r.id, 'bright')}${scope}${sev}`);
+    console.log(colorize(`     ${when}`, 'dim'));
+  }
+  console.log('');
+  console.log(colorize('  nemus reflect show <id>   (or `latest`)', 'dim'));
+}
+
+async function handleShow(
+  id: string | undefined,
+  opts: { json?: boolean; markdown?: boolean; groupBy?: string },
+) {
+  const groupBy = resolveGroupBy(opts.groupBy, opts.json);
+  const saved = await loadSavedReport(id);
+  if (!saved) {
+    const msg = id && id !== 'latest'
+      ? `No saved report matching "${id}". Run "nemus reflect history" to list them.`
+      : 'No saved reflection reports yet. Run "nemus reflect" to create one.';
+    if (opts.json) outputJsonError(msg);
+    else logError(msg);
+    process.exit(1);
+  }
+  const meta = {
+    analyzed: saved.analyzed,
+    workspaces: saved.workspaces,
+    workspace: saved.workspace,
+    generatedAt: saved.generatedAt,
+  };
+  if (opts.json) {
+    outputJson({ id: saved.id, ...meta, ...saved.report });
+    return;
+  }
+  if (opts.markdown) {
+    process.stdout.write(renderReportMarkdown(saved.report, meta, groupBy));
+    return;
+  }
+  printReport(saved.report, saved.workspaces, saved.analyzed, groupBy);
 }

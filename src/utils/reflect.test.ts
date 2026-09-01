@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { distillTranscript, parseReflectionReport, classifyAgentsMd, isCorrectionPrompt, saveReflectionReport, severityCounts, severitySummary, renderReportMarkdown, ReflectionReport } from './reflect';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { distillTranscript, parseReflectionReport, classifyAgentsMd, isCorrectionPrompt, saveReflectionReport, severityCounts, severitySummary, renderReportMarkdown, groupRecommendations, listSavedReports, loadSavedReport, REFLECT_REPORTS_DIR, ReflectionReport, Recommendation } from './reflect';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -180,5 +180,61 @@ describe('renderReportMarkdown', () => {
     const md = renderReportMarkdown({ summary: 'All good.', recommendations: [] }, { analyzed: 2, workspaces: 2 });
     expect(md).toContain('_No specific recommendations — looks solid._');
     expect(md).not.toContain('### High');
+  });
+});
+
+describe('groupRecommendations', () => {
+  const mk = (kind: Recommendation['kind'], priority: Recommendation['priority'], title = 't'): Recommendation =>
+    ({ kind, title, detail: 'd', priority });
+
+  it('groups by priority (high→low), omitting empty groups', () => {
+    const groups = groupRecommendations([mk('skill', 'low'), mk('context', 'high')], 'priority');
+    expect(groups.map((g) => g.key)).toEqual(['high', 'low']); // no 'medium'
+    expect(groups[0].heading).toBe('High priority');
+  });
+
+  it('groups by kind in a fixed order, priority-sorted within a kind', () => {
+    const groups = groupRecommendations(
+      [mk('context', 'low'), mk('skill', 'low', 'a'), mk('skill', 'high', 'b')],
+      'kind',
+    );
+    expect(groups.map((g) => g.key)).toEqual(['skill', 'context']); // skill before context
+    expect(groups[0].recs.map((r) => r.title)).toEqual(['b', 'a']); // high before low within skill
+  });
+});
+
+describe('listSavedReports / loadSavedReport', () => {
+  const older = path.join(REFLECT_REPORTS_DIR, '2000-01-01T00-00-00-000Z-vitestA.json');
+  const newer = path.join(REFLECT_REPORTS_DIR, '2000-01-02T00-00-00-000Z-vitestB.json');
+  const idOf = (f: string) => path.basename(f).replace(/\.json$/, '');
+
+  beforeAll(async () => {
+    await fs.mkdir(REFLECT_REPORTS_DIR, { recursive: true });
+    await fs.writeFile(older, JSON.stringify({ generatedAt: '2000-01-01T00:00:00.000Z', analyzed: 4, workspaces: 3, summary: 'old', recommendations: [{ kind: 'skill', title: 'x', detail: 'd', priority: 'high' }] }));
+    await fs.writeFile(newer, JSON.stringify({ generatedAt: '2000-01-02T00:00:00.000Z', analyzed: 1, workspaces: 1, workspace: 'ws', summary: 'new', recommendations: [] }));
+  });
+  afterAll(async () => {
+    await fs.rm(older, { force: true });
+    await fs.rm(newer, { force: true });
+  });
+
+  it('lists my fixtures newest-first', async () => {
+    const all = await listSavedReports();
+    const ids = all.map((r) => r.id).filter((id) => id.endsWith('vitestA') || id.endsWith('vitestB'));
+    expect(ids).toEqual([idOf(newer), idOf(older)]); // newer before older
+    const b = all.find((r) => r.id === idOf(newer))!;
+    expect(b.workspace).toBe('ws');
+    expect(b.report.recommendations).toHaveLength(0);
+  });
+
+  it('loadSavedReport resolves latest, exact id, and prefix', async () => {
+    const latest = await loadSavedReport('latest');
+    // "latest" is global; assert it parsed a report rather than a specific id.
+    expect(latest?.report).toBeDefined();
+    const exact = await loadSavedReport(idOf(older));
+    expect(exact?.workspaces).toBe(3);
+    const byPrefix = await loadSavedReport('2000-01-02T00-00-00');
+    expect(byPrefix?.id).toBe(idOf(newer));
+    expect(await loadSavedReport('definitely-no-such-id-xyz')).toBeNull();
   });
 });
