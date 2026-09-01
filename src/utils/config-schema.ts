@@ -80,6 +80,29 @@ export function parseConfigValue(key: ConfigKey, raw: string): ParseResult {
   return { ok: true, value: trimmed };
 }
 
+/**
+ * Validate an already-typed value (as it appears in the JSON config file) for
+ * `key` against its field spec. This is the parse-free sibling of
+ * parseConfigValue (which coerces a CLI string): it checks that a boolean field
+ * holds a boolean, an enum holds an allowed string, and a string field holds a
+ * (non-empty, unless allowEmpty) string. Used by `config edit` so a hand-edit
+ * is validated the same way `config set` validates. Pure + unit-tested.
+ */
+export function validateTypedValue(key: ConfigKey, value: unknown): { ok: true } | { ok: false; error: string } {
+  const spec: FieldSpec = CONFIG_SCHEMA[key];
+  if (spec.type === 'boolean') {
+    return typeof value === 'boolean' ? { ok: true } : { ok: false, error: `${key} must be a boolean` };
+  }
+  if (spec.type === 'enum') {
+    return typeof value === 'string' && (spec.values as readonly string[]).includes(value)
+      ? { ok: true }
+      : { ok: false, error: `${key} must be one of: ${spec.values.join(', ')}` };
+  }
+  if (typeof value !== 'string') return { ok: false, error: `${key} must be a string` };
+  if (!spec.allowEmpty && value.trim() === '') return { ok: false, error: `${key} cannot be empty` };
+  return { ok: true };
+}
+
 /** Apply a `set` to a config object, returning a NEW config or an error. Pure. */
 export function applyConfigSet(
   current: UserConfig,
@@ -109,4 +132,46 @@ export function applyConfigUnset(
 /** Render a config value for plain (scriptable) stdout output. */
 export function formatConfigValue(value: unknown): string {
   return typeof value === 'boolean' ? String(value) : String(value ?? '');
+}
+
+export interface ConfigFileReview {
+  /** JSON.parse failed. */
+  parseError: boolean;
+  /** Parsed, but not a plain object (null / array / scalar). */
+  notObject: boolean;
+  /** Keys present in the file that aren't recognized config keys. */
+  unknownKeys: string[];
+  /** Validation error messages for known keys holding invalid values. */
+  invalid: string[];
+  /** True when the file is a usable config object (may still have warnings). */
+  ok: boolean;
+}
+
+/**
+ * Review the raw text of a hand-edited config file the same way `config set`
+ * validates: it must parse, be a plain object, only use known keys, and every
+ * known key present must hold a schema-valid value. Pure so `config edit` can be
+ * fully unit-tested without spawning an editor.
+ */
+export function reviewConfigFileText(text: string): ConfigFileReview {
+  const base = { parseError: false, notObject: false, unknownKeys: [] as string[], invalid: [] as string[] };
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return { ...base, parseError: true, ok: false };
+  }
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { ...base, notObject: true, ok: false };
+  }
+  const obj = raw as Record<string, unknown>;
+  const known = new Set<string>(CONFIG_KEYS);
+  const unknownKeys = Object.keys(obj).filter((k) => !known.has(k));
+  const invalid: string[] = [];
+  for (const key of CONFIG_KEYS) {
+    if (!(key in obj)) continue;
+    const res = validateTypedValue(key, obj[key]);
+    if (!res.ok) invalid.push(res.error);
+  }
+  return { parseError: false, notObject: false, unknownKeys, invalid, ok: invalid.length === 0 };
 }

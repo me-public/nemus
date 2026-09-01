@@ -8,6 +8,7 @@ import {
   isConfigKey,
   applyConfigSet,
   applyConfigUnset,
+  reviewConfigFileText,
   formatConfigValue,
 } from '../utils/config-schema';
 import { outputJson, outputJsonError } from '../utils/output';
@@ -121,19 +122,28 @@ function handleEdit(): void {
     return;
   }
 
-  // Re-validate: a hand-edit can produce invalid JSON, which getUserConfig would
-  // silently ignore (falling back to defaults). Surface that instead.
-  try {
-    const raw = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
-    const unknown = Object.keys(raw).filter((k) => !(k in getUserConfig()));
-    if (unknown.length > 0) {
-      logWarning(`Ignoring unrecognized key(s): ${unknown.join(', ')}`);
-    }
-    logSuccess('Config saved.');
-  } catch {
+  // Re-validate: a hand-edit can produce invalid JSON or invalid values, which
+  // getUserConfig would silently ignore (falling back to defaults). Surface that
+  // instead, using the SAME schema `config set` uses so both write paths agree.
+  const review = reviewConfigFileText(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+  if (review.parseError) {
     logError(`${CONFIG_PATH} is not valid JSON after editing — changes are kept, but Nemus will use defaults until it parses.`);
     process.exitCode = 1;
+    return;
   }
+  if (review.notObject) {
+    logError(`${CONFIG_PATH} must contain a JSON object — changes are kept, but Nemus will use defaults until it does.`);
+    process.exitCode = 1;
+    return;
+  }
+  if (review.unknownKeys.length > 0) logWarning(`Ignoring unrecognized key(s): ${review.unknownKeys.join(', ')}`);
+  if (!review.ok) {
+    for (const e of review.invalid) logWarning(e);
+    logError('Some values are invalid and will fall back to their defaults until fixed.');
+    process.exitCode = 1;
+    return;
+  }
+  logSuccess('Config saved.');
 }
 
 function printAll(cfg: ReturnType<typeof getUserConfig>, json?: boolean): void {
