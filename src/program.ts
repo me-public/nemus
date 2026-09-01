@@ -1,34 +1,20 @@
 import { Command } from 'commander';
 import * as path from 'path';
 import * as fs from 'fs';
-import { colors, setColorEnabled } from './utils/colors';
-import { setQuiet } from './utils/logger';
+import { setColorEnabled } from './utils/colors';
+import { renderHelpBanner } from './utils/banner';
+import { applyGlobalFlags } from './utils/global-flags';
 
 // Read version from package.json
 const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
 
-// Apply --no-color / --quiet BEFORE commander parses, so they affect the help
-// banner and every log line (a preAction hook is too late for help output, and
-// ES imports run before any hook). colors.ts already applied NO_COLOR / non-TTY.
+// --no-color must be applied BEFORE commander parses so it reaches the help
+// banner (a preAction hook is too late for help output, and ES imports run
+// before hooks). It's a long flag, so it can't be bundled — an argv scan is
+// sufficient here. colors.ts already applied NO_COLOR / non-TTY at import.
+// --quiet is handled in the preAction hook below (it only affects command
+// logs, never help), which also catches bundled short forms like `-yq`.
 if (process.argv.includes('--no-color')) setColorEnabled(false);
-if (process.argv.includes('--quiet') || process.argv.includes('-q')) setQuiet(true);
-
-// Rendered live so the pre-scan above (or NO_COLOR) yields a plain banner.
-function renderBanner(): string {
-  const { green: g, dim: d, bright: b, reset: r } = colors;
-  const INNER = 38;
-  const titleLine = `>_  Nemus`;
-  const titlePad = ' '.repeat(Math.max(0, INNER - 2 - titleLine.length));
-  const versionLine = `v${pkg.version} · multi-repo workspaces`;
-  const versionPad = ' '.repeat(Math.max(0, INNER - 7 - versionLine.length));
-  const bar = '─'.repeat(INNER);
-  return `
-${d}    ╭${bar}╮${r}
-${d}    │${r}  ${g}>_${r}  ${b}Nemus${r}${titlePad}${d}│${r}
-${d}    │${r}       ${d}${versionLine}${r}${versionPad}${d}│${r}
-${d}    ╰${bar}╯${r}
-`;
-}
 
 export const program = new Command();
 
@@ -40,7 +26,13 @@ program
   .option('-y, --yes', 'Skip confirmations')
   .option('--no-color', 'Disable colored output (also honors NO_COLOR)')
   .option('-q, --quiet', 'Suppress progress logs (keep warnings + errors)')
-  .addHelpText('before', () => renderBanner());
+  .addHelpText('before', () => renderHelpBanner(pkg.version));
+
+// Apply global --quiet / --color from commander's PARSED options (robust to
+// bundled short flags like `-yq` that a raw argv scan misses). Runs before every
+// command action; help output doesn't reach here, which is why --no-color is
+// also pre-scanned above.
+program.hook('preAction', () => applyGlobalFlags(program.opts()));
 
 // Register top-level commands
 import { registerCreateCommand } from './commands/create';
