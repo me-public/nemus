@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { distillTranscript, parseReflectionReport, classifyAgentsMd, isCorrectionPrompt, saveReflectionReport, severityCounts, severitySummary, renderReportMarkdown, ReflectionReport } from './reflect';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { distillTranscript, parseReflectionReport, classifyAgentsMd, isCorrectionPrompt, saveReflectionReport, severityCounts, severitySummary, renderReportMarkdown, groupRecommendations, listSavedReports, loadSavedReport, findSavedMatches, SavedReport, ReflectionReport, Recommendation } from './reflect';
 import * as fs from 'fs/promises';
+import * as os from 'os';
 import * as path from 'path';
 
 const J = (o: unknown) => JSON.stringify(o);
@@ -180,5 +181,73 @@ describe('renderReportMarkdown', () => {
     const md = renderReportMarkdown({ summary: 'All good.', recommendations: [] }, { analyzed: 2, workspaces: 2 });
     expect(md).toContain('_No specific recommendations — looks solid._');
     expect(md).not.toContain('### High');
+  });
+});
+
+describe('groupRecommendations', () => {
+  const mk = (kind: Recommendation['kind'], priority: Recommendation['priority'], title = 't'): Recommendation =>
+    ({ kind, title, detail: 'd', priority });
+
+  it('groups by priority (high→low), omitting empty groups', () => {
+    const groups = groupRecommendations([mk('skill', 'low'), mk('context', 'high')], 'priority');
+    expect(groups.map((g) => g.key)).toEqual(['high', 'low']); // no 'medium'
+    expect(groups[0].heading).toBe('High priority');
+  });
+
+  it('groups by kind in a fixed order, priority-sorted within a kind', () => {
+    const groups = groupRecommendations(
+      [mk('context', 'low'), mk('skill', 'low', 'a'), mk('skill', 'high', 'b')],
+      'kind',
+    );
+    expect(groups.map((g) => g.key)).toEqual(['skill', 'context']); // skill before context
+    expect(groups[0].recs.map((r) => r.title)).toEqual(['b', 'a']); // high before low within skill
+  });
+});
+
+describe('findSavedMatches (pure)', () => {
+  const mk = (id: string): SavedReport => ({ id, file: `${id}.json`, analyzed: 0, workspaces: 0, report: { summary: '', recommendations: [] } });
+  // newest-first list, as listSavedReports returns it
+  const all = [mk('2000-03'), mk('2000-02b'), mk('2000-02a'), mk('2000-01')];
+
+  it('empty / latest / exact', () => {
+    expect(findSavedMatches([], '2000')).toEqual([]);
+    expect(findSavedMatches(all)[0].id).toBe('2000-03'); // undefined -> newest
+    expect(findSavedMatches(all, 'latest')[0].id).toBe('2000-03');
+    expect(findSavedMatches(all, '2000-02a').map((r) => r.id)).toEqual(['2000-02a']); // exact wins
+  });
+  it('an ambiguous prefix returns every match, newest-first', () => {
+    expect(findSavedMatches(all, '2000-02').map((r) => r.id)).toEqual(['2000-02b', '2000-02a']);
+    expect(findSavedMatches(all, 'nope')).toEqual([]);
+  });
+});
+
+describe('listSavedReports / loadSavedReport (isolated temp dir)', () => {
+  let dir: string;
+  const idA = '2000-01-01T00-00-00-000Z-vitestA';
+  const idB = '2000-01-02T00-00-00-000Z-vitestB';
+
+  beforeAll(async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'nemus-reflect-test-'));
+    await fs.writeFile(path.join(dir, `${idA}.json`), JSON.stringify({ generatedAt: '2000-01-01T00:00:00.000Z', analyzed: 4, workspaces: 3, summary: 'old', recommendations: [{ kind: 'skill', title: 'x', detail: 'd', priority: 'high' }] }));
+    await fs.writeFile(path.join(dir, `${idB}.json`), JSON.stringify({ generatedAt: '2000-01-02T00:00:00.000Z', analyzed: 1, workspaces: 1, workspace: 'ws', summary: 'new', recommendations: [] }));
+    await fs.writeFile(path.join(dir, 'not-json.txt'), 'ignore me');
+    await fs.writeFile(path.join(dir, 'corrupt.json'), '{ not valid json');
+  });
+  afterAll(async () => {
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it('lists newest-first, skipping non-json and corrupt files', async () => {
+    const all = await listSavedReports(dir);
+    expect(all.map((r) => r.id)).toEqual([idB, idA]); // exactly two, newer first
+    expect(all[0].workspace).toBe('ws');
+    expect(all[0].report.recommendations).toHaveLength(0);
+  });
+
+  it('loadSavedReport resolves latest, exact id, and prefix', async () => {
+    expect((await loadSavedReport('latest', dir))?.id).toBe(idB);
+    expect((await loadSavedReport(idA, dir))?.workspaces).toBe(3);
+    expect((await loadSavedReport('2000-01-02T00-00-00', dir))?.id).toBe(idB);
+    expect(await loadSavedReport('definitely-no-such-id-xyz', dir)).toBeNull();
   });
 });

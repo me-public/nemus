@@ -312,11 +312,23 @@ nemus reflect                 # (retro) analyze your last 10 workspaces' session
 nemus reflect --limit 5       # narrow the window
 nemus reflect --json          # structured report for tooling
 nemus reflect --markdown      # Markdown report (grouped by severity) to paste/save
+nemus reflect --group-by kind # group recommendations by kind instead of priority
 nemus reflect --dry-run       # show what the judge sees, without calling the agent
 ```
 
 `--markdown` writes a clean, severity-grouped report to stdout — pipe it into a
-file or an issue: `nemus reflect --markdown > reflection.md`.
+file or an issue: `nemus reflect --markdown > reflection.md`. `--group-by
+kind|priority` (default `priority`) controls how recommendations are grouped in
+both the human and Markdown output.
+
+Every run is saved under `~/.nemus/reflect/`. Review past reports without
+re-running the judge:
+
+```bash
+nemus reflect history            # list saved reports, newest first (--json)
+nemus reflect show               # print the latest saved report
+nemus reflect show <id>          # a specific one (--markdown / --json / --group-by)
+```
 
 `reflect` reads your recent agent **session transcripts** (Claude + pi), distills
 the prompts you sent, the failures the agent hit, and the tools it used, then asks

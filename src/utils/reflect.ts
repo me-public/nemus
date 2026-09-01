@@ -83,7 +83,7 @@ export function severitySummary(recs: Recommendation[]): string {
     .join(' · ');
 }
 
-const MD_KIND_LABEL: Record<RecommendationKind, string> = {
+export const KIND_LABEL: Record<RecommendationKind, string> = {
   skill: 'Skill',
   context: 'Context/AGENTS.md',
   test: 'Test',
@@ -92,12 +92,49 @@ const MD_KIND_LABEL: Record<RecommendationKind, string> = {
   workflow: 'Workflow',
   other: 'Other',
 };
+// Back-compat alias for existing references.
+const MD_KIND_LABEL = KIND_LABEL;
 
-const PRIORITY_HEADING: Record<Priority, string> = {
+export const PRIORITY_HEADING: Record<Priority, string> = {
   high: 'High priority',
   medium: 'Medium priority',
   low: 'Low priority',
 };
+
+export type GroupBy = 'priority' | 'kind';
+
+const KIND_ORDER: RecommendationKind[] = ['skill', 'context', 'test', 'prompt', 'connectivity', 'workflow', 'other'];
+const PRIORITY_ORDER: Priority[] = ['high', 'medium', 'low'];
+const PRIORITY_RANK: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
+
+export interface RecGroup {
+  key: string;
+  heading: string;
+  recs: Recommendation[];
+}
+
+/**
+ * Split recommendations into ordered, non-empty groups by either priority
+ * (high→low) or kind (a fixed, stable order). When grouping by kind, each
+ * group's recs are sorted high-priority first. Pure + unit-tested; shared by the
+ * Markdown renderer and the human printer so the two never diverge.
+ */
+export function groupRecommendations(recs: Recommendation[], groupBy: GroupBy): RecGroup[] {
+  if (groupBy === 'kind') {
+    return KIND_ORDER.map((k) => ({
+      key: k,
+      heading: KIND_LABEL[k],
+      recs: recs
+        .filter((r) => r.kind === k)
+        .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]),
+    })).filter((g) => g.recs.length > 0);
+  }
+  return PRIORITY_ORDER.map((p) => ({
+    key: p,
+    heading: PRIORITY_HEADING[p],
+    recs: recs.filter((r) => r.priority === p),
+  })).filter((g) => g.recs.length > 0);
+}
 
 /** A fenced code block whose fence is guaranteed longer than any backtick run
  *  inside `body`, so the snippet can't break out of its own fence. */
@@ -116,6 +153,7 @@ function fencedBlock(body: string): string {
 export function renderReportMarkdown(
   report: ReflectionReport,
   meta: { analyzed: number; workspaces: number; workspace?: string; generatedAt?: string },
+  groupBy: GroupBy = 'priority',
 ): string {
   const lines: string[] = ['# Reflection', ''];
   const scope = meta.workspace
@@ -133,13 +171,14 @@ export function renderReportMarkdown(
 
   lines.push('## Recommendations', '', `**${severitySummary(report.recommendations)}**`, '');
 
-  for (const priority of ['high', 'medium', 'low'] as Priority[]) {
-    const group = report.recommendations.filter((r) => r.priority === priority);
-    if (group.length === 0) continue;
-    lines.push(`### ${PRIORITY_HEADING[priority]}`, '');
-    for (const r of group) {
+  for (const group of groupRecommendations(report.recommendations, groupBy)) {
+    lines.push(`### ${group.heading}`, '');
+    for (const r of group.recs) {
       const target = r.target ? ` (\`${r.target}\`)` : '';
-      lines.push(`- **[${MD_KIND_LABEL[r.kind]}] ${r.title}**${target}`);
+      // Under a kind heading the [Kind] prefix is redundant; show a priority tag
+      // instead. Under a priority heading, show the kind.
+      const label = groupBy === 'kind' ? `_${r.priority}_ — ` : `[${KIND_LABEL[r.kind]}] `;
+      lines.push(`- **${label}${r.title}**${target}`);
       if (r.detail.trim()) {
         lines.push(...r.detail.trim().split('\n').map((l) => `  ${l}`));
       }
@@ -543,4 +582,77 @@ export async function saveReflectionReport(
   const file = path.join(REFLECT_REPORTS_DIR, `${stamp}${scope}.json`);
   await fs.writeFile(file, JSON.stringify({ generatedAt: new Date().toISOString(), ...meta, ...report }, null, 2));
   return file;
+}
+
+/** A saved report on disk, with its metadata and parsed report. */
+export interface SavedReport {
+  /** Basename without .json — the id used by `reflect show <id>`. */
+  id: string;
+  file: string;
+  generatedAt?: string;
+  analyzed: number;
+  workspaces: number;
+  workspace?: string;
+  report: ReflectionReport;
+}
+
+/**
+ * List saved reports under `~/.nemus/reflect/`, newest first (filenames start
+ * with an ISO timestamp, so a reverse name sort is chronological). Unreadable /
+ * unparseable files are skipped, not fatal. Returns [] if the dir is absent.
+ */
+export async function listSavedReports(dir: string = REFLECT_REPORTS_DIR): Promise<SavedReport[]> {
+  let names: string[];
+  try {
+    names = await fs.readdir(dir);
+  } catch {
+    return [];
+  }
+  const jsons = names.filter((n) => n.endsWith('.json')).sort().reverse();
+  const out: SavedReport[] = [];
+  for (const name of jsons) {
+    const file = path.join(dir, name);
+    try {
+      const raw = JSON.parse(await fs.readFile(file, 'utf-8'));
+      out.push({
+        id: name.replace(/\.json$/, ''),
+        file,
+        generatedAt: typeof raw.generatedAt === 'string' ? raw.generatedAt : undefined,
+        analyzed: typeof raw.analyzed === 'number' ? raw.analyzed : 0,
+        workspaces: typeof raw.workspaces === 'number' ? raw.workspaces : 0,
+        workspace: typeof raw.workspace === 'string' ? raw.workspace : undefined,
+        report: parseReflectionReport(raw),
+      });
+    } catch {
+      /* skip a corrupt/partial file */
+    }
+  }
+  return out;
+}
+
+/**
+ * Resolve a report reference against an (already newest-first) list. Returns ALL
+ * matches so a caller can detect ambiguity: `undefined`/`'latest'` -> the newest;
+ * an exact id -> that one; otherwise every id with the prefix (newest-first). An
+ * exact id always wins over prefixes, so an id can't be ambiguous with itself.
+ * Pure + unit-tested.
+ */
+export function findSavedMatches(all: SavedReport[], ref?: string): SavedReport[] {
+  if (all.length === 0) return [];
+  if (!ref || ref === 'latest') return [all[0]];
+  const exact = all.find((r) => r.id === ref);
+  if (exact) return [exact];
+  return all.filter((r) => r.id.startsWith(ref));
+}
+
+/**
+ * Load one saved report by id. `undefined`/`'latest'` returns the newest; an id
+ * is matched exactly, then as a prefix (newest match wins). Returns null when
+ * nothing matches. For ambiguity-aware callers, use findSavedMatches directly.
+ */
+export async function loadSavedReport(
+  ref?: string,
+  dir: string = REFLECT_REPORTS_DIR,
+): Promise<SavedReport | null> {
+  return findSavedMatches(await listSavedReports(dir), ref)[0] ?? null;
 }
