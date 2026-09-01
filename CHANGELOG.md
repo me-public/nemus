@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-01
+
+### Added
+
+- **`nemus config edit`** opens the config file in `$VISUAL`/`$EDITOR` (seeding
+  it with the current resolved config on first run) and re-validates the JSON
+  afterward, warning about unrecognized keys. Refuses to run without an
+  interactive terminal.
+- **Environment-variable reference** in the README documenting every variable
+  Nemus reads (`NEMUS_*`, `WORKSPACE_*`, `NO_COLOR`/`FORCE_COLOR`,
+  `VISUAL`/`EDITOR`).
+
 ## [0.8.0] - 2026-09-01
 
 ### Added

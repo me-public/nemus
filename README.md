@@ -259,6 +259,25 @@ nemus config path                     # print the config file location
 
 `get`/`list` also accept `--json`. An unknown key or an invalid value exits
 non-zero with a clear message (e.g. `cloneProtocol must be one of: ssh, https`).
+`config edit` opens the file in `$VISUAL`/`$EDITOR` (seeding it with the current
+resolved config first) and re-validates the JSON afterward.
+
+### Environment variables
+
+Everything Nemus reads from the environment (all optional):
+
+| Variable | Effect |
+| --- | --- |
+| `NEMUS_DIR` | Override where workspaces are created (also `WORKSPACE_MANAGER_DIR`). |
+| `NEMUS_CACHE_DIR` | Override the cache/config/state dir, default `~/.nemus` (also `WORKSPACE_MANAGER_CACHE_DIR`). |
+| `NEMUS_JUDGE_MODEL` | Model for the `reflect` judge (overrides `--model`'s default). |
+| `NEMUS_JUDGE_THINKING` | Thinking level for the `reflect` judge on pi (`off`…`max`). |
+| `NEMUS_JUDGE_TIMEOUT_MS` | Timeout for the `reflect` judge call. |
+| `NEMUS_BUG_REPORT_REPO` | Repo that `report-bug` files issues against. |
+| `NEMUS_SKIP_CONFIGURE` | Skip the one-time post-install `configure` prompt. |
+| `WORKSPACE_CLONE_TIMEOUT_MS` | Git clone timeout (default 15 min). |
+| `NO_COLOR` / `FORCE_COLOR` | Disable / force ANSI color (see [Global flags](#global-flags)). |
+| `VISUAL` / `EDITOR` | Editor launched by `nemus config edit`. |
 
 ### Global flags
 
