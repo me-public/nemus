@@ -48,6 +48,16 @@ describe('parseConfigValue', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(/ssh, https/);
   });
+  it('normalizes enum case + whitespace to the canonical value', () => {
+    expect(parseConfigValue('cloneProtocol', 'HTTPS')).toEqual({ ok: true, value: 'https' });
+    expect(parseConfigValue('cloneProtocol', '  ssh ')).toEqual({ ok: true, value: 'ssh' });
+    expect(parseConfigValue('aiAgent', 'Both')).toEqual({ ok: true, value: 'both' });
+  });
+  it('trims surrounding whitespace on strings (case preserved)', () => {
+    expect(parseConfigValue('githubOrg', '  Acme-Corp ')).toEqual({ ok: true, value: 'Acme-Corp' });
+    expect(parseConfigValue('githubOrg', '   ')).toEqual({ ok: true, value: '' }); // trims to empty (allowed)
+    expect(parseConfigValue('workspacesDir', '   ').ok).toBe(false); // required, empty after trim
+  });
   it('accepts agent enum values incl. auto/both', () => {
     expect(parseConfigValue('aiAgent', 'both').ok).toBe(true);
     expect(parseConfigValue('primaryAgent', 'both').ok).toBe(false); // no "both" for primary

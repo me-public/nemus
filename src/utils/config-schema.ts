@@ -63,16 +63,21 @@ export function parseConfigValue(key: ConfigKey, raw: string): ParseResult {
     return { ok: false, error: `${key} expects a boolean (true/false); got "${raw}"` };
   }
   if (spec.type === 'enum') {
-    if ((spec.values as readonly string[]).includes(raw)) {
-      return { ok: true, value: raw as UserConfig[ConfigKey] };
+    // Enum values are all lowercase, so normalize input like booleans do —
+    // `HTTPS` / ` https ` should resolve to the canonical value, not fail.
+    const v = raw.trim().toLowerCase();
+    if ((spec.values as readonly string[]).includes(v)) {
+      return { ok: true, value: v as UserConfig[ConfigKey] };
     }
     return { ok: false, error: `${key} must be one of: ${spec.values.join(', ')}; got "${raw}"` };
   }
-  // string
-  if (!spec.allowEmpty && raw === '') {
+  // string: trim surrounding whitespace (a stray space in a path/org is almost
+  // always a mistake), but preserve case.
+  const trimmed = raw.trim();
+  if (!spec.allowEmpty && trimmed === '') {
     return { ok: false, error: `${key} cannot be empty` };
   }
-  return { ok: true, value: raw };
+  return { ok: true, value: trimmed };
 }
 
 /** Apply a `set` to a config object, returning a NEW config or an error. Pure. */
