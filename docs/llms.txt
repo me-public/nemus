@@ -34,6 +34,13 @@ Key ideas an LLM should know:
 - **Agent-native**: `nemus configure` wires up a coding agent; `nemus -- "<prompt>"`
   runs a task; **investigate-first** creates an empty workspace and lets the agent
   discover and add the repos it needs.
+- **Reflect**: `nemus reflect` reads your recent agent session transcripts and asks
+  your own configured agent (LLM-as-a-judge) to recommend concrete improvements to
+  your skills, `AGENTS.md`/context, connectivity tests, and prompting habits.
+- **Cloud (optional, not on npm)**: `@nemus-cli/cloud` is an opt-in, source-only
+  package (in-repo, unpublished) to run a workspace + agent headlessly on your own
+  infra (Docker / AWS Fargate / Kubernetes) and open a PR. The core CLI stays
+  local-first with no cloud SDK.
 - Install: `npm install -g @nemus-cli/nemus`. Binaries: `nemus` (and the short alias
   `nem`). MCP server: `nemus-mcp`. Requires Node.js >= 22.
 - License: MIT. Repository: https://github.com/me-public/nemus
@@ -62,3 +69,4 @@ Key ideas an LLM should know:
 
 - [npm package](https://www.npmjs.com/package/@nemus-cli/nemus): `@nemus-cli/nemus`, published with provenance.
 - [llms-full.txt](https://me-public.github.io/nemus/llms-full.txt): the full README inlined as a single document for deeper context.
+- [Cloud package](https://github.com/me-public/nemus/blob/main/packages/cloud/README.md): `@nemus-cli/cloud`, the optional self-hosted runner (not published to npm).

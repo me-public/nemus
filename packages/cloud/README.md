@@ -5,9 +5,12 @@
 > own* infrastructure (local Docker, Fly, Fargate, k8s, …), headlessly, and open
 > a PR.
 
-**Status: P1 in progress.** The forge-auth seam and the execution seam (runners,
-with the in-box Docker runner) are in; the agent OCI image, Provisioners and the
-CI-loop land in later phases. See
+**Status: P1–P4 substantially landed.** In: the forge-auth + execution seams with
+three runners (`docker`, `aws-fargate`, `kubernetes`), OpenTofu provisioners with
+shipped `iac/fargate` + `iac/kubernetes` modules, GitHub/GitLab forges, the agent
+OCI image with `run`/`fix-pr` entry modes, a bounded CI-fix loop, Slack/webhook
+notifiers, and a `nemus-cloud runners` discovery command. Everything is
+dependency-injected and unit-tested with no cloud account. See
 [`docs/plans/2026-08-26-cloud-iac.md`](../../docs/plans/2026-08-26-cloud-iac.md)
 for the full design.
 
