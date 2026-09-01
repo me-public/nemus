@@ -7,6 +7,8 @@ import {
   parseConfigValue,
   applyConfigSet,
   applyConfigUnset,
+  validateTypedValue,
+  reviewConfigFileText,
   formatConfigValue,
 } from './config-schema';
 
@@ -92,6 +94,53 @@ describe('applyConfigSet / applyConfigUnset (pure, immutable)', () => {
     const r = applyConfigUnset(base, 'githubOrg');
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.next.githubOrg).toBe(CONFIG_DEFAULTS.githubOrg);
+  });
+});
+
+describe('validateTypedValue (already-typed, as from the JSON file)', () => {
+  it('accepts correctly-typed values', () => {
+    expect(validateTypedValue('autoReportBugs', true)).toEqual({ ok: true });
+    expect(validateTypedValue('cloneProtocol', 'https')).toEqual({ ok: true });
+    expect(validateTypedValue('githubOrg', '')).toEqual({ ok: true }); // allowEmpty
+    expect(validateTypedValue('workspacesDir', '/x')).toEqual({ ok: true });
+  });
+  it('rejects wrong types and bad enum/empty values', () => {
+    expect(validateTypedValue('autoReportBugs', 'yes').ok).toBe(false); // string, not boolean
+    expect(validateTypedValue('cloneProtocol', 'ftp').ok).toBe(false);
+    expect(validateTypedValue('cloneProtocol', 42 as unknown).ok).toBe(false);
+    expect(validateTypedValue('workspacesDir', '   ').ok).toBe(false); // required, blank
+    expect(validateTypedValue('installMcp', 1 as unknown).ok).toBe(false);
+  });
+});
+
+describe('reviewConfigFileText (for `config edit`)', () => {
+  it('flags unparseable JSON', () => {
+    const r = reviewConfigFileText('{ not json');
+    expect(r.parseError).toBe(true);
+    expect(r.ok).toBe(false);
+  });
+  it('flags non-object JSON (null / array / scalar) without throwing', () => {
+    for (const t of ['null', '42', '"str"', '[1,2]']) {
+      const r = reviewConfigFileText(t);
+      expect(r.notObject).toBe(true);
+      expect(r.ok).toBe(false);
+      expect(r.unknownKeys).toEqual([]); // no numeric-index "keys" from an array
+    }
+  });
+  it('reports unknown keys but stays ok if known values are valid', () => {
+    const r = reviewConfigFileText(JSON.stringify({ githubOrg: 'acme', bogus: 1, nope: true }));
+    expect(r.unknownKeys.sort()).toEqual(['bogus', 'nope']);
+    expect(r.ok).toBe(true);
+  });
+  it('catches invalid VALUES the same way config set would', () => {
+    const r = reviewConfigFileText(JSON.stringify({ cloneProtocol: 'ftp', autoReportBugs: 'yes' }));
+    expect(r.ok).toBe(false);
+    expect(r.invalid.join('\n')).toMatch(/cloneProtocol must be one of/);
+    expect(r.invalid.join('\n')).toMatch(/autoReportBugs must be a boolean/);
+  });
+  it('accepts a clean object', () => {
+    const r = reviewConfigFileText(JSON.stringify({ cloneProtocol: 'https', installMcp: true }));
+    expect(r).toMatchObject({ parseError: false, notObject: false, unknownKeys: [], invalid: [], ok: true });
   });
 });
 

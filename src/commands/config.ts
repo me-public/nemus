@@ -1,15 +1,18 @@
 import { Command } from 'commander';
+import * as fs from 'fs';
 import { getUserConfig, saveUserConfig, CONFIG_PATH } from '../utils/config';
+import { openInEditor } from '../utils/editor';
 import {
   CONFIG_KEYS,
   CONFIG_SCHEMA,
   isConfigKey,
   applyConfigSet,
   applyConfigUnset,
+  reviewConfigFileText,
   formatConfigValue,
 } from '../utils/config-schema';
 import { outputJson, outputJsonError } from '../utils/output';
-import { logSuccess, logError } from '../utils/logger';
+import { logSuccess, logError, logWarning } from '../utils/logger';
 import { colorize } from '../utils/colors';
 
 /**
@@ -93,6 +96,54 @@ export function registerConfigCommand(parent: Command): void {
     .action(() => {
       process.stdout.write(CONFIG_PATH + '\n');
     });
+
+  config
+    .command('edit')
+    .description('Open the config file in $EDITOR (or $VISUAL)')
+    .action(() => {
+      handleEdit();
+    });
+}
+
+function handleEdit(): void {
+  if (!process.stdout.isTTY) {
+    logError('`config edit` needs an interactive terminal. Use `config set <key> <value>` in scripts.');
+    process.exitCode = 1;
+    return;
+  }
+  // Seed the file with the fully-resolved config so there's something complete
+  // to edit on a first run (getUserConfig merges defaults + any overrides).
+  if (!fs.existsSync(CONFIG_PATH)) saveUserConfig(getUserConfig());
+
+  const result = openInEditor(CONFIG_PATH);
+  if (!result.ok) {
+    logError(result.error ?? `editor exited with code ${result.code}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  // Re-validate: a hand-edit can produce invalid JSON or invalid values, which
+  // getUserConfig would silently ignore (falling back to defaults). Surface that
+  // instead, using the SAME schema `config set` uses so both write paths agree.
+  const review = reviewConfigFileText(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+  if (review.parseError) {
+    logError(`${CONFIG_PATH} is not valid JSON after editing — changes are kept, but Nemus will use defaults until it parses.`);
+    process.exitCode = 1;
+    return;
+  }
+  if (review.notObject) {
+    logError(`${CONFIG_PATH} must contain a JSON object — changes are kept, but Nemus will use defaults until it does.`);
+    process.exitCode = 1;
+    return;
+  }
+  if (review.unknownKeys.length > 0) logWarning(`Ignoring unrecognized key(s): ${review.unknownKeys.join(', ')}`);
+  if (!review.ok) {
+    for (const e of review.invalid) logWarning(e);
+    logError('Some values are invalid and will fall back to their defaults until fixed.');
+    process.exitCode = 1;
+    return;
+  }
+  logSuccess('Config saved.');
 }
 
 function printAll(cfg: ReturnType<typeof getUserConfig>, json?: boolean): void {
