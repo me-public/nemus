@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { logError, logInfo, logStep } from '../utils/logger';
+import { logError, logInfo, logStep, logWarning } from '../utils/logger';
 import { outputJson, outputJsonError } from '../utils/output';
 import { colorize } from '../utils/colors';
 import {
@@ -10,7 +10,7 @@ import {
   severitySummary,
   groupRecommendations,
   listSavedReports,
-  loadSavedReport,
+  findSavedMatches,
   REFLECT_SCHEMA,
   ReflectionReport,
   ReflectProgress,
@@ -314,7 +314,8 @@ async function handleShow(
   opts: { json?: boolean; markdown?: boolean; groupBy?: string },
 ) {
   const groupBy = resolveGroupBy(opts.groupBy, opts.json);
-  const saved = await loadSavedReport(id);
+  const matches = findSavedMatches(await listSavedReports(), id);
+  const saved = matches[0];
   if (!saved) {
     const msg = id && id !== 'latest'
       ? `No saved report matching "${id}". Run "nemus reflect history" to list them.`
@@ -322,6 +323,14 @@ async function handleShow(
     if (opts.json) outputJsonError(msg);
     else logError(msg);
     process.exit(1);
+  }
+  // An id-prefix that matches several reports resolves to the newest — say so
+  // (stderr only, so --json/--markdown stdout stays clean) rather than quietly
+  // showing a possibly-unintended report. An exact id / "latest" never multi-matches.
+  if (matches.length > 1 && !opts.json) {
+    logWarning(
+      `"${id}" matched ${matches.length} reports; showing the newest (${saved.id}). Use a longer id to disambiguate.`,
+    );
   }
   const meta = {
     analyzed: saved.analyzed,

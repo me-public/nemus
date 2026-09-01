@@ -601,17 +601,17 @@ export interface SavedReport {
  * with an ISO timestamp, so a reverse name sort is chronological). Unreadable /
  * unparseable files are skipped, not fatal. Returns [] if the dir is absent.
  */
-export async function listSavedReports(): Promise<SavedReport[]> {
+export async function listSavedReports(dir: string = REFLECT_REPORTS_DIR): Promise<SavedReport[]> {
   let names: string[];
   try {
-    names = await fs.readdir(REFLECT_REPORTS_DIR);
+    names = await fs.readdir(dir);
   } catch {
     return [];
   }
   const jsons = names.filter((n) => n.endsWith('.json')).sort().reverse();
   const out: SavedReport[] = [];
   for (const name of jsons) {
-    const file = path.join(REFLECT_REPORTS_DIR, name);
+    const file = path.join(dir, name);
     try {
       const raw = JSON.parse(await fs.readFile(file, 'utf-8'));
       out.push({
@@ -631,13 +631,28 @@ export async function listSavedReports(): Promise<SavedReport[]> {
 }
 
 /**
- * Load one saved report by id. `undefined`/`'latest'` returns the newest. An id
- * is matched exactly, then as a prefix (so a timestamp fragment resolves).
- * Returns null when nothing matches.
+ * Resolve a report reference against an (already newest-first) list. Returns ALL
+ * matches so a caller can detect ambiguity: `undefined`/`'latest'` -> the newest;
+ * an exact id -> that one; otherwise every id with the prefix (newest-first). An
+ * exact id always wins over prefixes, so an id can't be ambiguous with itself.
+ * Pure + unit-tested.
  */
-export async function loadSavedReport(ref?: string): Promise<SavedReport | null> {
-  const all = await listSavedReports();
-  if (all.length === 0) return null;
-  if (!ref || ref === 'latest') return all[0];
-  return all.find((r) => r.id === ref) ?? all.find((r) => r.id.startsWith(ref)) ?? null;
+export function findSavedMatches(all: SavedReport[], ref?: string): SavedReport[] {
+  if (all.length === 0) return [];
+  if (!ref || ref === 'latest') return [all[0]];
+  const exact = all.find((r) => r.id === ref);
+  if (exact) return [exact];
+  return all.filter((r) => r.id.startsWith(ref));
+}
+
+/**
+ * Load one saved report by id. `undefined`/`'latest'` returns the newest; an id
+ * is matched exactly, then as a prefix (newest match wins). Returns null when
+ * nothing matches. For ambiguity-aware callers, use findSavedMatches directly.
+ */
+export async function loadSavedReport(
+  ref?: string,
+  dir: string = REFLECT_REPORTS_DIR,
+): Promise<SavedReport | null> {
+  return findSavedMatches(await listSavedReports(dir), ref)[0] ?? null;
 }
