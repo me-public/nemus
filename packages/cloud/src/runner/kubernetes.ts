@@ -29,6 +29,10 @@ export interface KubernetesRunnerOptions {
   namePrefix?: string;
 }
 
+/** How long `logs --follow` waits for the pod to reach Running before streaming.
+ *  Covers a cold image pull; if the pod never runs, status() reports the failure. */
+const LOG_POD_RUNNING_TIMEOUT = '5m';
+
 const K8S_CAPS: Capabilities = {
   exec: true, // kubectl exec into the job's pod
   logStream: true, // kubectl logs -f
@@ -43,6 +47,9 @@ interface K8sHandleRaw {
   namespace: string;
   context?: string;
   jobName: string;
+  /** How long `logs --follow` waits for the pod to be Running (kubectl
+   *  `--pod-running-timeout`). Tunable via target.extra.logs_pod_running_timeout. */
+  logsPodRunningTimeout?: string;
 }
 
 /**
@@ -86,6 +93,9 @@ export class KubernetesJobRunner implements Runner {
     const extra = (target.extra ?? {}) as Record<string, unknown>;
     const namespace = String(extra.namespace ?? 'default');
     const context = extra.context ? String(extra.context) : undefined;
+    const logsPodRunningTimeout = extra.logs_pod_running_timeout
+      ? String(extra.logs_pod_running_timeout)
+      : undefined;
 
     const jobName = `${this.namePrefix}-${randomBytes(4).toString('hex')}`;
     const manifest = this.buildJobManifest(spec, { jobName, namespace, extra });
@@ -97,7 +107,7 @@ export class KubernetesJobRunner implements Runner {
         { namespace, context },
       );
       const createdName: string = applied?.metadata?.name ?? jobName;
-      const raw: K8sHandleRaw = { namespace, context, jobName: createdName };
+      const raw: K8sHandleRaw = { namespace, context, jobName: createdName, logsPodRunningTimeout };
       return { runner: this.id, id: createdName, raw };
     } finally {
       await cleanup().catch(() => undefined);
@@ -122,9 +132,23 @@ export class KubernetesJobRunner implements Runner {
 
   logs(handle: Handle): AsyncIterable<LogLine> {
     const raw = handle.raw as K8sHandleRaw;
-    // `job/<name>` follows the job's pod; --all-containers + --ignore-errors so a
-    // not-yet-scheduled pod doesn't abort the stream.
-    const args = nsArgs(['logs', `job/${raw.jobName}`, '--follow', '--all-containers', '--ignore-errors'], raw);
+    // `job/<name>` follows the job's pod. --pod-running-timeout makes kubectl WAIT
+    // for the container to reach Running before streaming, then follow to
+    // completion — NOT --ignore-errors, which (proven by the kind e2e) demotes the
+    // "ContainerCreating" state to a swallowed error and makes --follow give up
+    // in ~40ms when logs are opened right after launch.
+    //
+    // Trade-off (flipped failure contract): a pod that NEVER reaches Running
+    // (ImagePullBackOff / unschedulable) blocks this stream for the whole timeout
+    // before erroring. That's a finite, tunable bound — set
+    // target.extra.logs_pod_running_timeout lower for headless orchestration that
+    // awaits logs before polling status. (status() can't shorten it: the Job
+    // keeps a stuck pod `active`, so it also reads `running` until backoffLimit.)
+    const timeout = raw.logsPodRunningTimeout ?? LOG_POD_RUNNING_TIMEOUT;
+    const args = nsArgs(
+      ['logs', `job/${raw.jobName}`, '--follow', '--all-containers', `--pod-running-timeout=${timeout}`],
+      raw,
+    );
     return this.stream(this.bin, args);
   }
 

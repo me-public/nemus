@@ -139,9 +139,33 @@ describe('KubernetesJobRunner.logs / stop', () => {
     for await (const l of runner.logs(handle)) lines.push(l);
     expect(lines).toEqual([{ stream: 'stdout', line: 'hello' }]);
     expect(streamed[0]).toEqual(expect.arrayContaining(['logs', 'job/j', '--follow', '--namespace', 'agents']));
+    // Must WAIT for the pod (--pod-running-timeout), not --ignore-errors, which
+    // makes --follow give up in ~40ms when the container is still creating
+    // (proven by the kind e2e). Guard against regressing to the old flag.
+    expect(streamed[0].some((a) => a.startsWith('--pod-running-timeout='))).toBe(true);
+    expect(streamed[0]).not.toContain('--ignore-errors');
 
     await runner.stop(handle);
     expect(calls[0]).toEqual(expect.arrayContaining(['delete', 'job', 'j', '--wait=false', '--ignore-not-found']));
+  });
+
+  it('threads a tunable logs_pod_running_timeout from target.extra onto logs', async () => {
+    const streamed: string[][] = [];
+    const stream: LogStreamer = async function* (_bin, args) {
+      streamed.push(args);
+    };
+    const run: CommandRunner = async () => ({ code: 0, stdout: JSON.stringify({ metadata: { name: 'nemus-agent-x' } }), stderr: '' });
+    const runner = new KubernetesJobRunner({
+      run,
+      stream,
+      writeManifest: async () => ({ path: '/x', cleanup: async () => {} }),
+    });
+    const handle = await runner.launch(
+      { image: 'img' },
+      { version: 1, runner: 'kubernetes', extra: { namespace: 'agents', logs_pod_running_timeout: '45s' } },
+    );
+    for await (const _ of runner.logs(handle)) { /* drain */ }
+    expect(streamed[0]).toContain('--pod-running-timeout=45s');
   });
 });
 
