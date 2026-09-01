@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-01
+
+### Added
+
+- **`--no-color` and `-q, --quiet` global flags.** `--no-color` disables ANSI
+  color; Nemus also honors the standard [`NO_COLOR`](https://no-color.org) env
+  var, auto-disables color when stdout isn't a TTY, and respects `FORCE_COLOR=1`.
+  `--quiet` suppresses routine progress logs (info/success/step) while still
+  showing warnings and errors; data output (including `--json`) is unaffected.
+
 ## [0.4.0] - 2026-09-01
 
 ### Changed
