@@ -1,0 +1,136 @@
+name: Release cloud
+
+# Publishes @nemus-cli/cloud to npm and creates a GitHub Release.
+#
+# Trigger: a push to main that changes packages/cloud/package.json's version, OR
+# a manual workflow_dispatch. The actual publish runs in the `release` GitHub
+# Environment (REQUIRED REVIEWERS), so publishing always waits for a maintainer
+# to click "Approve" before anything is pushed to npm. Independent of the core
+# CLI's release.yml — the two packages version and ship separately.
+
+on:
+  push:
+    branches: [main]
+    paths: ['packages/cloud/package.json']
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Why are you cutting this cloud release?'
+        required: false
+        default: 'manual release'
+
+concurrency:
+  group: release-cloud-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # 1) Decide whether there is a new cloud version to publish.
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0   # full history so we can diff the whole push, not just HEAD~1
+      - id: check
+        run: |
+          VERSION=$(node -p "require('./packages/cloud/package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # Compare against the commit BEFORE the whole push (github.event.before),
+          # not HEAD~1 — a push can carry several commits, and if the version bump
+          # isn't the last one, HEAD~1 already shows the new version and the
+          # release would be silently skipped. `before` is all-zeros on a new
+          # branch (nothing prior) -> treat as a release.
+          BEFORE='${{ github.event.before }}'
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            PREV=none
+          else
+            git show "$BEFORE:packages/cloud/package.json" > /tmp/prev.json 2>/dev/null || echo '{}' > /tmp/prev.json
+            PREV=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/prev.json','utf8')).version || 'none'")
+          fi
+          echo "previous=$PREV current=$VERSION"
+          if [ "$VERSION" != "$PREV" ]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # 2) Build + test the cloud package as a gate before we ever ask for approval.
+  verify:
+    needs: detect
+    if: needs.detect.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run -w @nemus-cli/cloud build
+      - run: npm run -w @nemus-cli/cloud typecheck
+      - run: npm run -w @nemus-cli/cloud test
+      - run: npm pack -w @nemus-cli/cloud --dry-run
+
+  # 3) Publish — runs ONLY after a maintainer approves the `release` environment.
+  publish:
+    needs: [detect, verify]
+    if: needs.detect.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://www.npmjs.com/package/@nemus-cli/cloud
+    permissions:
+      contents: write   # create tag + GitHub Release
+      id-token: write   # npm provenance
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+      - run: npm run -w @nemus-cli/cloud build
+
+      - name: Publish to npm (with provenance)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ needs.detect.outputs.version }}
+        run: |
+          # Idempotent: a re-run/re-approval (esp. via workflow_dispatch, which
+          # always sets should_release=true) must not die on npm's
+          # "cannot publish over an existing version" — mirror the GitHub Release
+          # step's idempotency and no-op if this version is already on npm.
+          if npm view "@nemus-cli/cloud@$VERSION" version >/dev/null 2>&1; then
+            echo "@nemus-cli/cloud@$VERSION is already on npm — skipping publish."
+            exit 0
+          fi
+          npm publish -w @nemus-cli/cloud --provenance --access public
+
+      # GitHub-owned CLI (org policy: GitHub-owned actions only). Idempotent.
+      # Cloud releases are tagged `cloud-v<version>` so they never collide with
+      # the core CLI's `v<version>` tags.
+      - name: Create / update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.detect.outputs.version }}
+        run: |
+          NOTES=$(printf '## @nemus-cli/cloud v%s\n\n```bash\nnpm install -g @nemus-cli/cloud@%s\n```\n\nOptional, experimental cloud/IaC runners for Nemus. See the [package README](https://github.com/%s/blob/main/packages/cloud/README.md).\n' "$VERSION" "$VERSION" "$GITHUB_REPOSITORY")
+          if gh release view "cloud-v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "cloud-v$VERSION" --repo "$GITHUB_REPOSITORY" \
+              --title "@nemus-cli/cloud v$VERSION" --notes "$NOTES" --draft=false --prerelease=true
+          else
+            gh release create "cloud-v$VERSION" --repo "$GITHUB_REPOSITORY" \
+              --title "@nemus-cli/cloud v$VERSION" --notes "$NOTES" --prerelease
+          fi

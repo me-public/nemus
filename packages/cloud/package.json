@@ -13,7 +13,19 @@
   ],
   "author": "Nemus contributors",
   "license": "MIT",
-  "private": true,
+  "homepage": "https://github.com/me-public/nemus/tree/main/packages/cloud#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/me-public/nemus.git",
+    "directory": "packages/cloud"
+  },
+  "bugs": {
+    "url": "https://github.com/me-public/nemus/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "type": "commonjs",
   "engines": {
     "node": ">=22"
@@ -28,7 +40,9 @@
     "dist/**/*",
     "image/**/*",
     "iac/**/*",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -389,9 +389,14 @@ there's an **optional, opt-in** package: [`@nemus-cli/cloud`](./packages/cloud).
 It's a separate, vendor-neutral package built from swappable seams — runners
 (`docker`, `aws-fargate`, `kubernetes`), IaC provisioners (OpenTofu/Terraform
 modules), git forges (GitHub/GitLab), a bounded CI-fix loop, and notifiers — with
-no cloud SDK in the core CLI. It is **not published to npm**; it lives in this
-repo for you to build and run yourself. See
-[`packages/cloud/README.md`](./packages/cloud/README.md) to get started.
+no cloud SDK in the core CLI. It's published separately as **experimental**
+(`0.x`), so installing the core CLI pulls in none of it:
+
+```bash
+npm install -g @nemus-cli/cloud
+```
+
+See [`packages/cloud/README.md`](./packages/cloud/README.md) to get started.
 
 ## Configuration
 
