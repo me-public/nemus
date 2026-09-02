@@ -126,11 +126,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.detect.outputs.version }}
         run: |
-          NOTES=$(printf '## Nemus v%s\n\n```bash\nnpm install -g @nemus-cli/nemus@%s\n```\n\nSee the [CHANGELOG](https://github.com/%s/blob/main/CHANGELOG.md) for details.\n' "$VERSION" "$VERSION" "$GITHUB_REPOSITORY")
+          # Build notes from this version's CHANGELOG section (falls back to a
+          # minimal note if the entry is missing, so a release never blocks).
+          node scripts/release-notes.mjs "$VERSION" "$GITHUB_REPOSITORY" > /tmp/release-notes.md
           if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "v$VERSION" --repo "$GITHUB_REPOSITORY" \
-              --title "Nemus v$VERSION" --notes "$NOTES" --draft=false --prerelease=false
+              --title "Nemus v$VERSION" --notes-file /tmp/release-notes.md --draft=false --prerelease=false
           else
             gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" \
-              --title "Nemus v$VERSION" --notes "$NOTES" --latest
+              --title "Nemus v$VERSION" --notes-file /tmp/release-notes.md --latest
           fi
