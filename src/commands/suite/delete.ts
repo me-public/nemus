@@ -3,7 +3,7 @@
 import { listSuites, deleteSuite } from '../../utils/suite';
 import { logInfo, logSuccess, logError } from '../../utils/logger';
 import { colorize } from '../../utils/colors';
-import inquirer from 'inquirer';
+import { confirm, select } from '../../utils/prompt';
 
 export async function main() {
   console.log('\n' + '='.repeat(60));
@@ -18,28 +18,19 @@ export async function main() {
       process.exit(0);
     }
 
-    const { suiteName } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'suiteName',
-        message: 'Select a suite to delete:',
-        choices: suites.map(s => ({
-          name: `${s.name} (${s.entries.length} repos)${s.description ? ` - ${s.description}` : ''}`,
-          value: s.name,
-          short: s.name,
-        })),
-        pageSize: 15,
-      },
-    ]);
+    const suiteName = await select({
+      message: 'Select a suite to delete:',
+      choices: suites.map(s => ({
+        name: `${s.name} (${s.entries.length} repos)${s.description ? ` - ${s.description}` : ''}`,
+        value: s.name,
+      })),
+      pageSize: 15,
+    });
 
-    const { confirmed } = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'confirmed',
-        message: `Are you sure you want to delete suite "${suiteName}"?`,
-        default: false,
-      },
-    ]);
+    const confirmed = await confirm({
+      message: `Are you sure you want to delete suite "${suiteName}"?`,
+      default: false,
+    });
 
     if (!confirmed) {
       logInfo('Deletion cancelled');

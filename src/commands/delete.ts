@@ -5,7 +5,7 @@ import { listWorkspaces } from '../utils/workspace-meta';
 import { promptMultiWorkspaceSelection } from '../utils/prompts';
 import { logInfo, logSuccess, logError, logWarning } from '../utils/logger';
 import { colorize } from '../utils/colors';
-import inquirer from 'inquirer';
+import { confirm } from '../utils/prompt';
 import { getGlobalOpts, parseList } from '../utils/command-helpers';
 
 export function registerDeleteCommand(parent: Command) {
@@ -76,16 +76,12 @@ async function handleDelete(opts: {
       logWarning('This will permanently delete all cloned repositories in the selected workspaces!');
 
       if (!opts.yes) {
-        const { confirmed } = await inquirer.prompt([
-          {
-            type: 'confirm',
-            name: 'confirmed',
-            message: targets.length === 1
-              ? `Delete workspace ${targets[0].name}?`
-              : `Delete these ${targets.length} workspaces?`,
-            default: true,
-          },
-        ]);
+        const confirmed = await confirm({
+          message: targets.length === 1
+            ? `Delete workspace ${targets[0].name}?`
+            : `Delete these ${targets.length} workspaces?`,
+          default: true,
+        });
         if (!confirmed) {
           logInfo('Deletion cancelled');
           process.exit(0);
@@ -147,14 +143,10 @@ async function handleDelete(opts: {
           ? `Delete workspace ${resolved[0].name}?`
           : `Delete these ${resolved.length} workspaces?`;
 
-        const { confirmed } = await inquirer.prompt([
-          {
-            type: 'confirm',
-            name: 'confirmed',
-            message: confirmMessage,
-            default: true,
-          },
-        ]);
+        const confirmed = await confirm({
+          message: confirmMessage,
+          default: true,
+        });
 
         if (confirmed) {
           for (const { name, path: workspacePath } of resolved) {
@@ -175,14 +167,10 @@ async function handleDelete(opts: {
         break;
       }
 
-      const { deleteMore } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'deleteMore',
-          message: 'Delete more workspaces?',
-          default: false,
-        },
-      ]);
+      const deleteMore = await confirm({
+        message: 'Delete more workspaces?',
+        default: false,
+      });
 
       if (!deleteMore) {
         break;

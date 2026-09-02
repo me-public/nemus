@@ -4,12 +4,12 @@ const {
   mockRm,
   mockListWorkspaces,
   mockPromptMultiWorkspaceSelection,
-  mockPrompt,
+  mockConfirm,
 } = vi.hoisted(() => ({
   mockRm: vi.fn(),
   mockListWorkspaces: vi.fn(),
   mockPromptMultiWorkspaceSelection: vi.fn(),
-  mockPrompt: vi.fn(),
+  mockConfirm: vi.fn(),
 }));
 
 vi.mock('fs/promises', () => ({
@@ -39,10 +39,8 @@ vi.mock('../utils/colors', () => ({
   colorize: (text: string) => text,
 }));
 
-vi.mock('inquirer', () => ({
-  default: {
-    prompt: mockPrompt,
-  },
+vi.mock('../utils/prompt', () => ({
+  confirm: mockConfirm,
 }));
 
 import { main } from './delete';
@@ -82,9 +80,9 @@ describe('delete-workspace main', () => {
 
     mockPromptMultiWorkspaceSelection.mockResolvedValueOnce(['ws-a']);
 
-    mockPrompt
-      .mockResolvedValueOnce({ confirmed: true })   // confirm deletion
-      .mockResolvedValueOnce({ deleteMore: false }); // don't delete more
+    mockConfirm
+      .mockResolvedValueOnce(true)   // confirm deletion
+      .mockResolvedValueOnce(false); // don't delete more
 
     await main();
 
@@ -99,9 +97,9 @@ describe('delete-workspace main', () => {
 
     mockPromptMultiWorkspaceSelection.mockResolvedValueOnce(['ws-a', 'ws-b']);
 
-    mockPrompt
-      .mockResolvedValueOnce({ confirmed: true })
-      .mockResolvedValueOnce({ deleteMore: false });
+    mockConfirm
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
 
     await main();
 
@@ -117,15 +115,15 @@ describe('delete-workspace main', () => {
 
     mockPromptMultiWorkspaceSelection.mockResolvedValueOnce(['ws-a']);
 
-    mockPrompt
-      .mockResolvedValueOnce({ confirmed: false })   // cancel deletion
-      .mockResolvedValueOnce({ deleteMore: false });  // don't delete more
+    mockConfirm
+      .mockResolvedValueOnce(false)   // cancel deletion
+      .mockResolvedValueOnce(false);  // don't delete more
 
     await main();
 
     expect(mockRm).not.toHaveBeenCalled();
     // Should still ask "delete more?" — not exit immediately
-    expect(mockPrompt).toHaveBeenCalledTimes(2);
+    expect(mockConfirm).toHaveBeenCalledTimes(2);
   });
 
   it('loops when user wants to delete more', async () => {
@@ -139,10 +137,10 @@ describe('delete-workspace main', () => {
       .mockResolvedValueOnce(['ws-a'])
       .mockResolvedValueOnce(['ws-b']);
 
-    mockPrompt
-      .mockResolvedValueOnce({ confirmed: true })    // confirm 1st deletion
-      .mockResolvedValueOnce({ deleteMore: true })   // delete more
-      .mockResolvedValueOnce({ confirmed: true });   // confirm 2nd deletion
+    mockConfirm
+      .mockResolvedValueOnce(true)    // confirm 1st deletion
+      .mockResolvedValueOnce(true)   // delete more
+      .mockResolvedValueOnce(true);   // confirm 2nd deletion
 
     await main();
 
@@ -159,14 +157,14 @@ describe('delete-workspace main', () => {
       .mockResolvedValueOnce([]);  // none left after deletion
 
     mockPromptMultiWorkspaceSelection.mockResolvedValueOnce(['ws-only']);
-    mockPrompt.mockResolvedValueOnce({ confirmed: true });
+    mockConfirm.mockResolvedValueOnce(true);
 
     await main();
 
     expect(mockRm).toHaveBeenCalledTimes(1);
     expect(logInfo).toHaveBeenCalledWith('No more workspaces remaining');
     // Should NOT have asked "delete more?" since there are none left
-    expect(mockPrompt).toHaveBeenCalledTimes(1); // only the confirm prompt
+    expect(mockConfirm).toHaveBeenCalledTimes(1); // only the confirm prompt
   });
 
   it('handles individual deletion failure without stopping others', async () => {
@@ -180,9 +178,9 @@ describe('delete-workspace main', () => {
       .mockRejectedValueOnce(new Error('permission denied'))  // ws-a fails
       .mockResolvedValueOnce(undefined);                       // ws-b succeeds
 
-    mockPrompt
-      .mockResolvedValueOnce({ confirmed: true })
-      .mockResolvedValueOnce({ deleteMore: false });
+    mockConfirm
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
 
     await main();
 
@@ -197,17 +195,15 @@ describe('delete-workspace main', () => {
       .mockResolvedValueOnce([]);
 
     mockPromptMultiWorkspaceSelection.mockResolvedValueOnce(['ws-alpha']);
-    mockPrompt.mockResolvedValueOnce({ confirmed: true });
+    mockConfirm.mockResolvedValueOnce(true);
 
     await main();
 
-    expect(mockPrompt).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({
-          message: 'Delete workspace ws-alpha?',
-          default: true,
-        }),
-      ])
+    expect(mockConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Delete workspace ws-alpha?',
+        default: true,
+      })
     );
   });
 
@@ -217,17 +213,15 @@ describe('delete-workspace main', () => {
       .mockResolvedValueOnce([]);
 
     mockPromptMultiWorkspaceSelection.mockResolvedValueOnce(['ws-a', 'ws-b', 'ws-c']);
-    mockPrompt.mockResolvedValueOnce({ confirmed: true });
+    mockConfirm.mockResolvedValueOnce(true);
 
     await main();
 
-    expect(mockPrompt).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({
-          message: 'Delete these 3 workspaces?',
-          default: true,
-        }),
-      ])
+    expect(mockConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Delete these 3 workspaces?',
+        default: true,
+      })
     );
   });
 
@@ -239,7 +233,7 @@ describe('delete-workspace main', () => {
       .mockResolvedValueOnce([]);
 
     mockPromptMultiWorkspaceSelection.mockResolvedValueOnce(['ws-a']);
-    mockPrompt.mockResolvedValueOnce({ confirmed: true });
+    mockConfirm.mockResolvedValueOnce(true);
 
     await main();
 

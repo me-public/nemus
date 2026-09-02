@@ -5,7 +5,7 @@ import * as path from 'path';
 import { listSuites, exportSuite, exportAllSuites } from '../../utils/suite';
 import { logInfo, logSuccess, logError } from '../../utils/logger';
 import { colorize } from '../../utils/colors';
-import inquirer from 'inquirer';
+import { input, select } from '../../utils/prompt';
 
 export async function main(opts?: { file?: string }) {
   console.log('\n' + '='.repeat(60));
@@ -20,35 +20,26 @@ export async function main(opts?: { file?: string }) {
       process.exit(0);
     }
 
-    const { mode } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'mode',
-        message: 'What would you like to export?',
-        choices: [
-          { name: 'A single suite', value: 'single' },
-          { name: 'All suites', value: 'all' },
-        ],
-      },
-    ]);
+    const mode = await select({
+      message: 'What would you like to export?',
+      choices: [
+        { name: 'A single suite', value: 'single' },
+        { name: 'All suites', value: 'all' },
+      ],
+    });
 
     let data;
     let defaultFilename: string;
 
     if (mode === 'single') {
-      const { suiteName } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'suiteName',
-          message: 'Select a suite to export:',
-          choices: suites.map(s => ({
-            name: `${s.name} (${s.entries.length} repos)${s.description ? ` - ${s.description}` : ''}`,
-            value: s.name,
-            short: s.name,
-          })),
-          pageSize: 15,
-        },
-      ]);
+      const suiteName = await select({
+        message: 'Select a suite to export:',
+        choices: suites.map(s => ({
+          name: `${s.name} (${s.entries.length} repos)${s.description ? ` - ${s.description}` : ''}`,
+          value: s.name,
+        })),
+        pageSize: 15,
+      });
 
       data = await exportSuite(suiteName);
       if (!data) {
@@ -68,14 +59,10 @@ export async function main(opts?: { file?: string }) {
     if (outputArg && !outputArg.startsWith('-')) {
       outputPath = path.resolve(outputArg);
     } else {
-      const { filePath } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'filePath',
-          message: 'Output file path:',
-          default: `./${defaultFilename}`,
-        },
-      ]);
+      const filePath = await input({
+        message: 'Output file path:',
+        default: `./${defaultFilename}`,
+      });
       outputPath = path.resolve(filePath);
     }
 

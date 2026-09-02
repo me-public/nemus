@@ -1,19 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockPrompt } = vi.hoisted(() => ({
-  mockPrompt: vi.fn(),
+const { mockSearch, mockInput } = vi.hoisted(() => ({
+  mockSearch: vi.fn(),
+  mockInput: vi.fn(),
 }));
 
-// Mock inquirer before imports
-vi.mock('inquirer', () => ({
-  default: {
-    prompt: mockPrompt,
-    registerPrompt: vi.fn(),
-  },
-}));
-
-vi.mock('inquirer-autocomplete-prompt', () => ({
-  default: {},
+// Mock the modular prompt module. promptMultiWorkspaceSelection uses search();
+// the modular API returns the selected VALUE directly (not { name: value }).
+vi.mock('./prompt', () => ({
+  search: mockSearch,
+  input: mockInput,
+  confirm: vi.fn(),
+  select: vi.fn(),
+  checkbox: vi.fn(),
+  password: vi.fn(),
+  Separator: class {},
 }));
 
 vi.mock('fuzzy', () => ({
@@ -35,7 +36,8 @@ vi.mock('./validation', () => ({
   sanitizeWorkspaceName: vi.fn((input: string) => input),
 }));
 
-import { promptMultiWorkspaceSelection } from './prompts';
+import { promptMultiWorkspaceSelection, promptWorkspaceName } from './prompts';
+import { validateWorkspaceName, sanitizeWorkspaceName } from './validation';
 
 const makeWorkspaces = (...names: string[]) =>
   names.map(name => ({
@@ -44,6 +46,33 @@ const makeWorkspaces = (...names: string[]) =>
     metadata: { repositories: [], createdAt: new Date().toISOString() },
   }));
 
+describe('promptWorkspaceName', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  it('validates the SANITIZED name, not the raw input (classic filter-before-validate parity)', async () => {
+    // Classic inquirer ran filter (sanitize) BEFORE validate, so a name like
+    // "My Workspace" was validated as "my-workspace". Regression guard.
+    (sanitizeWorkspaceName as any).mockImplementation((s: string) =>
+      s.trim().toLowerCase().replace(/ +/g, '-'));
+    (validateWorkspaceName as any).mockReturnValue(true);
+
+    mockInput.mockImplementation(async (opts: any) => {
+      // Simulate the user submitting a raw value containing a space.
+      opts.validate('My Workspace');
+      return 'My Workspace';
+    });
+
+    const result = await promptWorkspaceName();
+
+    // validate must have seen the sanitized value, and the return is sanitized.
+    expect(validateWorkspaceName).toHaveBeenCalledWith('my-workspace');
+    expect(result).toBe('my-workspace');
+  });
+});
+
 describe('promptMultiWorkspaceSelection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -51,10 +80,10 @@ describe('promptMultiWorkspaceSelection', () => {
   });
 
   it('returns selected workspace names', async () => {
-    mockPrompt
-      .mockResolvedValueOnce({ workspaceName: 'ws-alpha' })
-      .mockResolvedValueOnce({ workspaceName: 'ws-beta' })
-      .mockResolvedValueOnce({ workspaceName: 'done' });
+    mockSearch
+      .mockResolvedValueOnce('ws-alpha')
+      .mockResolvedValueOnce('ws-beta')
+      .mockResolvedValueOnce('done');
 
     const result = await promptMultiWorkspaceSelection(
       makeWorkspaces('ws-alpha', 'ws-beta', 'ws-gamma')
@@ -65,10 +94,10 @@ describe('promptMultiWorkspaceSelection', () => {
 
   it('requires at least one selection before accepting done', async () => {
     // First "done" should be rejected, then select one, then done
-    mockPrompt
-      .mockResolvedValueOnce({ workspaceName: 'done' })
-      .mockResolvedValueOnce({ workspaceName: 'ws-alpha' })
-      .mockResolvedValueOnce({ workspaceName: 'done' });
+    mockSearch
+      .mockResolvedValueOnce('done')
+      .mockResolvedValueOnce('ws-alpha')
+      .mockResolvedValueOnce('done');
 
     const result = await promptMultiWorkspaceSelection(
       makeWorkspaces('ws-alpha', 'ws-beta')
@@ -76,13 +105,13 @@ describe('promptMultiWorkspaceSelection', () => {
 
     expect(result).toEqual(['ws-alpha']);
     // Should have prompted 3 times (done rejected, select, done accepted)
-    expect(mockPrompt).toHaveBeenCalledTimes(3);
+    expect(mockSearch).toHaveBeenCalledTimes(3);
   });
 
   it('auto-completes when all workspaces are selected', async () => {
-    mockPrompt
-      .mockResolvedValueOnce({ workspaceName: 'ws-alpha' })
-      .mockResolvedValueOnce({ workspaceName: 'ws-beta' });
+    mockSearch
+      .mockResolvedValueOnce('ws-alpha')
+      .mockResolvedValueOnce('ws-beta');
 
     const result = await promptMultiWorkspaceSelection(
       makeWorkspaces('ws-alpha', 'ws-beta')
@@ -90,13 +119,13 @@ describe('promptMultiWorkspaceSelection', () => {
 
     expect(result).toEqual(['ws-alpha', 'ws-beta']);
     // Only 2 prompts needed - loop breaks when no available names left
-    expect(mockPrompt).toHaveBeenCalledTimes(2);
+    expect(mockSearch).toHaveBeenCalledTimes(2);
   });
 
   it('returns single workspace selection', async () => {
-    mockPrompt
-      .mockResolvedValueOnce({ workspaceName: 'ws-only' })
-      .mockResolvedValueOnce({ workspaceName: 'done' });
+    mockSearch
+      .mockResolvedValueOnce('ws-only')
+      .mockResolvedValueOnce('done');
 
     const result = await promptMultiWorkspaceSelection(
       makeWorkspaces('ws-only', 'ws-other')
@@ -110,7 +139,7 @@ describe('promptMultiWorkspaceSelection', () => {
       throw new Error('process.exit');
     });
 
-    mockPrompt.mockRejectedValueOnce(new Error('User force closed'));
+    mockSearch.mockRejectedValueOnce(new Error('User force closed'));
 
     await expect(
       promptMultiWorkspaceSelection(makeWorkspaces('ws-alpha'))
@@ -122,9 +151,9 @@ describe('promptMultiWorkspaceSelection', () => {
 
   it('prints summary with correct singular form', async () => {
     const logSpy = vi.spyOn(console, 'log');
-    mockPrompt
-      .mockResolvedValueOnce({ workspaceName: 'ws-alpha' })
-      .mockResolvedValueOnce({ workspaceName: 'done' });
+    mockSearch
+      .mockResolvedValueOnce('ws-alpha')
+      .mockResolvedValueOnce('done');
 
     await promptMultiWorkspaceSelection(makeWorkspaces('ws-alpha', 'ws-beta'));
 
@@ -136,10 +165,10 @@ describe('promptMultiWorkspaceSelection', () => {
 
   it('prints summary with correct plural form', async () => {
     const logSpy = vi.spyOn(console, 'log');
-    mockPrompt
-      .mockResolvedValueOnce({ workspaceName: 'ws-alpha' })
-      .mockResolvedValueOnce({ workspaceName: 'ws-beta' })
-      .mockResolvedValueOnce({ workspaceName: 'done' });
+    mockSearch
+      .mockResolvedValueOnce('ws-alpha')
+      .mockResolvedValueOnce('ws-beta')
+      .mockResolvedValueOnce('done');
 
     await promptMultiWorkspaceSelection(
       makeWorkspaces('ws-alpha', 'ws-beta', 'ws-gamma')
@@ -153,10 +182,10 @@ describe('promptMultiWorkspaceSelection', () => {
 
   it('prints green confirmation after each selection', async () => {
     const logSpy = vi.spyOn(console, 'log');
-    mockPrompt
-      .mockResolvedValueOnce({ workspaceName: 'ws-alpha' })
-      .mockResolvedValueOnce({ workspaceName: 'ws-beta' })
-      .mockResolvedValueOnce({ workspaceName: 'done' });
+    mockSearch
+      .mockResolvedValueOnce('ws-alpha')
+      .mockResolvedValueOnce('ws-beta')
+      .mockResolvedValueOnce('done');
 
     await promptMultiWorkspaceSelection(
       makeWorkspaces('ws-alpha', 'ws-beta', 'ws-gamma')

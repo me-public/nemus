@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import inquirer from 'inquirer';
+import { input, confirm, select } from '../utils/prompt';
 import { getUserConfig, saveUserConfig, UserConfig } from '../utils/config';
 import { clearCache } from '../utils/cache';
 import { logSuccess, logError, logInfo, logWarning } from '../utils/logger';
@@ -39,40 +39,46 @@ async function handleConfigure() {
   console.log('');
 
   try {
-    const answers = await inquirer.prompt([
-      { type: 'input', name: 'workspacesDir', message: 'Workspaces directory:', default: current.workspacesDir, validate: (val: string) => val.trim().length > 0 || 'Directory path is required' },
-      { type: 'input', name: 'githubOrg', message: 'GitHub organization:', default: current.githubOrg, validate: (val: string) => /^[a-zA-Z0-9_-]+$/.test(val.trim()) || 'Must be a valid GitHub org name' },
-      { type: 'list', name: 'cloneProtocol', message: 'Clone protocol:', choices: [{ name: 'SSH  (git@github.com:...)', value: 'ssh' }, { name: 'HTTPS (https://github.com/...)', value: 'https' }], default: current.cloneProtocol },
-      { type: 'confirm', name: 'autoLaunchClaude', message: 'Auto-launch AI agent after workspace creation?', default: current.autoLaunchClaude },
-      { type: 'confirm', name: 'generateClaudeContext', message: 'Generate context file in workspaces?', default: current.generateClaudeContext },
-      { type: 'confirm', name: 'installMcp', message: 'Install MCP server (Claude Code only)?', default: current.installMcp },
-      { type: 'list', name: 'aiAgent', message: 'AI Agent(s) to integrate with:', choices: [
-        { name: 'Auto-detect (recommended)', value: 'auto' },
-        { name: 'Claude Code only', value: 'claude' },
-        { name: 'Pi only', value: 'pi' },
-        { name: 'OpenCode only', value: 'opencode' },
-        { name: 'All available', value: 'both' },
-      ], default: current.aiAgent },
-      // Only ask about primary agent when aiAgent is 'both' or 'auto'
-      // (when specific agent chosen, primary is implicitly that agent)
-      { type: 'list', name: 'primaryAgent', message: 'Primary agent (used for launching):', choices: [
+    // Sequential modular prompts. The classic `when:` conditions become `if`
+    // guards; a skipped question leaves its answer key undefined, exactly as the
+    // classic API did (downstream code already tolerates that via `??`).
+    const answers: any = {};
+    answers.workspacesDir = await input({ message: 'Workspaces directory:', default: current.workspacesDir, validate: (val: string) => val.trim().length > 0 || 'Directory path is required' });
+    answers.githubOrg = await input({ message: 'GitHub organization:', default: current.githubOrg, validate: (val: string) => /^[a-zA-Z0-9_-]+$/.test(val.trim()) || 'Must be a valid GitHub org name' });
+    answers.cloneProtocol = await select({ message: 'Clone protocol:', choices: [{ name: 'SSH  (git@github.com:...)', value: 'ssh' }, { name: 'HTTPS (https://github.com/...)', value: 'https' }], default: current.cloneProtocol });
+    answers.autoLaunchClaude = await confirm({ message: 'Auto-launch AI agent after workspace creation?', default: current.autoLaunchClaude });
+    answers.generateClaudeContext = await confirm({ message: 'Generate context file in workspaces?', default: current.generateClaudeContext });
+    answers.installMcp = await confirm({ message: 'Install MCP server (Claude Code only)?', default: current.installMcp });
+    answers.aiAgent = await select<string>({ message: 'AI Agent(s) to integrate with:', choices: [
+      { name: 'Auto-detect (recommended)', value: 'auto' },
+      { name: 'Claude Code only', value: 'claude' },
+      { name: 'Pi only', value: 'pi' },
+      { name: 'OpenCode only', value: 'opencode' },
+      { name: 'All available', value: 'both' },
+    ], default: current.aiAgent });
+    // Only ask about primary agent when aiAgent is 'both' or 'auto'
+    // (when specific agent chosen, primary is implicitly that agent)
+    if (answers.aiAgent === 'both' || answers.aiAgent === 'auto') {
+      answers.primaryAgent = await select<string>({ message: 'Primary agent (used for launching):', choices: [
         { name: 'Auto-detect (first available)', value: 'auto' },
         { name: 'Claude Code', value: 'claude' },
         { name: 'Pi', value: 'pi' },
         { name: 'OpenCode', value: 'opencode' },
-      ], default: current.primaryAgent, when: (ans) => ans.aiAgent === 'both' || ans.aiAgent === 'auto' },
-      { type: 'confirm', name: 'piWorkspaceInputStatus',
+      ], default: current.primaryAgent });
+    }
+    if (answers.aiAgent === 'pi' || answers.aiAgent === 'both' || answers.aiAgent === 'auto') {
+      answers.piWorkspaceInputStatus = await confirm({
         message: 'Show workspace status widget in Pi input area (branch, PRs, CI)?',
-        default: current.piWorkspaceInputStatus !== false,
-        when: (ans) => ans.aiAgent === 'pi' || ans.aiAgent === 'both' || ans.aiAgent === 'auto' },
-      { type: 'confirm', name: 'claudeWorkspaceStatusLine',
+        default: current.piWorkspaceInputStatus !== false });
+    }
+    if (answers.aiAgent === 'claude' || answers.aiAgent === 'both' || answers.aiAgent === 'auto') {
+      answers.claudeWorkspaceStatusLine = await confirm({
         message: 'Add workspace repo table to Claude Code status line?',
-        default: current.claudeWorkspaceStatusLine !== false,
-        when: (ans) => ans.aiAgent === 'claude' || ans.aiAgent === 'both' || ans.aiAgent === 'auto' },
-      { type: 'confirm', name: 'autoReportBugs',
-        message: 'Auto-file a GitHub issue when a command crashes? (deduped, sanitized)',
-        default: current.autoReportBugs === true },
-    ]);
+        default: current.claudeWorkspaceStatusLine !== false });
+    }
+    answers.autoReportBugs = await confirm({
+      message: 'Auto-file a GitHub issue when a command crashes? (deduped, sanitized)',
+      default: current.autoReportBugs === true });
 
     // Validate and normalize config
     let primaryAgent = answers.primaryAgent || 'auto';

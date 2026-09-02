@@ -6,7 +6,7 @@ import { importSuites } from '../../utils/suite';
 import { logInfo, logSuccess, logError, logWarning } from '../../utils/logger';
 import { colorize } from '../../utils/colors';
 import { SuitesStore } from '../../types';
-import inquirer from 'inquirer';
+import { confirm, input } from '../../utils/prompt';
 
 export async function main(opts?: { file?: string }) {
   console.log('\n' + '='.repeat(60));
@@ -20,14 +20,10 @@ export async function main(opts?: { file?: string }) {
     if (fileArg && !fileArg.startsWith('-')) {
       filePath = path.resolve(fileArg);
     } else {
-      const { inputPath } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'inputPath',
-          message: 'Path to suite JSON file:',
-          validate: (input: string) => input.trim().length > 0 || 'File path is required',
-        },
-      ]);
+      const inputPath = await input({
+        message: 'Path to suite JSON file:',
+        validate: (input: string) => input.trim().length > 0 || 'File path is required',
+      });
       filePath = path.resolve(inputPath);
     }
 
@@ -61,14 +57,10 @@ export async function main(opts?: { file?: string }) {
     }
     console.log('');
 
-    const { overwrite } = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'overwrite',
-        message: 'Overwrite existing suites with the same name?',
-        default: false,
-      },
-    ]);
+    const overwrite = await confirm({
+      message: 'Overwrite existing suites with the same name?',
+      default: false,
+    });
 
     const result = await importSuites(data, overwrite);
 

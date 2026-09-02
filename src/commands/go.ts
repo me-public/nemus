@@ -7,11 +7,8 @@ import { listWorkspaces } from '../utils/workspace-meta';
 import { getWorkspaceSessions } from '../utils/claude-sessions';
 import { logError } from '../utils/logger';
 import { colorize } from '../utils/colors';
-import inquirer from 'inquirer';
-import autocompletePrompt from 'inquirer-autocomplete-prompt';
+import { search } from '../utils/prompt';
 import * as fuzzy from 'fuzzy';
-
-inquirer.registerPrompt('autocomplete', autocompletePrompt);
 
 const TEMP_FILE = path.join(os.homedir(), '.workspace-last-go');
 const RESUME_FLAG_FILE = path.join(os.homedir(), '.workspace-resume-session');
@@ -68,27 +65,23 @@ async function handleGo(workspaceArg?: string) {
         return 0;
       });
 
-      const { workspaceName } = await inquirer.prompt([
-        {
-          type: 'autocomplete',
-          name: 'workspaceName',
-          message: 'Select workspace to navigate to:',
-          source: async (_answersSoFar: any, input: string | undefined) => {
-            const searchInput = input || '';
-            const source = items.map(item => ({
-              name: `${item.name}  ${item.lastActiveLabel ? colorize(item.lastActiveLabel, 'dim') : colorize('no session', 'dim')}  ${colorize(`${item.repoCount} repos`, 'dim')}`,
-              value: item.name,
-            }));
-            if (!searchInput) return source;
-            const results = fuzzy.filter(searchInput, items, { extract: (item) => item.name });
-            return results.map(result => ({
-              name: `${result.original.name}  ${result.original.lastActiveLabel ? colorize(result.original.lastActiveLabel, 'dim') : colorize('no session', 'dim')}  ${colorize(`${result.original.repoCount} repos`, 'dim')}`,
-              value: result.original.name,
-            }));
-          },
-          pageSize: 15,
-        } as any,
-      ]);
+      const workspaceName = await search<string>({
+        message: 'Select workspace to navigate to:',
+        pageSize: 15,
+        source: async (term: string | undefined) => {
+          const searchInput = term || '';
+          const source = items.map(item => ({
+            name: `${item.name}  ${item.lastActiveLabel ? colorize(item.lastActiveLabel, 'dim') : colorize('no session', 'dim')}  ${colorize(`${item.repoCount} repos`, 'dim')}`,
+            value: item.name,
+          }));
+          if (!searchInput) return source;
+          const results = fuzzy.filter(searchInput, items, { extract: (item) => item.name });
+          return results.map(result => ({
+            name: `${result.original.name}  ${result.original.lastActiveLabel ? colorize(result.original.lastActiveLabel, 'dim') : colorize('no session', 'dim')}  ${colorize(`${result.original.repoCount} repos`, 'dim')}`,
+            value: result.original.name,
+          }));
+        },
+      });
 
       selectedWorkspace = workspaceName;
     }

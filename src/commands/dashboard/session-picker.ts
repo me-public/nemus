@@ -9,11 +9,8 @@ import { getWorkspaceSessions, WorkspaceSession } from '../../utils/claude-sessi
 import { launchAgentPane } from './launcher';
 import { getAgentPaths, getPrimaryAgent, ConcreteAgentType } from '../../utils/agent-config';
 import { colorize } from '../../utils/colors';
-import inquirer from 'inquirer';
-import autocompletePrompt from 'inquirer-autocomplete-prompt';
+import { search } from '../../utils/prompt';
 import * as fuzzy from 'fuzzy';
-
-inquirer.registerPrompt('autocomplete', autocompletePrompt);
 
 async function main() {
   try {
@@ -30,12 +27,11 @@ async function main() {
       timeLabel: session.lastActiveLabel,
     }));
 
-    const { selected } = await inquirer.prompt([{
-      type: 'autocomplete',
-      name: 'selected',
+    const selected = await search<typeof items[number]>({
       message: 'Select session to resume:',
-      source: async (_answersSoFar: any, input: string | undefined) => {
-        const searchInput = input || '';
+      pageSize: 15,
+      source: async (term: string | undefined) => {
+        const searchInput = term || '';
         const source = items.map(item => ({
           name: `${item.displayName}  ${colorize(item.timeLabel, 'dim')}`,
           value: item,
@@ -47,8 +43,7 @@ async function main() {
           value: result.original,
         }));
       },
-      pageSize: 15,
-    } as any]);
+    });
 
     const item = selected as { session: WorkspaceSession };
     const session = item.session;

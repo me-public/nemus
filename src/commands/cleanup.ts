@@ -5,7 +5,7 @@ import { loadMetadata } from '../utils/workspace-meta';
 import { removeNodeModules, removeBuildArtifacts, gitClean } from '../utils/cleanup-operations';
 import { logError, logInfo, logStep, logSuccess } from '../utils/logger';
 import { colorize } from '../utils/colors';
-import inquirer from 'inquirer';
+import { checkbox, confirm } from '../utils/prompt';
 import { getGlobalOpts, resolveWorkspace } from '../utils/command-helpers';
 
 export function registerCleanupCommand(parent: Command) {
@@ -54,19 +54,14 @@ async function handleCleanup(workspaceArg: string | undefined, opts: {
       if (build) operations.push('build');
       if (gitCleanFlag) operations.push('git_clean');
     } else {
-      const result = await inquirer.prompt([
-        {
-          type: 'checkbox',
-          name: 'operations',
-          message: 'Select cleanup operations:',
-          choices: [
-            { name: 'Remove node_modules (all repos)', value: 'node_modules' },
-            { name: 'Remove build artifacts (dist, build, .next, coverage)', value: 'build' },
-            { name: 'Git clean (remove untracked files)', value: 'git_clean' },
-          ],
-        },
-      ]);
-      operations = result.operations;
+      operations = await checkbox({
+        message: 'Select cleanup operations:',
+        choices: [
+          { name: 'Remove node_modules (all repos)', value: 'node_modules' },
+          { name: 'Remove build artifacts (dist, build, .next, coverage)', value: 'build' },
+          { name: 'Git clean (remove untracked files)', value: 'git_clean' },
+        ],
+      });
     }
 
     if (operations.length === 0) {
@@ -75,16 +70,12 @@ async function handleCleanup(workspaceArg: string | undefined, opts: {
     }
 
     if (!opts.yes) {
-      const { confirm } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'confirm',
-          message: `Proceed with cleanup? This cannot be undone.`,
-          default: false,
-        },
-      ]);
+      const confirmed = await confirm({
+        message: `Proceed with cleanup? This cannot be undone.`,
+        default: false,
+      });
 
-      if (!confirm) {
+      if (!confirmed) {
         logInfo('Cleanup cancelled');
         return;
       }

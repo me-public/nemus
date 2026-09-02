@@ -13,7 +13,7 @@ import { colorize } from '../../utils/colors';
 import { listSuites } from '../../utils/suite';
 import { runPostCloneHooks } from '../../utils/hooks';
 import { GitHubRepo } from '../../types';
-import inquirer from 'inquirer';
+import { select } from '../../utils/prompt';
 import { validateWorkspaceName, checkWorkspaceExists, sanitizeWorkspaceName, resolveWorkspaceNameConflict } from '../../utils/validation';
 
 export interface SuiteUseOpts {
@@ -64,19 +64,14 @@ export async function main(opts?: SuiteUseOpts) {
       }
       selectedSuite = found;
     } else {
-      const { suite } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'suite',
-          message: 'Select a suite:',
-          choices: suites.map(s => ({
-            name: `${s.name} (${s.entries.length} repos)${s.description ? ` - ${s.description}` : ''}`,
-            value: s,
-            short: s.name,
-          })),
-          pageSize: 15,
-        },
-      ]);
+      const suite = await select({
+        message: 'Select a suite:',
+        choices: suites.map(s => ({
+          name: `${s.name} (${s.entries.length} repos)${s.description ? ` - ${s.description}` : ''}`,
+          value: s,
+        })),
+        pageSize: 15,
+      });
       selectedSuite = suite;
     }
 

@@ -7,37 +7,27 @@ import { logInfo, logSuccess, logError, logStep } from '../../utils/logger';
 import { colorize } from '../../utils/colors';
 import { saveSuite, getSuite, validateSuiteName } from '../../utils/suite';
 import { SuiteEntry, WorkspaceSuite, PostCloneHook } from '../../types';
-import inquirer from 'inquirer';
+import { confirm, input, select } from '../../utils/prompt';
 
 async function promptSuiteDetails(defaultName?: string): Promise<{ name: string; description: string }> {
-  const { name, description } = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'name',
-      message: 'Suite name:',
-      default: defaultName,
-      validate: (input: string) => validateSuiteName(input.trim()),
-      filter: (input: string) => input.trim(),
-    },
-    {
-      type: 'input',
-      name: 'description',
-      message: 'Suite description (optional):',
-    },
-  ]);
+  const name = (await input({
+    message: 'Suite name:',
+    default: defaultName,
+    validate: (input: string) => validateSuiteName(input.trim()),
+  })).trim();
+
+  const description = await input({
+    message: 'Suite description (optional):',
+  });
 
   return { name, description: description || '' };
 }
 
 async function promptPostCloneHooks(): Promise<PostCloneHook[] | undefined> {
-  const { addHooks } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'addHooks',
-      message: 'Add post-clone hooks?',
-      default: false,
-    },
-  ]);
+  const addHooks = await confirm({
+    message: 'Add post-clone hooks?',
+    default: false,
+  });
 
   if (!addHooks) return undefined;
 
@@ -45,13 +35,9 @@ async function promptPostCloneHooks(): Promise<PostCloneHook[] | undefined> {
   console.log('Enter commands one at a time. Type "done" when finished.\n');
 
   while (true) {
-    const { command } = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'command',
-        message: `Command ${commands.length + 1} (or "done"):`,
-      },
-    ]);
+    const command = await input({
+      message: `Command ${commands.length + 1} (or "done"):`,
+    });
 
     if (command.trim().toLowerCase() === 'done') break;
     if (command.trim()) {
@@ -71,14 +57,10 @@ async function checkOverwrite(name: string): Promise<boolean> {
   const existing = await getSuite(name);
   if (!existing) return true;
 
-  const { overwrite } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'overwrite',
-      message: `Suite "${name}" already exists (${existing.entries.length} repos). Overwrite?`,
-      default: false,
-    },
-  ]);
+  const overwrite = await confirm({
+    message: `Suite "${name}" already exists (${existing.entries.length} repos). Overwrite?`,
+    default: false,
+  });
 
   return overwrite;
 }
@@ -211,17 +193,13 @@ export async function main() {
   console.log('='.repeat(60) + '\n');
 
   try {
-    const { mode } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'mode',
-        message: 'How would you like to create the suite?',
-        choices: [
-          { name: 'Pick repositories interactively', value: 'interactive' },
-          { name: 'Save from an existing workspace', value: 'workspace' },
-        ],
-      },
-    ]);
+    const mode = await select({
+      message: 'How would you like to create the suite?',
+      choices: [
+        { name: 'Pick repositories interactively', value: 'interactive' },
+        { name: 'Save from an existing workspace', value: 'workspace' },
+      ],
+    });
 
     if (mode === 'interactive') {
       await createInteractive();

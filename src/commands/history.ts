@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { readHistory, getOperationStats, filterHistory, clearHistory } from '../utils/history';
 import { logError, logInfo, logStep, logSuccess } from '../utils/logger';
 import { colorize } from '../utils/colors';
-import inquirer from 'inquirer';
+import { confirm } from '../utils/prompt';
 import { getGlobalOpts } from '../utils/command-helpers';
 
 const displayHistoryTable = (records: Array<{ timestamp: string; command: string; workspace?: string; duration: number; success: boolean; error?: string }>) => {
@@ -88,16 +88,12 @@ export function registerHistoryCommand(parent: Command) {
         return;
       }
 
-      const { confirm } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'confirm',
-          message: 'Are you sure you want to clear operation history?',
-          default: false,
-        },
-      ]);
+      const confirmed = await confirm({
+        message: 'Are you sure you want to clear operation history?',
+        default: false,
+      });
 
-      if (confirm) {
+      if (confirmed) {
         await clearHistory();
         logSuccess('Operation history cleared');
       } else {
