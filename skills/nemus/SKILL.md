@@ -1,7 +1,7 @@
 ---
 name: nemus
 description: Manage multi-repo development workspaces — create, sync, branch, diff, clone, archive, analyze dependencies, run commands across repos, check status, clean up, delete, list org repos, search repos, list suites, remove repo, cache, suite management, sessions, history, generate docs, configure, MCP server, AI prompt. Use when working with workspaces, repos, branches, git operations across multiple repos, or the `nemus` CLI tool. NEVER use `git clone` directly — always use `nemus update` to add repos and `nemus create` to create workspaces.
-bashPattern: "\\bnemus\\s+(create|list|update|delete|sync|status|diff|run|go|doctor|analyze-deps|history|cleanup|remove-repo|archive|sessions|generate-docs|configure|configure-claude|ghq-status|tui|dashboard|dash|branch|suite|cache|mcp|--)\\b"
+bashPattern: "\\bnemus\\s+(create|list|update|delete|prune|sync|status|diff|run|go|doctor|analyze-deps|history|cleanup|remove-repo|archive|sessions|generate-docs|configure|configure-claude|ghq-status|tui|dashboard|dash|branch|suite|cache|mcp|--)\\b"
 ---
 
 # Nemus
@@ -33,6 +33,7 @@ Global flags: `-f/--force-refresh` (skip repo cache), `-y/--yes` (skip prompts),
 | Create new workspace | [create-workspace](references/create-workspace.md) | `nemus create` | `c` |
 | Add repos to workspace | [update-workspace](references/update-workspace.md) | `nemus update` | `u` |
 | Delete workspace permanently | [delete-workspace](references/delete-workspace.md) | `nemus delete` | `d` |
+| Prune inactive workspaces (safe) | [prune](references/prune.md) | `nemus prune` | — |
 | Archive / unarchive workspace | [archive-workspace](references/archive-workspace.md) | `nemus archive` | `a` |
 | List all workspaces | [list-workspaces](references/list-workspaces.md) | `nemus list` | `l` |
 | Navigate to workspace | [go](references/go.md) | `nemus go [name]` | — |
