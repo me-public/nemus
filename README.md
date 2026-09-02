@@ -138,7 +138,9 @@ npm install -g @nemus-cli/nemus
 ```
 
 The postinstall step sets up optional shell integration (auto-cd into new
-workspaces + a quick-navigate helper).
+workspaces + a quick-navigate helper). It keeps the generated functions in
+`~/.nemus/shell-integration.sh` and adds only a guarded source line to your
+shell RC file, so upgrades don't churn your `.zshrc`/`.bashrc`.
 
 ### From source
 
