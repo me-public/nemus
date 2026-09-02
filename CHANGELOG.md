@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-02
+
+### Added
+
+- **`nemus version` subcommand** — a companion to the `-V/--version` flag for
+  people who type `nemus version`. `--json` additionally reports the Node.js
+  version, platform, and arch (handy for bug reports), as a single JSON document
+  to stdout. (#74)
+- **`NEMUS_NO_UPDATE_CHECK`** — opt out of the background "update available"
+  check entirely (no cache read, no network). Also honors the de-facto
+  `NO_UPDATE_NOTIFIER`. An explicit falsey value (`0`/`false`/empty) does not
+  disable it. Documented in the README env-var table. (#76)
+
 ## [0.11.0] - 2026-09-02
 
 ### Added

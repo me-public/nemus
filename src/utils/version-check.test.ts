@@ -24,12 +24,39 @@ vi.mock('./config', () => ({
   getPackageVersion: () => '2.20.0',
 }));
 
-import { checkForUpdate } from './version-check';
+import { checkForUpdate, updateCheckDisabled } from './version-check';
 import * as fs from 'fs/promises';
+
+describe('updateCheckDisabled', () => {
+  it('is true when NEMUS_NO_UPDATE_CHECK is set to a truthy value', () => {
+    expect(updateCheckDisabled({ NEMUS_NO_UPDATE_CHECK: '1' })).toBe(true);
+    expect(updateCheckDisabled({ NEMUS_NO_UPDATE_CHECK: 'yes' })).toBe(true);
+  });
+  it('honors the de-facto NO_UPDATE_NOTIFIER', () => {
+    expect(updateCheckDisabled({ NO_UPDATE_NOTIFIER: 'true' })).toBe(true);
+  });
+  it('is false when unset, empty, or an explicit falsey token', () => {
+    expect(updateCheckDisabled({})).toBe(false);
+    expect(updateCheckDisabled({ NEMUS_NO_UPDATE_CHECK: '' })).toBe(false);
+    expect(updateCheckDisabled({ NEMUS_NO_UPDATE_CHECK: '0' })).toBe(false);
+    expect(updateCheckDisabled({ NEMUS_NO_UPDATE_CHECK: 'false' })).toBe(false);
+  });
+});
 
 describe('checkForUpdate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('returns null immediately when opted out via env (no fetch)', async () => {
+    process.env.NEMUS_NO_UPDATE_CHECK = '1';
+    try {
+      const result = await checkForUpdate();
+      expect(result).toBeNull();
+      expect(mockExecFile).not.toHaveBeenCalled();
+    } finally {
+      delete process.env.NEMUS_NO_UPDATE_CHECK;
+    }
   });
 
   it('returns null when current version matches latest', async () => {

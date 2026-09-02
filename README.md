@@ -288,6 +288,7 @@ Everything Nemus reads from the environment (all optional):
 | `NEMUS_JUDGE_TIMEOUT_MS` | Timeout for the `reflect` judge call. |
 | `NEMUS_BUG_REPORT_REPO` | Repo that `report-bug` files issues against. |
 | `NEMUS_SKIP_CONFIGURE` | Skip the one-time post-install `configure` prompt. |
+| `NEMUS_NO_UPDATE_CHECK` | Disable the background "update available" check (also honors `NO_UPDATE_NOTIFIER`). |
 | `WORKSPACE_CLONE_TIMEOUT_MS` | Git clone timeout (default 15 min). |
 | `NO_COLOR` / `FORCE_COLOR` | Disable / force ANSI color (see [Global flags](#global-flags)). |
 | `VISUAL` / `EDITOR` | Editor launched by `nemus config edit`. |

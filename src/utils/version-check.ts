@@ -60,6 +60,10 @@ async function fetchLatestVersion(): Promise<string | null> {
  * This is designed to be non-blocking and best-effort — failures are silent.
  */
 export async function checkForUpdate(): Promise<string | null> {
+  // Opt-out: skip the check entirely (no cache read, no network) when the user
+  // asks for it. NEMUS_NO_UPDATE_CHECK is ours; NO_UPDATE_NOTIFIER is the
+  // de-facto convention several Node CLIs honor.
+  if (updateCheckDisabled(process.env)) return null;
   try {
     const currentVersion = getPackageVersion();
     const cache = await loadCache();
@@ -89,6 +93,17 @@ export async function checkForUpdate(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Whether the update check is opted out via env. A value is "set" unless it is
+ * empty or an explicit falsey token (`0`/`false`), so `NEMUS_NO_UPDATE_CHECK=0`
+ * does NOT disable the check. Pure + exported for testing.
+ */
+export function updateCheckDisabled(env: NodeJS.ProcessEnv): boolean {
+  const isSet = (v: string | undefined) =>
+    v !== undefined && v !== '' && v !== '0' && v.toLowerCase() !== 'false';
+  return isSet(env.NEMUS_NO_UPDATE_CHECK) || isSet(env.NO_UPDATE_NOTIFIER);
 }
 
 function formatUpdateMessage(current: string, latest: string): string {

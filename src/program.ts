@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import { setColorEnabled } from './utils/colors';
 import { renderHelpBanner } from './utils/banner';
 import { applyGlobalFlags } from './utils/global-flags';
+import { registerVersionCommand } from './commands/version';
 
 // Read version from package.json
 const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
@@ -35,6 +36,7 @@ program
 program.hook('preAction', () => applyGlobalFlags(program.opts()));
 
 // Register top-level commands
+registerVersionCommand(program, pkg.version);
 import { registerCreateCommand } from './commands/create';
 import { registerListCommand } from './commands/list';
 import { registerUpdateCommand } from './commands/update';
