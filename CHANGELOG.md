@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-09-02
+
+### Added
+
+- **Shell completions now cover second-level subcommands and value arguments.**
+  `nemus config <TAB>` completes `get/set/unset/list/path/edit`, `nemus config
+  set <TAB>` completes the config **keys**, and `nemus reflect <TAB>` completes
+  `history/show` — across bash, zsh, and fish. Subcommands are auto-derived from
+  the command tree (so `suite`/`branch`/`cache`/`mcp` are covered too). (#73)
+- **`nemus completion` infers the shell from `$SHELL`** when no argument is
+  given (`nemus completion` → emits your shell's script). An explicit
+  `bash|zsh|fish` still wins; an unknown/invalid value errors as before. (#75)
+
 ## [0.12.0] - 2026-09-02
 
 ### Added

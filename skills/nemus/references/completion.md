@@ -18,5 +18,10 @@ nemus completion zsh > "${fpath[1]}/_nemus"
 nemus completion fish > ~/.config/fish/completions/nemus.fish
 ```
 
-Then restart the shell (or `source` the file). Requires a shell argument —
-one of `bash|zsh|fish`.
+Then restart the shell (or `source` the file). The shell argument is inferred
+from `$SHELL` when omitted (`nemus completion`), so you usually don't need to
+pass it; an explicit `bash|zsh|fish` always wins.
+
+Completions cover second-level subcommands too — e.g. `nemus config <TAB>`
+(get/set/…), `nemus config set <TAB>` (config keys), and `nemus reflect <TAB>`
+(history/show).
