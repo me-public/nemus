@@ -1,7 +1,7 @@
 ---
 name: nemus
 description: Manage multi-repo development workspaces — create, sync, branch, diff, clone, archive, analyze dependencies, run commands across repos, check status, clean up, delete, list org repos, search repos, list suites, remove repo, cache, suite management, sessions, history, generate docs, configure, MCP server, AI prompt. Use when working with workspaces, repos, branches, git operations across multiple repos, or the `nemus` CLI tool. NEVER use `git clone` directly — always use `nemus update` to add repos and `nemus create` to create workspaces.
-bashPattern: "\\bnemus\\s+(create|list|update|delete|prune|sync|status|diff|run|go|doctor|analyze-deps|history|cleanup|remove-repo|archive|sessions|generate-docs|configure|configure-claude|ghq-status|tui|dashboard|dash|branch|suite|cache|mcp|--)\\b"
+bashPattern: "\\bnemus\\s+(create|list|update|delete|prune|sync|status|diff|run|go|doctor|analyze-deps|reflect|retro|history|cleanup|remove-repo|archive|sessions|save-context|ctx|generate-docs|configure|config|configure-claude|ghq-status|completion|tui|dashboard|dash|branch|suite|cache|mcp|--)\\b"
 ---
 
 # Nemus
@@ -89,14 +89,18 @@ Global flags: `-f/--force-refresh` (skip repo cache), `-y/--yes` (skip prompts),
 | Resume Claude session | [sessions](references/sessions.md) | `nemus sessions` | `ses` |
 | Agent management dashboard | [dashboard](references/dashboard.md) | `nemus dashboard` | `dash` |
 | View operation history | [history](references/history.md) | `nemus history` | `h` |
+| Save progress/context to a workspace | [save-context](references/save-context.md) | `nemus save-context` | `ctx` |
+| Retrospective on recent sessions | [reflect](references/reflect.md) | `nemus reflect` | `retro` |
 
 ### Configuration & MCP
 
 | Intent | Reference | CLI |
 |---|---|---|
-| Configure Nemus | [configure](references/configure.md) | `nemus configure` |
+| Configure Nemus (interactive wizard) | [configure](references/configure.md) | `nemus configure` |
+| Get/set config non-interactively | [config](references/config.md) | `nemus config get\|set\|list\|edit` |
 | Configure Claude integration | [configure-claude](references/configure-claude.md) | `nemus configure-claude` |
 | Check ghq status | [ghq-status](references/ghq-status.md) | `nemus ghq-status` |
+| Shell completions (bash/zsh/fish) | [completion](references/completion.md) | `nemus completion <shell>` |
 | Install / manage MCP server | [mcp](references/mcp.md) | `nemus mcp install\|status\|upgrade\|uninstall` |
 
 ### AI Assistant & TUI
