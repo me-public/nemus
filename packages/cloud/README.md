@@ -5,14 +5,30 @@
 > own* infrastructure (local Docker, Fly, Fargate, k8s, …), headlessly, and open
 > a PR.
 
+> [!NOTE]
+> **Experimental / pre-1.0 (`0.x`).** The seams are stable and unit-tested, but
+> APIs may change before `1.0`, the `aws-fargate` runner hasn't been validated
+> against a live AWS account (docker + kubernetes have live smoke tests), and a
+> hosted UI is out of scope. Pin an exact version.
+
 **Status: P1–P4 substantially landed.** In: the forge-auth + execution seams with
 three runners (`docker`, `aws-fargate`, `kubernetes`), OpenTofu provisioners with
 shipped `iac/fargate` + `iac/kubernetes` modules, GitHub/GitLab forges, the agent
 OCI image with `run`/`fix-pr` entry modes, a bounded CI-fix loop, Slack/webhook
 notifiers, and a `nemus-cloud runners` discovery command. Everything is
 dependency-injected and unit-tested with no cloud account. See
-[`docs/plans/2026-08-26-cloud-iac.md`](../../docs/plans/2026-08-26-cloud-iac.md)
+[the design plan](https://github.com/me-public/nemus/blob/main/docs/plans/2026-08-26-cloud-iac.md)
 for the full design.
+
+## Install
+
+```bash
+npm install -g @nemus-cli/cloud   # provides `nemus-cloud` + `nemus-cloud-agent`
+```
+
+Standalone (no dependency on the core `@nemus-cli/nemus` CLI) and
+zero-runtime-dependency. Requires Node ≥ 22, plus whatever a given backend shells
+out to (`docker`, `kubectl`, `aws`, `tofu`/`terraform`, `git`, `gh`).
 
 ## Why a separate package
 
