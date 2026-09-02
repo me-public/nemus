@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { Command } from 'commander';
-import { generateCompletion, specsFromProgram, detectShell, CommandSpec } from './completion';
+import { generateCompletion, specsFromProgram, detectShell, registerCompletionCommand, CommandSpec } from './completion';
 
 const specs: CommandSpec[] = [
   { name: 'list', aliases: ['l'], takesWorkspace: false, description: 'List workspaces' },
@@ -83,6 +83,42 @@ describe('generateCompletion — fish', () => {
     // apostrophe in the description is escaped for fish's single-quoted string
     expect(s).toContain("Show a repo'\\''s git status");
     expect(s).toContain("-n '__fish_seen_subcommand_from status st doctor doc' -a '(nemus completion --workspaces)'");
+  });
+});
+
+describe('registerCompletionCommand — stdout hygiene on inferred shell', () => {
+  it('writes ONLY the script to stdout; the $SHELL inference note goes to stderr', async () => {
+    // The documented install path is `nemus completion zsh > _nemus`, so if the
+    // inference note leaked to stdout it would corrupt the generated script.
+    const program = new Command();
+    program.exitOverride();
+    program.command('list').description('list');
+    registerCompletionCommand(program);
+
+    const stdoutChunks: string[] = [];
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(((c: unknown) => {
+      stdoutChunks.push(String(c));
+      return true;
+    }) as typeof process.stdout.write);
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const prevShell = process.env.SHELL;
+    process.env.SHELL = '/bin/zsh';
+
+    let errCalls: string[] = [];
+    try {
+      await program.parseAsync(['node', 'nemus', 'completion']);
+      errCalls = errSpy.mock.calls.map((c) => c.map(String).join(' '));
+    } finally {
+      if (prevShell === undefined) delete process.env.SHELL;
+      else process.env.SHELL = prevShell;
+      stdoutSpy.mockRestore();
+      errSpy.mockRestore();
+    }
+
+    const stdout = stdoutChunks.join('');
+    expect(stdout.startsWith('#compdef')).toBe(true); // the zsh script, nothing prepended
+    expect(stdout).not.toContain('no shell given'); // the note never reached stdout
+    expect(errCalls.some((l) => l.includes('no shell given'))).toBe(true); // it went to stderr
   });
 });
 
