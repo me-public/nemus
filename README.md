@@ -202,8 +202,21 @@ nemus create           # (c) interactive create
 nemus list             # (l) list workspaces
 nemus update           # (u) add repos to a workspace
 nemus delete           # (del) delete a workspace
+nemus prune            # delete workspaces with no recent activity (safe by default)
 nemus go [name]        # jump to a workspace directory
 ```
+
+> **`prune`** clears out workspaces you've finished with. It selects those with
+> no agent session (or, failing that, no `createdAt`) in the last **N days**
+> (`--days`, default 30) and — crucially — **protects any workspace with
+> uncommitted or unpushed work**, listing why it was skipped. Preview with
+> `--dry-run` (or `--json`), then delete after a confirmation (`--yes` to skip).
+> `--include-dirty` overrides the safety guard. Example:
+>
+> ```bash
+> nemus prune --days 30 --dry-run   # see what would go, nothing deleted
+> nemus prune --days 30             # prune stale + clean workspaces, with a prompt
+> ```
 
 ### Operate across all repos
 
