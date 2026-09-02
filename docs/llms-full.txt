@@ -297,8 +297,9 @@ opt-in** package, `@nemus-cli/cloud`, lets you run a workspace + coding agent
 Kubernetes cluster) and open a PR. It's a separate, vendor-neutral package built
 from swappable seams — runners (`docker`, `aws-fargate`, `kubernetes`), IaC
 provisioners (OpenTofu/Terraform), git forges (GitHub/GitLab), a bounded CI-fix
-loop, and notifiers — with no cloud SDK in the core CLI. It is **not published to
-npm**; it lives in the repo (`packages/cloud/`) for you to build and run yourself.
+loop, and notifiers — with no cloud SDK in the core CLI. It's published separately
+as **experimental** (`0.x`): `npm install -g @nemus-cli/cloud` (or build it from
+`packages/cloud/` in the repo). Installing the core CLI pulls in none of it.
 
 ## Configuration
 

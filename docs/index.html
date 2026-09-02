@@ -162,6 +162,7 @@
     <nav class="links">
       <a class="txt hide" href="#features">Features</a>
       <a class="txt hide" href="#quickstart">Quick start</a>
+      <a class="txt hide" href="#cloud">Cloud</a>
       <a class="txt hide" href="llms.txt">llms.txt</a>
       <a class="xlink" href="https://x.com/nemus_cli" aria-label="Nemus on X">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
@@ -295,6 +296,43 @@ npm install -g @nemus-cli/nemus
   </div>
 </section>
 
+<section id="cloud">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Go headless — on infrastructure <span style="color:var(--green)">you own</span></h2>
+      <p>Optional add-on. <a href="https://www.npmjs.com/package/@nemus-cli/cloud"><code>@nemus-cli/cloud</code></a>
+        hands a task to a coding agent that runs <b>headlessly on your own infrastructure</b> — a Docker socket, an
+        ECS cluster, or a Kubernetes namespace — and opens a PR. Every boundary is a swappable seam, so you're never
+        locked to a vendor. The core CLI pulls in none of it.</p>
+    </div>
+    <img class="demo" src="assets/cloud-architecture.svg" loading="lazy" decoding="async" style="margin-bottom:24px"
+         alt="Nemus Cloud architecture: a neutral core exposing Provisioner, Runner, ForgeAuth, GitForge and Notifier interfaces, each wired to swappable backends — OpenTofu/Terraform, docker/aws-fargate/kubernetes, PAT/GitHub App, GitHub/GitLab, and Slack/webhook." />
+    <div class="grid">
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+        <h3>Your infra, not ours</h3><p>No SaaS and no broker. It runs where you already run — there's no cloud SDK in the core CLI at all.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7h5a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-5"/><path d="M10 17H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h5"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+        <h3>Swappable seams</h3><p>Provisioner, Runner, ForgeAuth, GitForge, Notifier — pick a backend per boundary, or register your own.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg></div>
+        <h3><code>run</code> &amp; <code>fix-pr</code></h3><p>Run a task and open a draft PR — or take an existing PR and drive it to green with a bounded CI-fix loop.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <h3>Least-privilege auth</h3><p>The GitHub App path mints short-lived, auto-refreshing, scoped tokens (RS256, zero deps). Tokens never leak to logs.</p>
+      </div>
+    </div>
+    <div class="note" style="margin-top:22px">
+      <strong>Experimental (0.x)</strong> — APIs may change before 1.0, and it's opt-in.
+      <code>npm install -g @nemus-cli/cloud</code> &nbsp;·&nbsp;
+      <a href="https://github.com/me-public/nemus/tree/main/packages/cloud#readme">Read the package docs →</a>
+    </div>
+  </div>
+</section>
+
 <section>
   <div class="wrap two">
     <div>
@@ -343,6 +381,7 @@ npm install -g @nemus-cli/nemus
     <div class="flinks">
       <a href="https://github.com/me-public/nemus">GitHub</a>
       <a href="https://www.npmjs.com/package/@nemus-cli/nemus">npm</a>
+      <a href="https://github.com/me-public/nemus/tree/main/packages/cloud#readme">Cloud</a>
       <a href="llms.txt">llms.txt</a>
       <a href="https://x.com/nemus_cli">X (@nemus_cli)</a>
       <a href="https://github.com/me-public/nemus/blob/main/CHANGELOG.md">Changelog</a>

@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 616" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0D1117"/>
+      <stop offset="1" stop-color="#010409"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161B22"/>
+      <stop offset="1" stop-color="#12161d"/>
+    </linearGradient>
+    <linearGradient id="core" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#132018"/>
+      <stop offset="1" stop-color="#0e1712"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0" r="1">
+      <stop offset="0" stop-color="#3FB950" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#3FB950" stop-opacity="0"/>
+    </radialGradient>
+    <style>
+      .t{fill:#E6EDF3} .m{fill:#8B949E} .mint{fill:#7EE2A8} .grn{fill:#3FB950}
+      .seam{font-weight:700;font-size:16px;fill:#7EE2A8}
+      .iface{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;fill:#8B949E}
+      .chip{fill:#0d1117;stroke:#30363D}
+      .chiptx{font-size:13px;fill:#E6EDF3;font-weight:600}
+      .hd{font-weight:800;fill:#E6EDF3}
+      .lbl{font-size:12px;fill:#8B949E}
+      .con{stroke:#2c4634;stroke-width:1.5;fill:none}
+    </style>
+  </defs>
+
+  <rect width="1200" height="616" fill="url(#bg)"/>
+  <rect width="1200" height="300" fill="url(#glow)"/>
+
+  <!-- title -->
+  <text x="60" y="52" class="hd" font-size="26">Nemus&#160;Cloud</text>
+  <text x="60" y="78" class="m" font-size="15">Optional, opt‑in agents on <tspan class="mint">your own infrastructure</tspan> — swappable seams, no cloud SDK in the core.</text>
+
+  <!-- ============ LEFT: CLI + agent image ============ -->
+  <rect x="60" y="110" width="250" height="446" rx="14" fill="url(#panel)" stroke="#30363D"/>
+  <text x="84" y="150" class="t" font-weight="700" font-size="16">nemus‑cloud</text>
+  <text x="84" y="171" class="lbl">the thin, dependency‑free CLI</text>
+
+  <rect x="84" y="190" width="202" height="74" rx="10" fill="#0d1117" stroke="#30363D"/>
+  <text x="100" y="216" class="mint" font-family="ui-monospace,Menlo,monospace" font-size="12.5" font-weight="700">agent image (OCI)</text>
+  <text x="100" y="237" class="iface">nemus‑cloud‑agent</text>
+  <text x="100" y="253" class="iface">clone → agent → PR</text>
+
+  <text x="84" y="292" class="lbl">run modes</text>
+  <rect x="84" y="302" width="96" height="30" rx="8" fill="rgba(63,185,80,.10)" stroke="rgba(63,185,80,.32)"/>
+  <text x="132" y="322" class="chiptx" text-anchor="middle">run</text>
+  <rect x="190" y="302" width="96" height="30" rx="8" fill="rgba(63,185,80,.10)" stroke="rgba(63,185,80,.32)"/>
+  <text x="238" y="322" class="chiptx" text-anchor="middle">fix‑pr</text>
+
+  <line x1="84" y1="356" x2="286" y2="356" stroke="#21262d"/>
+  <text x="84" y="386" class="lbl">Node ≥ 22 · zero runtime deps</text>
+  <text x="84" y="408" class="lbl">every seam dependency‑injected</text>
+  <text x="84" y="430" class="lbl">&amp; unit‑tested — no cloud account</text>
+
+  <rect x="84" y="452" width="202" height="82" rx="10" fill="#0d1117" stroke="#30363D"/>
+  <text x="100" y="478" class="t" font-size="12.5" font-weight="700">bounded CI‑fix loop</text>
+  <text x="100" y="498" class="iface">poll checks → fix → push</text>
+  <text x="100" y="515" class="iface">can't spin · "needs a human"</text>
+
+  <!-- arrow left->core -->
+  <path d="M310 333 h20" class="con"/>
+  <path d="M326 328 l8 5 -8 5 z" fill="#2c4634"/>
+
+  <!-- ============ CENTER: neutral core (interfaces) ============ -->
+  <rect x="346" y="110" width="300" height="446" rx="14" fill="url(#core)" stroke="rgba(63,185,80,.30)"/>
+  <text x="370" y="146" class="t" font-weight="800" font-size="16">Neutral core</text>
+  <text x="370" y="167" class="iface">TaskSpec · TargetDescriptor · no SDK</text>
+
+  <!-- 5 interface rows -->
+  <!-- row helper: rects at x=370 w=252 h=48, y = 186,246,306,366,426 -->
+  <g>
+    <rect x="370" y="186" width="252" height="48" rx="9" fill="#161B22" stroke="#30363D"/>
+    <text x="386" y="209" class="seam">Provisioner</text>
+    <text x="386" y="226" class="iface">up() · down() → target</text>
+
+    <rect x="370" y="246" width="252" height="48" rx="9" fill="#161B22" stroke="#30363D"/>
+    <text x="386" y="269" class="seam">Runner</text>
+    <text x="386" y="286" class="iface">launch · logs · status · exec</text>
+
+    <rect x="370" y="306" width="252" height="48" rx="9" fill="#161B22" stroke="#30363D"/>
+    <text x="386" y="329" class="seam">ForgeAuth</text>
+    <text x="386" y="346" class="iface">getToken() — least‑privilege</text>
+
+    <rect x="370" y="366" width="252" height="48" rx="9" fill="#161B22" stroke="#30363D"/>
+    <text x="386" y="389" class="seam">GitForge</text>
+    <text x="386" y="406" class="iface">openPR · getChecks · comment</text>
+
+    <rect x="370" y="426" width="252" height="48" rx="9" fill="#161B22" stroke="#30363D"/>
+    <text x="386" y="449" class="seam">Notifier</text>
+    <text x="386" y="466" class="iface">notify(event)</text>
+  </g>
+  <text x="370" y="506" class="lbl">Implement an interface, register a name —</text>
+  <text x="370" y="524" class="lbl">bring your own backend, no fork.</text>
+
+  <!-- connectors core -> plugs (from x=622 at each row center) -->
+  <g class="con">
+    <path d="M622 210 h44"/><path d="M622 270 h44"/><path d="M622 330 h44"/><path d="M622 390 h44"/><path d="M622 450 h44"/>
+  </g>
+  <g fill="#2c4634">
+    <path d="M660 205 l8 5 -8 5 z"/><path d="M660 265 l8 5 -8 5 z"/><path d="M660 325 l8 5 -8 5 z"/><path d="M660 385 l8 5 -8 5 z"/><path d="M660 445 l8 5 -8 5 z"/>
+  </g>
+
+  <!-- ============ RIGHT: swappable backends (the plugs) ============ -->
+  <text x="686" y="167" class="m" font-size="12" font-weight="700" letter-spacing="1.5">SWAPPABLE&#160;&#160;BACKENDS</text>
+
+  <!-- Provisioner plugs -->
+  <g>
+    <rect x="686" y="192" width="118" height="36" rx="9" class="chip"/>
+    <circle cx="704" cy="210" r="4" class="grn"/><text x="716" y="215" class="chiptx">OpenTofu</text>
+    <rect x="814" y="192" width="118" height="36" rx="9" class="chip"/>
+    <circle cx="832" cy="210" r="4" class="grn"/><text x="844" y="215" class="chiptx">Terraform</text>
+    <rect x="942" y="192" width="192" height="36" rx="9" class="chip"/>
+    <text x="958" y="215" class="iface">modules: fargate · kubernetes</text>
+  </g>
+
+  <!-- Runner plugs -->
+  <g>
+    <rect x="686" y="252" width="104" height="36" rx="9" class="chip"/>
+    <circle cx="704" cy="270" r="4" class="grn"/><text x="716" y="275" class="chiptx">docker</text>
+    <rect x="800" y="252" width="140" height="36" rx="9" class="chip"/>
+    <circle cx="818" cy="270" r="4" class="grn"/><text x="830" y="275" class="chiptx">aws‑fargate</text>
+    <rect x="950" y="252" width="140" height="36" rx="9" class="chip"/>
+    <circle cx="968" cy="270" r="4" class="grn"/><text x="980" y="275" class="chiptx">kubernetes</text>
+  </g>
+
+  <!-- ForgeAuth plugs -->
+  <g>
+    <rect x="686" y="312" width="90" height="36" rx="9" class="chip"/>
+    <circle cx="704" cy="330" r="4" class="grn"/><text x="716" y="335" class="chiptx">PAT</text>
+    <rect x="786" y="312" width="150" height="36" rx="9" class="chip"/>
+    <circle cx="804" cy="330" r="4" class="grn"/><text x="816" y="335" class="chiptx">GitHub App</text>
+    <rect x="946" y="312" width="188" height="36" rx="9" class="chip"/>
+    <text x="962" y="335" class="iface">auto‑refresh · RS256</text>
+  </g>
+
+  <!-- GitForge plugs -->
+  <g>
+    <rect x="686" y="372" width="110" height="36" rx="9" class="chip"/>
+    <circle cx="704" cy="390" r="4" class="grn"/><text x="716" y="395" class="chiptx">GitHub</text>
+    <rect x="806" y="372" width="110" height="36" rx="9" class="chip"/>
+    <circle cx="824" cy="390" r="4" class="grn"/><text x="836" y="395" class="chiptx">GitLab</text>
+    <rect x="926" y="372" width="150" height="36" rx="9" class="chip" stroke-dasharray="4 4"/>
+    <text x="942" y="395" class="iface">your own host</text>
+  </g>
+
+  <!-- Notifier plugs -->
+  <g>
+    <rect x="686" y="432" width="100" height="36" rx="9" class="chip"/>
+    <circle cx="704" cy="450" r="4" class="grn"/><text x="716" y="455" class="chiptx">Slack</text>
+    <rect x="796" y="432" width="120" height="36" rx="9" class="chip"/>
+    <circle cx="814" cy="450" r="4" class="grn"/><text x="826" y="455" class="chiptx">webhook</text>
+  </g>
+
+  <!-- bottom flow -->
+  <text x="686" y="500" class="lbl">one flow, any combination:</text>
+  <text x="686" y="524" class="iface" fill="#7EE2A8">provision → launch → clone → open PR → CI‑fix → notify</text>
+</svg>

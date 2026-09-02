@@ -37,12 +37,13 @@ Key ideas an LLM should know:
 - **Reflect**: `nemus reflect` reads your recent agent session transcripts and asks
   your own configured agent (LLM-as-a-judge) to recommend concrete improvements to
   your skills, `AGENTS.md`/context, connectivity tests, and prompting habits.
-- **Cloud (optional, not on npm)**: `@nemus-cli/cloud` is an opt-in, source-only
-  package (in-repo, unpublished) to run a workspace + agent headlessly on your own
-  infra (Docker / AWS Fargate / Kubernetes) and open a PR. The core CLI stays
-  local-first with no cloud SDK.
+- **Cloud (optional, experimental)**: `@nemus-cli/cloud` is an opt-in package
+  (published separately as experimental `0.x`) to run a workspace + agent
+  headlessly on your own infra (Docker / AWS Fargate / Kubernetes) and open a PR.
+  Built from swappable seams (Provisioner / Runner / ForgeAuth / GitForge /
+  Notifier); the core CLI stays local-first with no cloud SDK.
 - Install: `npm install -g @nemus-cli/nemus`. Binaries: `nemus` (and the short alias
-  `nem`). MCP server: `nemus-mcp`. Requires Node.js >= 22.
+  `nem`). MCP server: `nemus-mcp`. Requires Node.js >= 22.13.
 - License: MIT. Repository: https://github.com/me-public/nemus
 
 ## Docs
@@ -69,4 +70,4 @@ Key ideas an LLM should know:
 
 - [npm package](https://www.npmjs.com/package/@nemus-cli/nemus): `@nemus-cli/nemus`, published with provenance.
 - [llms-full.txt](https://me-public.github.io/nemus/llms-full.txt): the full README inlined as a single document for deeper context.
-- [Cloud package](https://github.com/me-public/nemus/blob/main/packages/cloud/README.md): `@nemus-cli/cloud`, the optional self-hosted runner (not published to npm).
+- [Cloud package](https://github.com/me-public/nemus/blob/main/packages/cloud/README.md): `@nemus-cli/cloud`, the optional self-hosted runner (experimental `0.x` on npm).

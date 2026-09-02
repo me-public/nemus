@@ -1,9 +1,43 @@
 # @nemus-cli/cloud
 
-> **Optional, vendor-neutral cloud/IaC runners for Nemus.** Not required for
-> local Nemus — this package lets you run a workspace + coding agent on *your
-> own* infrastructure (local Docker, AWS Fargate, Kubernetes today; other
-> backends are pluggable), headlessly, and open a PR.
+> **Hand a task to a coding agent that runs headlessly on _your own_
+> infrastructure — and opens a PR.** Local Docker, AWS Fargate, or any Kubernetes
+> cluster today; every boundary is a swappable seam, so you're never locked to a
+> vendor. Optional and opt-in: the core Nemus CLI pulls in none of it.
+
+![Nemus Cloud architecture — a neutral core (Provisioner, Runner, ForgeAuth, GitForge, Notifier interfaces) with swappable backends: OpenTofu/Terraform, docker/aws-fargate/kubernetes, PAT/GitHub App, GitHub/GitLab, Slack/webhook](https://raw.githubusercontent.com/me-public/nemus/main/docs/assets/cloud-architecture.png)
+
+## Why you'd want it
+
+- **Your infra, not ours.** No SaaS, no broker, no account with us. It runs on a
+  Docker socket, an ECS cluster, or a Kubernetes namespace *you* control. There
+  is no cloud SDK in the core Nemus CLI at all.
+- **Swappable at every seam.** The orchestration core talks only to five small
+  interfaces — **Provisioner, Runner, ForgeAuth, GitForge, Notifier** — never to a
+  provider SDK. Pick a backend per boundary, mix and match, or bring your own by
+  registering a name (no fork).
+- **Two things it does.** `run` — clone repos, run the agent on a task, open a
+  draft PR. `fix-pr` — take an *existing* PR and drive it to green with a bounded
+  CI-fix loop, reporting out-of-band.
+- **Least-privilege auth built in.** The GitHub App path mints short-lived,
+  auto-refreshing, scoped installation tokens (dependency-free RS256); nothing
+  downstream knows a token's origin.
+- **Trustworthy by construction.** Zero runtime dependencies, every seam
+  dependency-injected and **unit-tested with no cloud account**, plus live smoke
+  tests against real Docker and Kubernetes. The git token is asserted never to
+  leak into logs or `result.json`.
+
+```bash
+npm install -g @nemus-cli/cloud          # provides nemus-cloud + nemus-cloud-agent
+
+nemus-cloud runners                      # see every backend + its capabilities
+nemus-cloud run --image ghcr.io/acme/agent:latest \
+  --repos acme/api,acme/web --task "add idempotency keys" --owner acme --follow --wait
+```
+
+The rest of this document is the reference for each seam.
+
+---
 
 > [!NOTE]
 > **Experimental / pre-1.0 (`0.x`).** The seams are stable and unit-tested, but
