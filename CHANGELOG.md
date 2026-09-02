@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `search()` instead of the third-party plugin. No user-facing behavior change.
   Net deps: **−`inquirer` −`inquirer-autocomplete-prompt` −`@types/inquirer`
   −`@types/inquirer-autocomplete-prompt` +`@inquirer/prompts`** (ships its own types).
+- **Raised the minimum Node.js to `22.13.0`** (was `22`). `require(esm)` is only
+  unflagged from Node 22.12, and the `@inquirer/*` packages themselves require
+  `^22.13` on the 22.x line — below that, interactive commands would throw
+  `ERR_REQUIRE_ESM`. The CLI now also fails early with a clear message on older
+  Node instead of a cryptic stack trace.
 
 ## [0.9.0] - 2026-09-01
 

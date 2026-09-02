@@ -14,7 +14,7 @@
   <a href="https://www.npmjs.com/package/@nemus-cli/nemus"><img src="https://img.shields.io/npm/v/@nemus-cli/nemus.svg" alt="npm" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <a href="https://www.npmjs.com/package/@nemus-cli/nemus"><img src="https://img.shields.io/npm/dm/@nemus-cli/nemus.svg" alt="npm downloads" /></a>
-  <img src="https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg" alt="Node >= 22" />
+  <img src="https://img.shields.io/badge/node-%3E%3D22.13-brightgreen.svg" alt="Node >= 22.13" />
   <a href="https://x.com/nemus_cli"><img src="https://img.shields.io/badge/follow-%40nemus__cli-000000.svg?logo=x&logoColor=white" alt="Follow @nemus_cli on X" /></a>
 </p>
 
@@ -152,7 +152,7 @@ npm link   # makes `nemus` / `nem` available on your PATH
 
 ### Prerequisites
 
-- **Node.js 22+**
+- **Node.js 22.13+** (the prompt library loads via `require(esm)`)
 - Git
 - [GitHub CLI](https://cli.github.com/) (`gh`), authenticated via `gh auth login`
 - SSH keys configured for GitHub (recommended; HTTPS also supported)
