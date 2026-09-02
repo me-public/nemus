@@ -35,7 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          fetch-depth: 2
+          fetch-depth: 0   # full history so we can diff the whole push, not just HEAD~1
       - id: check
         run: |
           VERSION=$(node -p "require('./package.json').version")
@@ -43,8 +43,18 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "should_release=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          git show HEAD~1:package.json > /tmp/prev.json 2>/dev/null || echo '{}' > /tmp/prev.json
-          PREV=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/prev.json','utf8')).version || 'none'")
+          # Compare against the commit BEFORE the whole push (github.event.before),
+          # not HEAD~1 — a push can carry several commits, and if the version bump
+          # isn't the last one, HEAD~1 already shows the new version and the
+          # release would be silently skipped. `before` is all-zeros on a new
+          # branch (nothing prior) -> treat as a release.
+          BEFORE='${{ github.event.before }}'
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            PREV=none
+          else
+            git show "$BEFORE:package.json" > /tmp/prev.json 2>/dev/null || echo '{}' > /tmp/prev.json
+            PREV=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/prev.json','utf8')).version || 'none'")
+          fi
           echo "previous=$PREV current=$VERSION"
           if [ "$VERSION" != "$PREV" ]; then
             echo "should_release=true" >> "$GITHUB_OUTPUT"
@@ -94,9 +104,19 @@ jobs:
       - run: npm run build
 
       - name: Publish to npm (with provenance)
-        run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ needs.detect.outputs.version }}
+        run: |
+          # Idempotent: a re-run/re-approval (esp. via workflow_dispatch, which
+          # always sets should_release=true) must not die on npm's
+          # "cannot publish over an existing version" — mirror the GitHub Release
+          # step's idempotency and no-op if this version is already on npm.
+          if npm view "@nemus-cli/nemus@$VERSION" version >/dev/null 2>&1; then
+            echo "@nemus-cli/nemus@$VERSION is already on npm — skipping publish."
+            exit 0
+          fi
+          npm publish --provenance --access public
 
       # Use the pre-installed GitHub CLI instead of a third-party action, so this
       # stays within the org's "GitHub-owned actions only" policy. Idempotent:
