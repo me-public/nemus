@@ -8,6 +8,12 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: development
+        # Only bundle minor/patch into the routine grouped PR. Majors (e.g. a
+        # TypeScript major that removes a tsconfig option) get their own PR so a
+        # breaking upgrade is reviewed deliberately, not merged as a group bump.
+        update-types:
+          - minor
+          - patch
   - package-ecosystem: github-actions
     directory: /
     schedule:
