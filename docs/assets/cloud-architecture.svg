@@ -1,161 +1,164 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 616" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#0D1117"/>
       <stop offset="1" stop-color="#010409"/>
     </linearGradient>
     <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#161B22"/>
+      <stop offset="0" stop-color="#171C24"/>
       <stop offset="1" stop-color="#12161d"/>
     </linearGradient>
     <linearGradient id="core" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#132018"/>
-      <stop offset="1" stop-color="#0e1712"/>
+      <stop offset="0" stop-color="#13201a"/>
+      <stop offset="1" stop-color="#0d1712"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0" r="1">
-      <stop offset="0" stop-color="#3FB950" stop-opacity="0.16"/>
+    <radialGradient id="glow" cx="0.35" cy="0" r="1.1">
+      <stop offset="0" stop-color="#3FB950" stop-opacity="0.14"/>
       <stop offset="1" stop-color="#3FB950" stop-opacity="0"/>
     </radialGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#3FB950"/>
+    </marker>
     <style>
       .t{fill:#E6EDF3} .m{fill:#8B949E} .mint{fill:#7EE2A8} .grn{fill:#3FB950}
-      .seam{font-weight:700;font-size:16px;fill:#7EE2A8}
+      .seam{font-weight:700;font-size:15.5px;fill:#7EE2A8}
       .iface{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;fill:#8B949E}
-      .chip{fill:#0d1117;stroke:#30363D}
       .chiptx{font-size:13px;fill:#E6EDF3;font-weight:600}
       .hd{font-weight:800;fill:#E6EDF3}
       .lbl{font-size:12px;fill:#8B949E}
-      .con{stroke:#2c4634;stroke-width:1.5;fill:none}
+      .kicker{font-size:12px;font-weight:700;fill:#8B949E;letter-spacing:2px}
     </style>
   </defs>
 
-  <rect width="1200" height="616" fill="url(#bg)"/>
-  <rect width="1200" height="300" fill="url(#glow)"/>
+  <rect width="1200" height="600" fill="url(#bg)"/>
+  <rect width="1200" height="320" fill="url(#glow)"/>
 
   <!-- title -->
-  <text x="60" y="52" class="hd" font-size="26">Nemus&#160;Cloud</text>
-  <text x="60" y="78" class="m" font-size="15">Optional, opt‑in agents on <tspan class="mint">your own infrastructure</tspan> — swappable seams, no cloud SDK in the core.</text>
+  <text x="60" y="54" class="hd" font-size="26">Nemus Cloud</text>
+  <text x="60" y="80" class="m" font-size="14.5">Optional, opt‑in agents on <tspan class="mint">your own infrastructure</tspan> — swappable seams, no cloud SDK in the core.</text>
 
-  <!-- ============ LEFT: CLI + agent image ============ -->
-  <rect x="60" y="110" width="250" height="446" rx="14" fill="url(#panel)" stroke="#30363D"/>
-  <text x="84" y="150" class="t" font-weight="700" font-size="16">nemus‑cloud</text>
-  <text x="84" y="171" class="lbl">the thin, dependency‑free CLI</text>
+  <!-- ================= LEFT: thin CLI ================= -->
+  <rect x="60" y="112" width="250" height="464" rx="16" fill="url(#panel)" stroke="#30363D"/>
+  <text x="86" y="150" class="t" font-weight="700" font-size="16">nemus‑cloud</text>
+  <text x="86" y="171" class="lbl">the thin, dependency‑free CLI</text>
 
-  <rect x="84" y="190" width="202" height="74" rx="10" fill="#0d1117" stroke="#30363D"/>
-  <text x="100" y="216" class="mint" font-family="ui-monospace,Menlo,monospace" font-size="12.5" font-weight="700">agent image (OCI)</text>
-  <text x="100" y="237" class="iface">nemus‑cloud‑agent</text>
-  <text x="100" y="253" class="iface">clone → agent → PR</text>
+  <rect x="86" y="188" width="198" height="78" rx="11" fill="#0d1117" stroke="#30363D"/>
+  <text x="104" y="214" class="mint" font-family="ui-monospace,Menlo,monospace" font-size="12.5" font-weight="700">agent image (OCI)</text>
+  <text x="104" y="236" class="iface">nemus‑cloud‑agent</text>
+  <text x="104" y="253" class="iface">clone → agent → PR</text>
 
-  <text x="84" y="292" class="lbl">run modes</text>
-  <rect x="84" y="302" width="96" height="30" rx="8" fill="rgba(63,185,80,.10)" stroke="rgba(63,185,80,.32)"/>
-  <text x="132" y="322" class="chiptx" text-anchor="middle">run</text>
-  <rect x="190" y="302" width="96" height="30" rx="8" fill="rgba(63,185,80,.10)" stroke="rgba(63,185,80,.32)"/>
-  <text x="238" y="322" class="chiptx" text-anchor="middle">fix‑pr</text>
+  <text x="86" y="298" class="lbl">run modes</text>
+  <rect x="86" y="308" width="94" height="32" rx="9" fill="rgba(63,185,80,.10)" stroke="rgba(63,185,80,.34)"/>
+  <text x="133" y="329" class="chiptx" text-anchor="middle">run</text>
+  <rect x="190" y="308" width="94" height="32" rx="9" fill="rgba(63,185,80,.10)" stroke="rgba(63,185,80,.34)"/>
+  <text x="237" y="329" class="chiptx" text-anchor="middle">fix‑pr</text>
 
-  <line x1="84" y1="356" x2="286" y2="356" stroke="#21262d"/>
-  <text x="84" y="386" class="lbl">Node ≥ 22 · zero runtime deps</text>
-  <text x="84" y="408" class="lbl">every seam dependency‑injected</text>
-  <text x="84" y="430" class="lbl">&amp; unit‑tested — no cloud account</text>
+  <line x1="86" y1="364" x2="284" y2="364" stroke="#21262d"/>
+  <text x="86" y="392" class="lbl">Node ≥ 22 · zero runtime deps</text>
+  <text x="86" y="414" class="lbl">every seam dependency‑injected</text>
+  <text x="86" y="436" class="lbl">&amp; unit‑tested — no cloud account</text>
 
-  <rect x="84" y="452" width="202" height="82" rx="10" fill="#0d1117" stroke="#30363D"/>
-  <text x="100" y="478" class="t" font-size="12.5" font-weight="700">bounded CI‑fix loop</text>
-  <text x="100" y="498" class="iface">poll checks → fix → push</text>
-  <text x="100" y="515" class="iface">can't spin · "needs a human"</text>
+  <rect x="86" y="456" width="198" height="86" rx="11" fill="#0d1117" stroke="#30363D"/>
+  <text x="104" y="482" class="t" font-size="12.5" font-weight="700">bounded CI‑fix loop</text>
+  <text x="104" y="503" class="iface">poll checks → fix → push</text>
+  <text x="104" y="521" class="iface">can't spin · "needs a human"</text>
 
-  <!-- arrow left->core -->
-  <path d="M310 333 h20" class="con"/>
-  <path d="M326 328 l8 5 -8 5 z" fill="#2c4634"/>
+  <!-- CLI -> core connector -->
+  <path d="M310 344 H344" stroke="#3FB950" stroke-width="2" fill="none" marker-end="url(#arrow)" opacity="0.75"/>
 
-  <!-- ============ CENTER: neutral core (interfaces) ============ -->
-  <rect x="346" y="110" width="300" height="446" rx="14" fill="url(#core)" stroke="rgba(63,185,80,.30)"/>
-  <text x="370" y="146" class="t" font-weight="800" font-size="16">Neutral core</text>
-  <text x="370" y="167" class="iface">TaskSpec · TargetDescriptor · no SDK</text>
+  <!-- ================= CENTER: neutral core ================= -->
+  <rect x="346" y="112" width="300" height="464" rx="16" fill="url(#core)" stroke="rgba(63,185,80,.32)"/>
+  <text x="370" y="150" class="hd" font-size="16">Neutral core</text>
+  <text x="370" y="171" class="iface">TaskSpec · TargetDescriptor · no SDK</text>
 
-  <!-- 5 interface rows -->
-  <!-- row helper: rects at x=370 w=252 h=48, y = 186,246,306,366,426 -->
+  <!-- interface rows: y=190,250,310,370,430 (h48) · centers 214..454 -->
   <g>
-    <rect x="370" y="186" width="252" height="48" rx="9" fill="#161B22" stroke="#30363D"/>
-    <text x="386" y="209" class="seam">Provisioner</text>
-    <text x="386" y="226" class="iface">up() · down() → target</text>
+    <rect x="370" y="190" width="252" height="48" rx="10" fill="#161B22" stroke="#30363D"/>
+    <rect x="370" y="198" width="4" height="32" rx="2" fill="#3FB950"/>
+    <text x="388" y="213" class="seam">Provisioner</text>
+    <text x="388" y="230" class="iface">up() · down() → target</text>
 
-    <rect x="370" y="246" width="252" height="48" rx="9" fill="#161B22" stroke="#30363D"/>
-    <text x="386" y="269" class="seam">Runner</text>
-    <text x="386" y="286" class="iface">launch · logs · status · exec</text>
+    <rect x="370" y="250" width="252" height="48" rx="10" fill="#161B22" stroke="#30363D"/>
+    <rect x="370" y="258" width="4" height="32" rx="2" fill="#3FB950"/>
+    <text x="388" y="273" class="seam">Runner</text>
+    <text x="388" y="290" class="iface">launch · logs · status · exec</text>
 
-    <rect x="370" y="306" width="252" height="48" rx="9" fill="#161B22" stroke="#30363D"/>
-    <text x="386" y="329" class="seam">ForgeAuth</text>
-    <text x="386" y="346" class="iface">getToken() — least‑privilege</text>
+    <rect x="370" y="310" width="252" height="48" rx="10" fill="#161B22" stroke="#30363D"/>
+    <rect x="370" y="318" width="4" height="32" rx="2" fill="#3FB950"/>
+    <text x="388" y="333" class="seam">ForgeAuth</text>
+    <text x="388" y="350" class="iface">getToken() — least‑privilege</text>
 
-    <rect x="370" y="366" width="252" height="48" rx="9" fill="#161B22" stroke="#30363D"/>
-    <text x="386" y="389" class="seam">GitForge</text>
-    <text x="386" y="406" class="iface">openPR · getChecks · comment</text>
+    <rect x="370" y="370" width="252" height="48" rx="10" fill="#161B22" stroke="#30363D"/>
+    <rect x="370" y="378" width="4" height="32" rx="2" fill="#3FB950"/>
+    <text x="388" y="393" class="seam">GitForge</text>
+    <text x="388" y="410" class="iface">openPR · getChecks · comment</text>
 
-    <rect x="370" y="426" width="252" height="48" rx="9" fill="#161B22" stroke="#30363D"/>
-    <text x="386" y="449" class="seam">Notifier</text>
-    <text x="386" y="466" class="iface">notify(event)</text>
+    <rect x="370" y="430" width="252" height="48" rx="10" fill="#161B22" stroke="#30363D"/>
+    <rect x="370" y="438" width="4" height="32" rx="2" fill="#3FB950"/>
+    <text x="388" y="453" class="seam">Notifier</text>
+    <text x="388" y="470" class="iface">notify(event)</text>
   </g>
-  <text x="370" y="506" class="lbl">Implement an interface, register a name —</text>
-  <text x="370" y="524" class="lbl">bring your own backend, no fork.</text>
+  <text x="370" y="508" class="lbl">Implement an interface, register a name —</text>
+  <text x="370" y="526" class="lbl">bring your own backend, no fork.</text>
 
-  <!-- connectors core -> plugs (from x=622 at each row center) -->
-  <g class="con">
-    <path d="M622 210 h44"/><path d="M622 270 h44"/><path d="M622 330 h44"/><path d="M622 390 h44"/><path d="M622 450 h44"/>
+  <!-- ================= connectors core -> backends ================= -->
+  <g stroke="#3FB950" stroke-width="2" fill="none" opacity="0.75">
+    <path d="M646 214 H684" marker-end="url(#arrow)"/>
+    <path d="M646 274 H684" marker-end="url(#arrow)"/>
+    <path d="M646 334 H684" marker-end="url(#arrow)"/>
+    <path d="M646 394 H684" marker-end="url(#arrow)"/>
+    <path d="M646 454 H684" marker-end="url(#arrow)"/>
   </g>
-  <g fill="#2c4634">
-    <path d="M660 205 l8 5 -8 5 z"/><path d="M660 265 l8 5 -8 5 z"/><path d="M660 325 l8 5 -8 5 z"/><path d="M660 385 l8 5 -8 5 z"/><path d="M660 445 l8 5 -8 5 z"/>
-  </g>
 
-  <!-- ============ RIGHT: swappable backends (the plugs) ============ -->
-  <text x="686" y="167" class="m" font-size="12" font-weight="700" letter-spacing="1.5">SWAPPABLE&#160;&#160;BACKENDS</text>
+  <!-- ================= RIGHT: swappable backends ================= -->
+  <text x="694" y="171" class="kicker">SWAPPABLE BACKENDS</text>
 
-  <!-- Provisioner plugs -->
+  <!-- columns: col1=694 col2=858 col3=1022 · w=150 h=36 · row centers 214..454 -->
+  <!-- Provisioner -->
   <g>
-    <rect x="686" y="192" width="118" height="36" rx="9" class="chip"/>
-    <circle cx="704" cy="210" r="4" class="grn"/><text x="716" y="215" class="chiptx">OpenTofu</text>
-    <rect x="814" y="192" width="118" height="36" rx="9" class="chip"/>
-    <circle cx="832" cy="210" r="4" class="grn"/><text x="844" y="215" class="chiptx">Terraform</text>
-    <rect x="942" y="192" width="192" height="36" rx="9" class="chip"/>
-    <text x="958" y="215" class="iface">modules: fargate · kubernetes</text>
+    <rect x="694" y="196" width="150" height="36" rx="10" fill="#0d1117" stroke="#30363D"/>
+    <circle cx="712" cy="214" r="4" class="grn"/><text x="726" y="219" class="chiptx">OpenTofu</text>
+    <rect x="858" y="196" width="150" height="36" rx="10" fill="#0d1117" stroke="#30363D"/>
+    <circle cx="876" cy="214" r="4" class="grn"/><text x="890" y="219" class="chiptx">Terraform</text>
+    <text x="1024" y="218" class="iface">modules: fargate · k8s</text>
   </g>
-
-  <!-- Runner plugs -->
+  <!-- Runner -->
   <g>
-    <rect x="686" y="252" width="104" height="36" rx="9" class="chip"/>
-    <circle cx="704" cy="270" r="4" class="grn"/><text x="716" y="275" class="chiptx">docker</text>
-    <rect x="800" y="252" width="140" height="36" rx="9" class="chip"/>
-    <circle cx="818" cy="270" r="4" class="grn"/><text x="830" y="275" class="chiptx">aws‑fargate</text>
-    <rect x="950" y="252" width="140" height="36" rx="9" class="chip"/>
-    <circle cx="968" cy="270" r="4" class="grn"/><text x="980" y="275" class="chiptx">kubernetes</text>
+    <rect x="694" y="256" width="150" height="36" rx="10" fill="#0d1117" stroke="#30363D"/>
+    <circle cx="712" cy="274" r="4" class="grn"/><text x="726" y="279" class="chiptx">docker</text>
+    <rect x="858" y="256" width="150" height="36" rx="10" fill="#0d1117" stroke="#30363D"/>
+    <circle cx="876" cy="274" r="4" class="grn"/><text x="890" y="279" class="chiptx">aws‑fargate</text>
+    <rect x="1022" y="256" width="150" height="36" rx="10" fill="#0d1117" stroke="#30363D"/>
+    <circle cx="1040" cy="274" r="4" class="grn"/><text x="1054" y="279" class="chiptx">kubernetes</text>
   </g>
-
-  <!-- ForgeAuth plugs -->
+  <!-- ForgeAuth -->
   <g>
-    <rect x="686" y="312" width="90" height="36" rx="9" class="chip"/>
-    <circle cx="704" cy="330" r="4" class="grn"/><text x="716" y="335" class="chiptx">PAT</text>
-    <rect x="786" y="312" width="150" height="36" rx="9" class="chip"/>
-    <circle cx="804" cy="330" r="4" class="grn"/><text x="816" y="335" class="chiptx">GitHub App</text>
-    <rect x="946" y="312" width="188" height="36" rx="9" class="chip"/>
-    <text x="962" y="335" class="iface">auto‑refresh · RS256</text>
+    <rect x="694" y="316" width="150" height="36" rx="10" fill="#0d1117" stroke="#30363D"/>
+    <circle cx="712" cy="334" r="4" class="grn"/><text x="726" y="339" class="chiptx">PAT</text>
+    <rect x="858" y="316" width="150" height="36" rx="10" fill="#0d1117" stroke="#30363D"/>
+    <circle cx="876" cy="334" r="4" class="grn"/><text x="890" y="339" class="chiptx">GitHub App</text>
+    <text x="1024" y="338" class="iface">auto‑refresh · RS256</text>
   </g>
-
-  <!-- GitForge plugs -->
+  <!-- GitForge -->
   <g>
-    <rect x="686" y="372" width="110" height="36" rx="9" class="chip"/>
-    <circle cx="704" cy="390" r="4" class="grn"/><text x="716" y="395" class="chiptx">GitHub</text>
-    <rect x="806" y="372" width="110" height="36" rx="9" class="chip"/>
-    <circle cx="824" cy="390" r="4" class="grn"/><text x="836" y="395" class="chiptx">GitLab</text>
-    <rect x="926" y="372" width="150" height="36" rx="9" class="chip" stroke-dasharray="4 4"/>
-    <text x="942" y="395" class="iface">your own host</text>
+    <rect x="694" y="376" width="150" height="36" rx="10" fill="#0d1117" stroke="#30363D"/>
+    <circle cx="712" cy="394" r="4" class="grn"/><text x="726" y="399" class="chiptx">GitHub</text>
+    <rect x="858" y="376" width="150" height="36" rx="10" fill="#0d1117" stroke="#30363D"/>
+    <circle cx="876" cy="394" r="4" class="grn"/><text x="890" y="399" class="chiptx">GitLab</text>
+    <rect x="1022" y="376" width="150" height="36" rx="10" fill="#0d1117" stroke="#30363D" stroke-dasharray="4 4"/>
+    <text x="1097" y="399" class="iface" text-anchor="middle">your own host</text>
   </g>
-
-  <!-- Notifier plugs -->
+  <!-- Notifier -->
   <g>
-    <rect x="686" y="432" width="100" height="36" rx="9" class="chip"/>
-    <circle cx="704" cy="450" r="4" class="grn"/><text x="716" y="455" class="chiptx">Slack</text>
-    <rect x="796" y="432" width="120" height="36" rx="9" class="chip"/>
-    <circle cx="814" cy="450" r="4" class="grn"/><text x="826" y="455" class="chiptx">webhook</text>
+    <rect x="694" y="436" width="150" height="36" rx="10" fill="#0d1117" stroke="#30363D"/>
+    <circle cx="712" cy="454" r="4" class="grn"/><text x="726" y="459" class="chiptx">Slack</text>
+    <rect x="858" y="436" width="150" height="36" rx="10" fill="#0d1117" stroke="#30363D"/>
+    <circle cx="876" cy="454" r="4" class="grn"/><text x="890" y="459" class="chiptx">webhook</text>
+    <text x="1024" y="458" class="iface">on every milestone</text>
   </g>
 
-  <!-- bottom flow -->
-  <text x="686" y="500" class="lbl">one flow, any combination:</text>
-  <text x="686" y="524" class="iface" fill="#7EE2A8">provision → launch → clone → open PR → CI‑fix → notify</text>
+  <!-- bottom flow banner -->
+  <rect x="694" y="504" width="478" height="46" rx="12" fill="rgba(63,185,80,.06)" stroke="rgba(63,185,80,.22)"/>
+  <text x="712" y="524" class="lbl">one flow, any combination</text>
+  <text x="712" y="542" class="iface" fill="#7EE2A8">provision → launch → clone → open PR → CI‑fix → notify</text>
 </svg>
