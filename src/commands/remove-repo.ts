@@ -6,12 +6,9 @@ import { loadMetadata, saveMetadata } from '../utils/workspace-meta';
 import { generateClaudeContext } from '../utils/claude-integration';
 import { logInfo, logSuccess, logError, logStep } from '../utils/logger';
 import { colorize } from '../utils/colors';
-import inquirer from 'inquirer';
-import autocompletePrompt from 'inquirer-autocomplete-prompt';
+import { confirm, search } from '../utils/prompt';
 import * as fuzzy from 'fuzzy';
 import { getGlobalOpts, resolveWorkspace, parseList } from '../utils/command-helpers';
-
-inquirer.registerPrompt('autocomplete', autocompletePrompt);
 
 export function registerRemoveRepoCommand(parent: Command) {
   parent
@@ -75,10 +72,9 @@ async function handleRemoveRepo(opts: {
         await fs.rm(workspacePath, { recursive: true, force: true });
         logSuccess(`Workspace "${workspaceName}" deleted.`);
       } else {
-        const { deleteWorkspace } = await inquirer.prompt([{
-          type: 'confirm', name: 'deleteWorkspace',
+        const deleteWorkspace = await confirm({
           message: `Delete the entire workspace folder "${workspaceName}"?`, default: false,
-        }]);
+        });
         if (deleteWorkspace) {
           await fs.rm(workspacePath, { recursive: true, force: true });
           logSuccess(`Workspace "${workspaceName}" deleted.`);
@@ -115,11 +111,11 @@ async function handleRemoveRepo(opts: {
         }
 
         try {
-          const { repoDir } = await inquirer.prompt([{
-            type: 'autocomplete', name: 'repoDir',
+          const repoDir = await search<string>({
             message: `Search and select repository (${colorize(String(selectedDirs.length), 'cyan')} selected):`,
-            source: async (_answersSoFar: any, input: string | undefined) => {
-              const searchInput = input || '';
+            pageSize: 16,
+            source: async (term: string | undefined) => {
+              const searchInput = term || '';
               const doneOption = { name: colorize('done - Finish selection', 'green'), value: 'done' };
               if (!searchInput || searchInput.toLowerCase().startsWith('done')) {
                 return [doneOption, ...available.map(e => ({ name: e.displayName, value: e.dirName }))];
@@ -127,8 +123,7 @@ async function handleRemoveRepo(opts: {
               const results = fuzzy.filter(searchInput, available, { extract: (e) => e.displayName });
               return [doneOption, ...results.map(result => ({ name: result.original.displayName, value: result.original.dirName }))];
             },
-            pageSize: 16,
-          } as any]);
+          });
 
           if (repoDir === 'done') {
             if (selectedDirs.length === 0) { console.log(colorize('\nYou must select at least one repository\n', 'yellow')); continue; }
@@ -147,11 +142,10 @@ async function handleRemoveRepo(opts: {
     console.log('');
 
     if (!opts.yes) {
-      const { confirm } = await inquirer.prompt([{
-        type: 'confirm', name: 'confirm',
+      const confirmed = await confirm({
         message: `Remove ${selectedDirs.length} instance(s)? This will delete the directories.`, default: false,
-      }]);
-      if (!confirm) { logInfo('Removal cancelled'); process.exit(0); }
+      });
+      if (!confirmed) { logInfo('Removal cancelled'); process.exit(0); }
     }
 
     logStep(4, 4, 'Removing instances...');

@@ -10,6 +10,18 @@ if (command === '--version' || command === '-V') {
   process.exit(0);
 }
 
+// Require Node >= 22.13.0. The interactive prompt library (@inquirer/prompts) is
+// ESM-only and loaded from this CommonJS build via `require(esm)`, which is only
+// unflagged from Node 22.12 (and @inquirer itself needs ^22.13). Below that,
+// even loading a command throws ERR_REQUIRE_ESM, so fail early with a clear
+// message instead of a cryptic stack trace. (--version above needs no modules.)
+const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number);
+if (nodeMajor < 22 || (nodeMajor === 22 && nodeMinor < 13)) {
+  console.error(`nemus requires Node.js >= 22.13.0 (you are running ${process.versions.node}).`);
+  console.error(`Its interactive prompt library loads via require(esm), which isn't available on older Node.`);
+  process.exit(1);
+}
+
 // Pre-check: if dist/ doesn't exist, show fallback help and exit.
 // If dist/ exists, the module is cached and the else block below handles execution.
 if (!command || command === '--help' || command === '-h' || command === 'help') {

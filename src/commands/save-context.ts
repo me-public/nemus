@@ -6,7 +6,7 @@ import { logInfo, logSuccess, logError } from '../utils/logger';
 import { colorize } from '../utils/colors';
 import { loadMetadata, saveMetadata, listWorkspaces } from '../utils/workspace-meta';
 import { formatContextFile, appendToContextFile } from '../utils/context-file';
-import inquirer from 'inquirer';
+import { select } from '../utils/prompt';
 
 const CONTEXT_FILENAME = 'CONTEXT.md';
 
@@ -66,12 +66,10 @@ async function resolveWorkspacePath(workspaceName?: string): Promise<{ name: str
       logError('No workspaces found');
       return null;
     }
-    const { selected } = await inquirer.prompt([{
-      type: 'list',
-      name: 'selected',
+    const selected = await select({
       message: 'Select workspace:',
       choices: workspaces.map(w => ({ name: w.name, value: w.name })),
-    }]);
+    });
     return { name: selected, path: path.join(WORKSPACES_DIR, selected) };
   }
 

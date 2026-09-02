@@ -3,12 +3,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const {
   mockListWorkspaces,
   mockGetWorkspaceSessions,
-  mockPrompt,
+  mockSearch,
   mockWriteFile,
 } = vi.hoisted(() => ({
   mockListWorkspaces: vi.fn(),
   mockGetWorkspaceSessions: vi.fn(),
-  mockPrompt: vi.fn(),
+  mockSearch: vi.fn(),
   mockWriteFile: vi.fn(),
 }));
 
@@ -33,15 +33,8 @@ vi.mock('fs/promises', () => ({
   writeFile: mockWriteFile,
 }));
 
-vi.mock('inquirer', () => ({
-  default: {
-    prompt: mockPrompt,
-    registerPrompt: vi.fn(),
-  },
-}));
-
-vi.mock('inquirer-autocomplete-prompt', () => ({
-  default: vi.fn(),
+vi.mock('../utils/prompt', () => ({
+  search: mockSearch,
 }));
 
 vi.mock('fuzzy', () => ({
@@ -91,11 +84,11 @@ describe('list-workspaces main', () => {
 
   it('lists workspaces and prompts for selection', async () => {
     mockListWorkspaces.mockResolvedValueOnce(makeWorkspaceList('ws-a', 'ws-b'));
-    mockPrompt.mockResolvedValueOnce({ selected: 'ws-a' });
+    mockSearch.mockResolvedValueOnce('ws-a');
 
     await main();
 
-    expect(mockPrompt).toHaveBeenCalledTimes(1);
+    expect(mockSearch).toHaveBeenCalledTimes(1);
     expect(mockWriteFile).toHaveBeenCalledWith(
       expect.stringContaining('.workspace-last-go'),
       '/test-workspaces/ws-a',
@@ -109,7 +102,7 @@ describe('list-workspaces main', () => {
     await main();
 
     expect(logInfo).toHaveBeenCalledWith('No workspaces found');
-    expect(mockPrompt).not.toHaveBeenCalled();
+    expect(mockSearch).not.toHaveBeenCalled();
   });
 
   it('does not prompt when no archived workspaces exist', async () => {
@@ -119,12 +112,12 @@ describe('list-workspaces main', () => {
     await main();
 
     expect(logInfo).toHaveBeenCalledWith('No archived workspaces found');
-    expect(mockPrompt).not.toHaveBeenCalled();
+    expect(mockSearch).not.toHaveBeenCalled();
   });
 
   it('writes temp file on selection', async () => {
     mockListWorkspaces.mockResolvedValueOnce(makeWorkspaceList('my-workspace'));
-    mockPrompt.mockResolvedValueOnce({ selected: 'my-workspace' });
+    mockSearch.mockResolvedValueOnce('my-workspace');
 
     await main();
 
@@ -145,7 +138,7 @@ describe('list-workspaces main', () => {
       lastActiveLabel: '2m ago',
       agentType: 'pi',
     }]);
-    mockPrompt.mockResolvedValueOnce({ selected: 'my-workspace' });
+    mockSearch.mockResolvedValueOnce('my-workspace');
 
     await main();
 
@@ -159,7 +152,7 @@ describe('list-workspaces main', () => {
   it('does not write resume flag when workspace has no session', async () => {
     mockListWorkspaces.mockResolvedValueOnce(makeWorkspaceList('my-workspace'));
     mockGetWorkspaceSessions.mockResolvedValueOnce([]);
-    mockPrompt.mockResolvedValueOnce({ selected: 'my-workspace' });
+    mockSearch.mockResolvedValueOnce('my-workspace');
 
     await main();
 
@@ -173,11 +166,11 @@ describe('list-workspaces main', () => {
     process.argv = ['node', 'list-workspaces.js', '--archived'];
     const archived = makeArchivedWorkspaceList('old-ws');
     mockListWorkspaces.mockResolvedValueOnce(archived);
-    mockPrompt.mockResolvedValueOnce({ selected: 'old-ws' });
+    mockSearch.mockResolvedValueOnce('old-ws');
 
     await main();
 
-    expect(mockPrompt).toHaveBeenCalledTimes(1);
+    expect(mockSearch).toHaveBeenCalledTimes(1);
     expect(mockWriteFile).toHaveBeenCalledWith(
       expect.stringContaining('.workspace-last-go'),
       '/test-workspaces/old-ws',
@@ -188,7 +181,7 @@ describe('list-workspaces main', () => {
   it('displays workspace name in the list output', async () => {
     const logSpy = vi.spyOn(console, 'log');
     mockListWorkspaces.mockResolvedValueOnce(makeWorkspaceList('ws-a'));
-    mockPrompt.mockResolvedValueOnce({ selected: 'ws-a' });
+    mockSearch.mockResolvedValueOnce('ws-a');
 
     await main();
 
@@ -203,7 +196,7 @@ describe('list-workspaces main', () => {
 
     await main();
 
-    expect(mockPrompt).not.toHaveBeenCalled();
+    expect(mockSearch).not.toHaveBeenCalled();
     expect(writeSpy).toHaveBeenCalledTimes(1);
     const payload = JSON.parse(writeSpy.mock.calls[0][0] as string);
     expect(payload.count).toBe(2);
@@ -220,7 +213,7 @@ describe('list-workspaces main', () => {
     await main();
 
     expect(logInfo).not.toHaveBeenCalled();
-    expect(mockPrompt).not.toHaveBeenCalled();
+    expect(mockSearch).not.toHaveBeenCalled();
     const payload = JSON.parse(writeSpy.mock.calls[0][0] as string);
     expect(payload).toEqual({ archived: false, count: 0, workspaces: [] });
     writeSpy.mockRestore();
@@ -235,14 +228,14 @@ describe('list-workspaces main', () => {
       lastActiveAt: new Date(),
       lastActiveLabel: '5m ago',
     }]);
-    mockPrompt.mockResolvedValueOnce({ selected: 'has-session' });
+    mockSearch.mockResolvedValueOnce('has-session');
 
     await main();
 
     // The prompt source function should show has-session first
-    const promptCall = mockPrompt.mock.calls[0][0][0];
+    const promptCall = mockSearch.mock.calls[0][0];
     const source = promptCall.source;
-    const items = await source(null, '');
+    const items = await source('');
     expect(items[0].value).toBe('has-session');
     expect(items[1].value).toBe('no-session');
   });

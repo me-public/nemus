@@ -6,7 +6,7 @@ import { createBranch } from '../../utils/branch-operations';
 import { logError, logInfo, logStep, logSuccess, logWarning } from '../../utils/logger';
 import { colorize } from '../../utils/colors';
 import { WORKSPACES_DIR } from '../../utils/config';
-import inquirer from 'inquirer';
+import { input } from '../../utils/prompt';
 
 export interface BranchCreateOpts {
   workspace?: string;
@@ -40,14 +40,10 @@ export const main = async (opts?: BranchCreateOpts) => {
         logError('Usage: w branch create --workspace <name> --branch <branch>');
         process.exit(1);
       }
-      const { branch } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'branch',
-          message: 'New branch name:',
-          validate: (input: string) => input.trim() ? true : 'Branch name cannot be empty',
-        },
-      ]);
+      const branch = await input({
+        message: 'New branch name:',
+        validate: (input: string) => input.trim() ? true : 'Branch name cannot be empty',
+      });
       branchName = branch;
     }
 

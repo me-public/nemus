@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-01
+
+### Changed
+
+- **Migrated from the unmaintained classic `inquirer` (v8) + `inquirer-autocomplete-prompt`
+  to the modular, maintained `@inquirer/prompts`.** All interactive prompts now
+  go through a single `src/utils/prompt.ts` wrapper. The ESM-only package loads
+  from the CommonJS build via Node 22's stable `require(esm)` (the CLI already
+  requires Node ≥ 22). Autocomplete pickers use `@inquirer/prompts`' own
+  `search()` instead of the third-party plugin. No user-facing behavior change.
+  Net deps: **−`inquirer` −`inquirer-autocomplete-prompt` −`@types/inquirer`
+  −`@types/inquirer-autocomplete-prompt` +`@inquirer/prompts`** (ships its own types).
+- **Raised the minimum Node.js to `22.13.0`** (was `22`). `require(esm)` is only
+  unflagged from Node 22.12, and the `@inquirer/*` packages themselves require
+  `^22.13` on the 22.x line — below that, interactive commands would throw
+  `ERR_REQUIRE_ESM`. The CLI now also fails early with a clear message on older
+  Node instead of a cryptic stack trace.
+
 ## [0.9.0] - 2026-09-01
 
 ### Added

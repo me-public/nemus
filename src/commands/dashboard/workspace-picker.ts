@@ -8,11 +8,8 @@
 import { listWorkspaces } from '../../utils/workspace-meta';
 import { launchAgentPane } from './launcher';
 import { getPrimaryAgent } from '../../utils/agent-config';
-import inquirer from 'inquirer';
-import autocompletePrompt from 'inquirer-autocomplete-prompt';
+import { search } from '../../utils/prompt';
 import * as fuzzy from 'fuzzy';
-
-inquirer.registerPrompt('autocomplete', autocompletePrompt);
 
 async function main() {
   try {
@@ -29,12 +26,11 @@ async function main() {
       repoCount: ws.metadata?.repositories?.length ?? 0,
     }));
 
-    const { selected } = await inquirer.prompt([{
-      type: 'autocomplete',
-      name: 'selected',
+    const selected = await search<typeof items[number]>({
       message: 'Select workspace to launch agent in:',
-      source: async (_answersSoFar: any, input: string | undefined) => {
-        const searchInput = input || '';
+      pageSize: 15,
+      source: async (term: string | undefined) => {
+        const searchInput = term || '';
         const source = items.map(item => ({
           name: `${item.name}  (${item.repoCount} repos)`,
           value: item,
@@ -46,8 +42,7 @@ async function main() {
           value: result.original,
         }));
       },
-      pageSize: 15,
-    } as any]);
+    });
 
     const workspace = selected as { name: string; path: string };
     const agent = getPrimaryAgent();

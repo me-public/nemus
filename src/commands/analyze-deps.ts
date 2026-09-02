@@ -11,7 +11,7 @@ import {
 import { logError, logInfo, logStep, logSuccess } from '../utils/logger';
 import { outputJson, outputJsonError } from '../utils/output';
 import { colorize } from '../utils/colors';
-import inquirer from 'inquirer';
+import { confirm } from '../utils/prompt';
 import { resolveWorkspace } from '../utils/command-helpers';
 
 const displayDependencyAnalysis = (analyses: Map<string, any>) => {
@@ -122,14 +122,10 @@ async function handleAnalyzeDeps(workspaceArg?: string, opts: { json?: boolean }
     }
 
     if (process.stdout.isTTY) {
-      const { saveToMetadata } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'saveToMetadata',
-          message: 'Save dependency analysis to workspace metadata?',
-          default: true,
-        },
-      ]);
+      const saveToMetadata = await confirm({
+        message: 'Save dependency analysis to workspace metadata?',
+        default: true,
+      });
 
       if (saveToMetadata) {
         const updatedMetadata = updateWorkspaceMetadata(metadata, analyses);

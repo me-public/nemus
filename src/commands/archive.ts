@@ -3,7 +3,7 @@ import { listWorkspaces, archiveWorkspace, unarchiveWorkspace } from '../utils/w
 import { promptMultiWorkspaceSelection } from '../utils/prompts';
 import { logInfo, logSuccess, logError } from '../utils/logger';
 import { colorize } from '../utils/colors';
-import inquirer from 'inquirer';
+import { confirm } from '../utils/prompt';
 import { getGlobalOpts, parseList } from '../utils/command-helpers';
 
 export function registerArchiveCommand(parent: Command) {
@@ -50,13 +50,12 @@ async function handleArchive(opts: {
       }
 
       if (!opts.yes) {
-        const { confirmed } = await inquirer.prompt([{
-          type: 'confirm', name: 'confirmed',
+        const confirmed = await confirm({
           message: selectedNames.length === 1
             ? `Unarchive workspace ${selectedNames[0]}?`
             : `Unarchive these ${selectedNames.length} workspaces?`,
           default: true,
-        }]);
+        });
         if (!confirmed) return;
       }
 
@@ -86,13 +85,12 @@ async function handleArchive(opts: {
       }
 
       if (!opts.yes) {
-        const { confirmed } = await inquirer.prompt([{
-          type: 'confirm', name: 'confirmed',
+        const confirmed = await confirm({
           message: selectedNames.length === 1
             ? `Archive workspace ${selectedNames[0]}? It will be auto-deleted in 30 days.`
             : `Archive these ${selectedNames.length} workspaces? They will be auto-deleted in 30 days.`,
           default: true,
-        }]);
+        });
         if (!confirmed) return;
       }
 

@@ -7,11 +7,8 @@ import { listWorkspaces } from '../utils/workspace-meta';
 import { logError, logInfo } from '../utils/logger';
 import { outputJson, outputJsonError } from '../utils/output';
 import { colorize } from '../utils/colors';
-import inquirer from 'inquirer';
-import autocompletePrompt from 'inquirer-autocomplete-prompt';
+import { search } from '../utils/prompt';
 import * as fuzzy from 'fuzzy';
-
-inquirer.registerPrompt('autocomplete', autocompletePrompt);
 
 const TEMP_FILE = path.join(os.homedir(), '.workspace-last-go');
 const RESUME_FLAG_FILE = path.join(os.homedir(), '.workspace-resume-session');
@@ -85,11 +82,11 @@ async function handleSessions(opts: { json?: boolean } = {}) {
     }
     console.log('');
 
-    const { selected } = await inquirer.prompt([{
-      type: 'autocomplete', name: 'selected',
+    const selected = await search<WorkspaceSession>({
       message: 'Select workspace to resume:',
-      source: async (_answersSoFar: any, input: string | undefined) => {
-        const searchInput = input || '';
+      pageSize: 15,
+      source: async (term: string | undefined) => {
+        const searchInput = term || '';
         const source = items.map(item => ({
           name: `${item.session.workspaceName}  ${colorize(item.session.lastActiveLabel, 'dim')}  ${colorize(item.repoLabel, 'dim')}`,
           value: item.session,
@@ -101,8 +98,7 @@ async function handleSessions(opts: { json?: boolean } = {}) {
           value: result.original.session,
         }));
       },
-      pageSize: 15,
-    } as any]);
+    });
 
     const session = selected as WorkspaceSession;
     await fs.writeFile(TEMP_FILE, session.workspacePath, 'utf-8');

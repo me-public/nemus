@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { getGhqStatus, displayGhqInfo, ghqList } from '../utils/ghq-integration';
 import { logSuccess, logWarning, logError } from '../utils/logger';
 import { colorize } from '../utils/colors';
-import inquirer from 'inquirer';
+import { confirm } from '../utils/prompt';
 
 export function registerGhqStatusCommand(parent: Command) {
   parent
@@ -30,10 +30,9 @@ async function handleGhqStatus() {
       console.log('');
 
       if (status.repoCount && status.repoCount > 0) {
-        const { showRepos } = await inquirer.prompt([{
-          type: 'confirm', name: 'showRepos',
+        const showRepos = await confirm({
           message: `View all ${status.repoCount} managed repositories?`, default: false,
-        }]);
+        });
 
         if (showRepos) {
           const repos = await ghqList();
@@ -48,10 +47,9 @@ async function handleGhqStatus() {
       console.log('');
       console.log('The workspace manager will use direct git clones.');
 
-      const { showInfo } = await inquirer.prompt([{
-        type: 'confirm', name: 'showInfo',
+      const showInfo = await confirm({
         message: 'Show ghq installation information?', default: true,
-      }]);
+      });
 
       if (showInfo) { displayGhqInfo(); }
     }

@@ -7,7 +7,7 @@ import { promptWorkspaceSelection } from '../../utils/prompts';
 import { logInfo, logSuccess, logError, logWarning } from '../../utils/logger';
 import { colorize } from '../../utils/colors';
 import { switchBranch, BranchSwitchResult } from '../../utils/branch-operations';
-import inquirer from 'inquirer';
+import { confirm, input } from '../../utils/prompt';
 
 export interface BranchSwitchOpts {
   workspace?: string;
@@ -61,20 +61,16 @@ export async function main(opts?: BranchSwitchOpts) {
         logError('Usage: w branch switch --workspace <name> --branch <branch>');
         process.exit(1);
       }
-      const { branch } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'branch',
-          message: 'Target branch name:',
-          default: 'main',
-          validate: (input: string) => {
-            if (!input || input.trim().length === 0) {
-              return 'Branch name cannot be empty';
-            }
-            return true;
-          },
+      const branch = await input({
+        message: 'Target branch name:',
+        default: 'main',
+        validate: (input: string) => {
+          if (!input || input.trim().length === 0) {
+            return 'Branch name cannot be empty';
+          }
+          return true;
         },
-      ]);
+      });
       targetBranch = branch;
     }
 
@@ -82,14 +78,10 @@ export async function main(opts?: BranchSwitchOpts) {
 
     // Skip confirmation when --yes flag is provided
     if (!yes && process.stdout.isTTY) {
-      const { confirmed } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'confirmed',
-          message: 'Proceed with bulk branch switch?',
-          default: true,
-        },
-      ]);
+      const confirmed = await confirm({
+        message: 'Proceed with bulk branch switch?',
+        default: true,
+      });
 
       if (!confirmed) {
         logInfo('Branch switch cancelled');

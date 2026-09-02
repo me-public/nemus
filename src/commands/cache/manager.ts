@@ -4,7 +4,7 @@ import { clearCache, getCacheStats } from '../../utils/cache';
 import { fetchOrgRepos, verifyGhAuth, displayAuthInstructions } from '../../utils/github';
 import { logInfo, logSuccess, logError } from '../../utils/logger';
 import { colorize } from '../../utils/colors';
-import inquirer from 'inquirer';
+import { confirm, select } from '../../utils/prompt';
 import * as fuzzy from 'fuzzy';
 
 export async function cacheInfo() {
@@ -123,32 +123,24 @@ export async function main() {
     }
 
     // Interactive mode (original behavior)
-    const { selectedAction } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'selectedAction',
-        message: 'Select action:',
-        choices: [
-          { name: 'View cache info', value: 'info' },
-          { name: 'Refresh cache (force fetch from GitHub)', value: 'refresh' },
-          { name: 'Clear cache', value: 'clear' },
-        ],
-      },
-    ]);
+    const selectedAction = await select({
+      message: 'Select action:',
+      choices: [
+        { name: 'View cache info', value: 'info' },
+        { name: 'Refresh cache (force fetch from GitHub)', value: 'refresh' },
+        { name: 'Clear cache', value: 'clear' },
+      ],
+    });
 
     if (selectedAction === 'info') {
       await cacheInfo();
     } else if (selectedAction === 'refresh') {
       await cacheRefresh();
     } else if (selectedAction === 'clear') {
-      const { confirmed } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'confirmed',
-          message: 'Are you sure you want to clear the cache?',
-          default: false,
-        },
-      ]);
+      const confirmed = await confirm({
+        message: 'Are you sure you want to clear the cache?',
+        default: false,
+      });
 
       if (confirmed) {
         await cacheClear();

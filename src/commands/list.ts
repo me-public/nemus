@@ -7,11 +7,8 @@ import { getWorkspaceSessions } from '../utils/claude-sessions';
 import { logInfo, logError } from '../utils/logger';
 import { outputJson } from '../utils/output';
 import { colorize } from '../utils/colors';
-import inquirer from 'inquirer';
-import autocompletePrompt from 'inquirer-autocomplete-prompt';
+import { search } from '../utils/prompt';
 import * as fuzzy from 'fuzzy';
-
-inquirer.registerPrompt('autocomplete', autocompletePrompt);
 
 const TEMP_FILE = path.join(os.homedir(), '.workspace-last-go');
 const RESUME_FLAG_FILE = path.join(os.homedir(), '.workspace-resume-session');
@@ -136,33 +133,29 @@ async function handleList(opts: { archived?: boolean; json?: boolean }) {
     console.log('');
 
     if (items.length > 0 && (process.stdout.isTTY || process.env.VITEST === 'true')) {
-      const { selected } = await inquirer.prompt([
-        {
-          type: 'autocomplete',
-          name: 'selected',
-          message: 'Select workspace to open:',
-          source: async (_answersSoFar: any, input: string | undefined) => {
-            const searchInput = input || '';
+      const selected = await search<string>({
+        message: 'Select workspace to open:',
+        pageSize: 15,
+        source: async (term: string | undefined) => {
+          const searchInput = term || '';
 
-            const source = items.map(item => ({
-              name: `${item.name}  ${item.lastActiveLabel ? colorize(item.lastActiveLabel, 'dim') : colorize('no session', 'dim')}  ${colorize(`${item.repoCount} repos`, 'dim')}`,
-              value: item.name,
-            }));
+          const source = items.map(item => ({
+            name: `${item.name}  ${item.lastActiveLabel ? colorize(item.lastActiveLabel, 'dim') : colorize('no session', 'dim')}  ${colorize(`${item.repoCount} repos`, 'dim')}`,
+            value: item.name,
+          }));
 
-            if (!searchInput) return source;
+          if (!searchInput) return source;
 
-            const results = fuzzy.filter(searchInput, items, {
-              extract: (item) => item.name,
-            });
+          const results = fuzzy.filter(searchInput, items, {
+            extract: (item) => item.name,
+          });
 
-            return results.map(result => ({
-              name: `${result.original.name}  ${result.original.lastActiveLabel ? colorize(result.original.lastActiveLabel, 'dim') : colorize('no session', 'dim')}  ${colorize(`${result.original.repoCount} repos`, 'dim')}`,
-              value: result.original.name,
-            }));
-          },
-          pageSize: 15,
-        } as any,
-      ]);
+          return results.map(result => ({
+            name: `${result.original.name}  ${result.original.lastActiveLabel ? colorize(result.original.lastActiveLabel, 'dim') : colorize('no session', 'dim')}  ${colorize(`${result.original.repoCount} repos`, 'dim')}`,
+            value: result.original.name,
+          }));
+        },
+      });
 
       const selectedItem = items.find(i => i.name === selected);
       if (selectedItem) {

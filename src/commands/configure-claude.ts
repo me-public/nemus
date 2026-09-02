@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { loadClaudeConfig, saveClaudeConfig } from '../utils/claude-integration';
 import { logSuccess, logError } from '../utils/logger';
 import { colorize } from '../utils/colors';
-import inquirer from 'inquirer';
+import { confirm } from '../utils/prompt';
 
 export function registerConfigureClaudeCommand(parent: Command) {
   parent
@@ -27,10 +27,9 @@ async function handleConfigureClaude() {
     console.log(`  Generate context: ${currentConfig.generateContext ? colorize('Enabled', 'green') : colorize('Disabled', 'red')}`);
     console.log('');
 
-    const answers = await inquirer.prompt([
-      { type: 'confirm', name: 'autoLaunch', message: 'Auto-launch Claude Code after workspace creation?', default: currentConfig.autoLaunch },
-      { type: 'confirm', name: 'generateContext', message: 'Generate CLAUDE.md context file in workspaces?', default: currentConfig.generateContext },
-    ]);
+    const autoLaunch = await confirm({ message: 'Auto-launch Claude Code after workspace creation?', default: currentConfig.autoLaunch });
+    const generateContext = await confirm({ message: 'Generate CLAUDE.md context file in workspaces?', default: currentConfig.generateContext });
+    const answers = { autoLaunch, generateContext };
 
     await saveClaudeConfig(answers);
 

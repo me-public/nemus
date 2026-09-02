@@ -1,12 +1,8 @@
-import inquirer from 'inquirer';
-import autocompletePrompt from 'inquirer-autocomplete-prompt';
+import { confirm, input, select, search } from './prompt';
 import * as fuzzy from 'fuzzy';
 import { GitHubRepo } from '../types';
 import { validateWorkspaceName, checkWorkspaceExists, sanitizeWorkspaceName } from './validation';
 import { colorize } from './colors';
-
-// Register autocomplete prompt type
-inquirer.registerPrompt('autocomplete', autocompletePrompt);
 
 export interface RepoSelection {
   repo: GitHubRepo;
@@ -17,32 +13,28 @@ export const promptInstanceSuffix = async (
   repoName: string,
   existingDirectoryNames: string[]
 ): Promise<string> => {
-  const { suffix } = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'suffix',
-      message: `"${repoName}" already exists. Enter a suffix for this instance:`,
-      validate: (input: string) => {
-        if (!input || input.trim().length === 0) {
-          return 'Suffix cannot be empty';
-        }
+  const suffix = await input({
+    message: `"${repoName}" already exists. Enter a suffix for this instance:`,
+    validate: (input: string) => {
+      if (!input || input.trim().length === 0) {
+        return 'Suffix cannot be empty';
+      }
 
-        const trimmed = input.trim();
+      const trimmed = input.trim();
 
-        // Validate characters (alphanumeric, hyphens, underscores)
-        if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
-          return 'Suffix can only contain letters, numbers, hyphens, and underscores';
-        }
+      // Validate characters (alphanumeric, hyphens, underscores)
+      if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+        return 'Suffix can only contain letters, numbers, hyphens, and underscores';
+      }
 
-        const candidateName = `${repoName}-${trimmed}`;
-        if (existingDirectoryNames.includes(candidateName)) {
-          return `"${candidateName}" already exists. Choose a different suffix`;
-        }
+      const candidateName = `${repoName}-${trimmed}`;
+      if (existingDirectoryNames.includes(candidateName)) {
+        return `"${candidateName}" already exists. Choose a different suffix`;
+      }
 
-        return true;
-      },
+      return true;
     },
-  ]);
+  });
 
   return suffix.trim();
 };
@@ -63,43 +55,39 @@ export const promptRepositorySelection = async (
 
   while (true) {
     try {
-      const { repoName } = await inquirer.prompt([
-        {
-          type: 'autocomplete',
-          name: 'repoName',
-          message: `Search and select repository (${colorize(String(selectedEntries.length), 'cyan')} selected):`,
-          source: async (_answersSoFar: any, input: string | undefined) => {
-            const searchInput = input || '';
+      const repoName = await search<string>({
+        message: `Search and select repository (${colorize(String(selectedEntries.length), 'cyan')} selected):`,
+        pageSize: 16,
+        source: async (term: string | undefined) => {
+          const searchInput = term || '';
 
-            // Always include done option
-            const doneOption = { name: colorize('done - Finish selection', 'green'), value: 'done' };
+          // Always include done option
+          const doneOption = { name: colorize('done - Finish selection', 'green'), value: 'done' };
 
-            // If no input or "done" typed, show done + top repos
-            if (!searchInput || searchInput.toLowerCase().startsWith('done')) {
-              return [
-                doneOption,
-                ...repos.slice(0, 15).map(repo => ({
-                  name: `${repo.name}${repo.description ? ` - ${colorize(repo.description, 'gray')}` : ''}`,
-                  value: repo.name,
-                }))
-              ];
-            }
+          // If no input or "done" typed, show done + top repos
+          if (!searchInput || searchInput.toLowerCase().startsWith('done')) {
+            return [
+              doneOption,
+              ...repos.slice(0, 15).map(repo => ({
+                name: `${repo.name}${repo.description ? ` - ${colorize(repo.description, 'gray')}` : ''}`,
+                value: repo.name,
+              }))
+            ];
+          }
 
-            // Perform fuzzy search
-            const results = fuzzy.filter(searchInput, repos, {
-              extract: (repo) => `${repo.name} ${repo.description || ''}`,
-            });
+          // Perform fuzzy search
+          const results = fuzzy.filter(searchInput, repos, {
+            extract: (repo) => `${repo.name} ${repo.description || ''}`,
+          });
 
-            const suggestions = results.slice(0, 15).map(result => ({
-              name: `${result.original.name}${result.original.description ? ` - ${colorize(result.original.description, 'gray')}` : ''}`,
-              value: result.original.name,
-            }));
+          const suggestions = results.slice(0, 15).map(result => ({
+            name: `${result.original.name}${result.original.description ? ` - ${colorize(result.original.description, 'gray')}` : ''}`,
+            value: result.original.name,
+          }));
 
-            return [doneOption, ...suggestions];
-          },
-          pageSize: 16,
-        } as any,
-      ]);
+          return [doneOption, ...suggestions];
+        },
+      });
 
       if (repoName === 'done') {
         if (selectedEntries.length === 0) {
@@ -147,23 +135,18 @@ export const promptRepositorySelection = async (
 };
 
 export const promptWorkspaceName = async (): Promise<string> => {
-  const { workspaceName } = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'workspaceName',
-      message: 'Enter workspace name:',
-      validate: (input: string) => {
-        const validationResult = validateWorkspaceName(input);
-        if (validationResult !== true) {
-          return validationResult;
-        }
-        return true;
-      },
-      filter: (input: string) => sanitizeWorkspaceName(input),
+  const raw = await input({
+    message: 'Enter workspace name:',
+    validate: (value: string) => {
+      const validationResult = validateWorkspaceName(sanitizeWorkspaceName(value));
+      if (validationResult !== true) {
+        return validationResult;
+      }
+      return true;
     },
-  ]);
+  });
 
-  return workspaceName;
+  return sanitizeWorkspaceName(raw);
 };
 
 export const confirmWorkspaceCreation = async (
@@ -179,14 +162,10 @@ export const confirmWorkspaceCreation = async (
   console.log(`Repositories: ${colorize(String(repoCount), 'yellow')}`);
   console.log('='.repeat(60) + '\n');
 
-  const { confirmed } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'confirmed',
-      message: 'Create workspace with these settings?',
-      default: true,
-    },
-  ]);
+  const confirmed = await confirm({
+    message: 'Create workspace with these settings?',
+    default: true,
+  });
 
   return confirmed;
 };
@@ -201,18 +180,13 @@ export const promptWorkspaceSelection = async (workspaces: Array<{ name: string;
       ? `${ws.name} (${ws.metadata.repositories.length} repos)`
       : ws.name,
     value: ws.name,
-    short: ws.name,
   }));
 
-  const { workspaceName } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'workspaceName',
-      message: 'Select workspace to update:',
-      choices,
-      pageSize: 15,
-    },
-  ]);
+  const workspaceName = await select<string>({
+    message: 'Select workspace to update:',
+    choices,
+    pageSize: 15,
+  });
 
   return workspaceName;
 };
@@ -236,38 +210,34 @@ export const promptMultiWorkspaceSelection = async (
         break;
       }
 
-      const { workspaceName } = await inquirer.prompt([
-        {
-          type: 'autocomplete',
-          name: 'workspaceName',
-          message: `Search and select workspace (${colorize(String(selectedNames.length), 'cyan')} selected):`,
-          source: async (_answersSoFar: any, input: string | undefined) => {
-            const searchInput = input || '';
+      const workspaceName = await search<string>({
+        message: `Search and select workspace (${colorize(String(selectedNames.length), 'cyan')} selected):`,
+        pageSize: 16,
+        source: async (term: string | undefined) => {
+          const searchInput = term || '';
 
-            const doneOption = { name: colorize('done - Finish selection', 'green'), value: 'done' };
+          const doneOption = { name: colorize('done - Finish selection', 'green'), value: 'done' };
 
-            if (!searchInput || searchInput.toLowerCase().startsWith('done')) {
-              return [
-                doneOption,
-                ...availableNames.slice(0, 15).map(name => ({
-                  name,
-                  value: name,
-                }))
-              ];
-            }
+          if (!searchInput || searchInput.toLowerCase().startsWith('done')) {
+            return [
+              doneOption,
+              ...availableNames.slice(0, 15).map(name => ({
+                name,
+                value: name,
+              }))
+            ];
+          }
 
-            const results = fuzzy.filter(searchInput, availableNames);
+          const results = fuzzy.filter(searchInput, availableNames);
 
-            const suggestions = results.slice(0, 15).map(result => ({
-              name: result.original,
-              value: result.original,
-            }));
+          const suggestions = results.slice(0, 15).map(result => ({
+            name: result.original,
+            value: result.original,
+          }));
 
-            return [doneOption, ...suggestions];
-          },
-          pageSize: 16,
-        } as any,
-      ]);
+          return [doneOption, ...suggestions];
+        },
+      });
 
       if (workspaceName === 'done') {
         if (selectedNames.length === 0) {
