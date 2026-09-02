@@ -2,8 +2,8 @@
 
 > **Optional, vendor-neutral cloud/IaC runners for Nemus.** Not required for
 > local Nemus — this package lets you run a workspace + coding agent on *your
-> own* infrastructure (local Docker, Fly, Fargate, k8s, …), headlessly, and open
-> a PR.
+> own* infrastructure (local Docker, AWS Fargate, Kubernetes today; other
+> backends are pluggable), headlessly, and open a PR.
 
 **Status: P1–P4 substantially landed.** In: the forge-auth + execution seams with
 three runners (`docker`, `aws-fargate`, `kubernetes`), OpenTofu provisioners with
