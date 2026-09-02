@@ -2,8 +2,8 @@
 
 > **Optional, vendor-neutral cloud/IaC runners for Nemus.** Not required for
 > local Nemus — this package lets you run a workspace + coding agent on *your
-> own* infrastructure (local Docker, Fly, Fargate, k8s, …), headlessly, and open
-> a PR.
+> own* infrastructure (local Docker, AWS Fargate, Kubernetes today; other
+> backends are pluggable), headlessly, and open a PR.
 
 > [!NOTE]
 > **Experimental / pre-1.0 (`0.x`).** The seams are stable and unit-tested, but
