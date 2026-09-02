@@ -3,9 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#0D1117" />
 <title>Nemus — Multi-repo workspaces for the AI-agent era</title>
 <meta name="description" content="Nemus is a CLI for managing multi-repository workspaces. Create, sync, and operate across dozens of Git repos with a single command — and wire them up to your favorite coding agent (Claude Code, pi, OpenCode, Codex, Gemini)." />
 <link rel="icon" type="image/png" href="assets/favicon-64.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://me-public.github.io/nemus/" />
@@ -25,16 +30,19 @@
     --border:#30363D; --border2:#21262d; --text:#E6EDF3; --muted:#8B949E;
     --green:#3FB950; --green2:#2EA043; --green3:#238636; --mint:#7EE2A8;
     --radius:14px; --maxw:1120px;
+    --ui:'Poppins',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
   body{
     margin:0; background:var(--bg); color:var(--text);
-    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    -webkit-font-smoothing:antialiased; letter-spacing:.1px;
+    font:400 15.5px/1.7 var(--ui);
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
   }
   a{color:var(--green); text-decoration:none}
   a:hover{text-decoration:underline}
+  :focus-visible{outline:2px solid var(--green); outline-offset:3px; border-radius:6px}
+  a:focus-visible,button:focus-visible,.btn:focus-visible,.copy:focus-visible{outline:2px solid var(--mint); outline-offset:2px}
   .wrap{max-width:var(--maxw); margin:0 auto; padding:0 22px}
   code,kbd,pre{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace}
   svg{display:block}
@@ -69,16 +77,19 @@
       radial-gradient(680px 340px at 68% -30px, rgba(63,185,80,.20), transparent 70%),
       radial-gradient(900px 460px at 20% 120%, rgba(35,134,54,.10), transparent 70%)}
   .hero .wrap{position:relative; display:grid; grid-template-columns:1.05fr .95fr; gap:48px; align-items:center}
+  /* Grid items default to min-width:auto; the demo image's intrinsic width would
+     otherwise force the track wider than the viewport (mobile horizontal scroll). */
+  .hero .wrap>*{min-width:0}
   .eyebrow{display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600;
     color:var(--mint); background:rgba(63,185,80,.08); border:1px solid var(--border);
     padding:6px 12px; border-radius:999px; margin-bottom:22px}
   .eyebrow .dot{width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px rgba(63,185,80,.18)}
-  h1{font-size:clamp(32px,4.6vw,54px); line-height:1.06; margin:0 0 18px; letter-spacing:-.025em; font-weight:800}
+  h1{font-size:clamp(32px,4.5vw,52px); line-height:1.1; margin:0 0 18px; letter-spacing:-.03em; font-weight:800}
   h1 .accent{color:var(--green)}
   .sub{color:var(--muted); font-size:clamp(16px,1.5vw,19px); margin:0 0 30px; max-width:560px}
   .cta{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:26px}
   .btn{display:inline-flex; align-items:center; gap:9px; padding:12px 20px; border-radius:10px;
-    font-weight:650; font-size:15px; border:1px solid transparent; cursor:pointer}
+    font-weight:600; font-size:15px; border:1px solid transparent; cursor:pointer}
   .btn svg{width:16px; height:16px}
   .btn.primary{background:var(--green3); color:#fff}
   .btn.primary:hover{background:var(--green2); text-decoration:none}
@@ -104,13 +115,13 @@
   .term .p{color:var(--mint)} .term .w{color:var(--text)} .term .m{color:#7D8590} .term .g{color:var(--green)}
   .cursor{display:inline-block; width:8px; height:15px; background:var(--green); vertical-align:-2px; animation:blink 1.1s steps(1) infinite}
   @keyframes blink{50%{opacity:0}}
-  .demo{width:100%; height:auto; border-radius:14px; border:1px solid var(--border);
+  .demo{width:100%; max-width:100%; height:auto; border-radius:14px; border:1px solid var(--border);
     box-shadow:0 24px 60px -24px rgba(0,0,0,.7), 0 0 0 1px rgba(63,185,80,.06)}
 
   /* sections */
   section{padding:64px 0; border-top:1px solid var(--border2)}
   .sec-head{margin-bottom:34px}
-  .sec-head h2{font-size:clamp(23px,3vw,32px); margin:0 0 10px; letter-spacing:-.02em; font-weight:750}
+  .sec-head h2{font-size:clamp(23px,3vw,33px); margin:0 0 10px; letter-spacing:-.025em; font-weight:700}
   .sec-head p{color:var(--muted); margin:0; max-width:680px}
 
   .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px}
@@ -120,7 +131,7 @@
   .card .ico{width:42px; height:42px; border-radius:11px; display:flex; align-items:center; justify-content:center;
     background:rgba(63,185,80,.10); border:1px solid rgba(63,185,80,.22); margin-bottom:16px}
   .card .ico svg{width:21px; height:21px; color:var(--green)}
-  .card h3{margin:0 0 7px; font-size:17px; font-weight:680}
+  .card h3{margin:0 0 7px; font-size:17px; font-weight:600; letter-spacing:-.01em}
   .card p{margin:0; color:var(--muted); font-size:14.5px}
 
   pre.code{background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius);
@@ -131,7 +142,7 @@
 
   .agents{display:flex; flex-wrap:wrap; gap:10px; margin-top:4px}
   .chip{display:inline-flex; align-items:center; gap:9px; background:var(--panel); border:1px solid var(--border);
-    border-radius:999px; padding:9px 17px; font-size:14px; font-weight:620}
+    border-radius:999px; padding:9px 17px; font-size:14px; font-weight:500}
   .chip .dot{width:8px; height:8px; border-radius:50%; background:var(--green)}
 
   .stats{display:flex; gap:14px; flex-wrap:wrap; margin-top:8px}
@@ -182,7 +193,7 @@
   <div class="wrap">
     <div>
       <span class="eyebrow"><span class="dot"></span> Open source · MIT · Node ≥ 22</span>
-      <h1>Work on many repos<br/>as if they were <span class="accent">one project</span></h1>
+      <h1>Work on many repos<br/>as if they were<br/><span class="accent">one project</span></h1>
       <p class="sub">Your code is split across many Git repos. Nemus pulls the ones you're working on into
         one folder, runs commands across all of them at once, and gives your AI coding agent the
         whole picture — <b>a monorepo-style workflow without merging your repos.</b></p>
