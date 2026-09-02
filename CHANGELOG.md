@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-02
+
+### Added
+
+- **`nemus prune`** — bulk-delete workspaces with no recent activity, **safe by
+  default.** It selects workspaces whose most recent agent session (or, absent
+  any session, whose `createdAt`) is older than `--days` (default 30), and
+  **holds back any workspace with uncommitted or unpushed changes** — listing
+  each protected one and why. Preview with `--dry-run` or `--json` (both never
+  delete); otherwise it deletes after a confirmation (`-y/--yes` to skip).
+  `--include-dirty` overrides the safety guard. Deletions go through the same
+  validated `safeWorkspacePath()` choke point as `nemus delete`. The
+  stale/protected decision logic is pure and unit-tested.
+
 ## [0.10.0] - 2026-09-01
 
 ### Changed
