@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-09-02
+
+### Changed
+
+- **Shell integration now keeps its generated functions out of your shell RC
+  files.** Nemus writes them to `~/.nemus/shell-integration.sh` and adds only a
+  single guarded `source` line to `.zshrc`/`.bashrc`, so upgrades no longer
+  churn hundreds of lines in your personal shell config. Existing inline
+  installations migrate automatically without disturbing surrounding user
+  content, and reinstalls stay idempotent. Uninstall removes the generated file
+  too. Thanks to @uzikilon for the idea and original implementation (#50).
+
 ## [0.13.0] - 2026-09-02
 
 ### Added

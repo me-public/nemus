@@ -38,7 +38,7 @@ echo -e "${YELLOW}This will NOT remove:${NC}"
 echo "  • Your workspaces ($HOME/workspaces/)"
 echo "  • Cache files (~/.workspace-manager-cache/)"
 echo "  • Configuration files (~/.workspace-manager-claude-config.json)"
-echo "  • Shell integration (from .zshrc or .bashrc)"
+echo "  • Shell integration (from .zshrc or .bashrc and ~/.nemus/)"
 echo "  • ghq (if installed)"
 echo ""
 
@@ -85,8 +85,11 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
         if grep -q "# Nemus - Shell Integration" "$HOME/.zshrc"; then
             # Create backup
             cp "$HOME/.zshrc" "$HOME/.zshrc.backup.$(date +%Y%m%d_%H%M%S)"
-            # Remove the function
-            sed -i.bak '/# Nemus - Shell Integration/,/^}$/d' "$HOME/.zshrc"
+            # Remove the block/source line (awk handles both formats safely)
+            TMPFILE=$(mktemp)
+            awk -f "$SCRIPT_DIR/remove-shell-block.awk" "$HOME/.zshrc" > "$TMPFILE"
+            chmod --reference="$HOME/.zshrc" "$TMPFILE" 2>/dev/null || chmod "$(stat -f '%Lp' "$HOME/.zshrc")" "$TMPFILE" 2>/dev/null || true
+            mv "$TMPFILE" "$HOME/.zshrc"
             print_success "Removed from .zshrc (backup created)"
         fi
     fi
@@ -96,10 +99,18 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
         if grep -q "# Nemus - Shell Integration" "$HOME/.bashrc"; then
             # Create backup
             cp "$HOME/.bashrc" "$HOME/.bashrc.backup.$(date +%Y%m%d_%H%M%S)"
-            # Remove the function
-            sed -i.bak '/# Nemus - Shell Integration/,/^}$/d' "$HOME/.bashrc"
+            # Remove the block/source line (awk handles both formats safely)
+            TMPFILE=$(mktemp)
+            awk -f "$SCRIPT_DIR/remove-shell-block.awk" "$HOME/.bashrc" > "$TMPFILE"
+            chmod --reference="$HOME/.bashrc" "$TMPFILE" 2>/dev/null || chmod "$(stat -f '%Lp' "$HOME/.bashrc")" "$TMPFILE" 2>/dev/null || true
+            mv "$TMPFILE" "$HOME/.bashrc"
             print_success "Removed from .bashrc (backup created)"
         fi
+    fi
+
+    if [ -f "$HOME/.nemus/shell-integration.sh" ]; then
+        rm -f "$HOME/.nemus/shell-integration.sh"
+        print_success "Removed ~/.nemus/shell-integration.sh"
     fi
 fi
 
