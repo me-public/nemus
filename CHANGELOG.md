@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-09-02
+
+### Added
+
+- **XDG base-directory support for config/state (Linux).** A fresh install now
+  stores its config/state under `$XDG_CONFIG_HOME/nemus` (default
+  `~/.config/nemus`) on Linux, making Nemus a better Linux citizen. Precedence
+  (first match wins): `NEMUS_CACHE_DIR`/`WORKSPACE_MANAGER_CACHE_DIR` override →
+  an existing `~/.nemus` with state (kept on every platform, never moved) →
+  an absolute `XDG_CONFIG_HOME` → Linux default `~/.config/nemus` → `~/.nemus`
+  (macOS/Windows). Existing `~/.nemus` installs are untouched. (#77)
+
 ## [0.14.0] - 2026-09-02
 
 ### Changed

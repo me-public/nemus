@@ -202,12 +202,21 @@ describe('config', () => {
   });
 
   describe('cache dir location + legacy migration', () => {
-    it('defaults CACHE_DIR to ~/.nemus when no env override is set', async () => {
+    // With XDG support a fresh install resolves to ~/.config/nemus on Linux and
+    // ~/.nemus elsewhere. Delete XDG_CONFIG_HOME so resolution is homedir-based
+    // (and stays inside the tempDir sandbox on any CI host).
+    const defaultHome = () =>
+      process.platform === 'linux'
+        ? path.join(tempDir, '.config', 'nemus')
+        : path.join(tempDir, '.nemus');
+
+    it('defaults CACHE_DIR to the platform default when no env override is set', async () => {
       delete process.env.NEMUS_CACHE_DIR;
       delete process.env.WORKSPACE_MANAGER_CACHE_DIR;
+      delete process.env.XDG_CONFIG_HOME;
       vi.resetModules();
       const { CACHE_DIR } = await loadModule();
-      expect(CACHE_DIR).toBe(path.join(tempDir, '.nemus'));
+      expect(CACHE_DIR).toBe(defaultHome());
     });
 
     it('prefers NEMUS_CACHE_DIR, then legacy WORKSPACE_MANAGER_CACHE_DIR', async () => {
@@ -222,41 +231,122 @@ describe('config', () => {
       expect((await loadModule()).CACHE_DIR).toBe(path.join(tempDir, '.workspace-manager-cache'));
     });
 
-    it('migrates state from ~/.workspace-manager-cache to ~/.nemus on first run', async () => {
+    it('migrates state from ~/.workspace-manager-cache to the default dir on first run', async () => {
       delete process.env.NEMUS_CACHE_DIR;
       delete process.env.WORKSPACE_MANAGER_CACHE_DIR;
+      delete process.env.XDG_CONFIG_HOME;
       // legacy dir (created by beforeEach) holds prior state; new dir absent
       fs.writeFileSync(path.join(tempDir, '.workspace-manager-cache', 'suites.json'), '{"x":1}');
-      expect(fs.existsSync(path.join(tempDir, '.nemus'))).toBe(false);
+      expect(fs.existsSync(defaultHome())).toBe(false);
       vi.resetModules();
       const { CACHE_DIR } = await loadModule();
-      expect(CACHE_DIR).toBe(path.join(tempDir, '.nemus'));
+      expect(CACHE_DIR).toBe(defaultHome());
       // copied, not moved: file exists in the new dir AND the legacy dir survives
-      expect(fs.readFileSync(path.join(tempDir, '.nemus', 'suites.json'), 'utf-8')).toBe('{"x":1}');
+      expect(fs.readFileSync(path.join(defaultHome(), 'suites.json'), 'utf-8')).toBe('{"x":1}');
       expect(fs.existsSync(path.join(tempDir, '.workspace-manager-cache', 'suites.json'))).toBe(true);
     });
 
     it('does not migrate last-version-check.json (avoids inheriting a foreign latest)', async () => {
       delete process.env.NEMUS_CACHE_DIR;
       delete process.env.WORKSPACE_MANAGER_CACHE_DIR;
+      delete process.env.XDG_CONFIG_HOME;
       const legacy = path.join(tempDir, '.workspace-manager-cache');
       fs.writeFileSync(path.join(legacy, 'suites.json'), '{"x":1}');
       fs.writeFileSync(path.join(legacy, 'last-version-check.json'), '{"latestVersion":"99.0.0"}');
       vi.resetModules();
       await loadModule();
       // other state migrates, but the version-check cache is left behind
-      expect(fs.existsSync(path.join(tempDir, '.nemus', 'suites.json'))).toBe(true);
-      expect(fs.existsSync(path.join(tempDir, '.nemus', 'last-version-check.json'))).toBe(false);
+      expect(fs.existsSync(path.join(defaultHome(), 'suites.json'))).toBe(true);
+      expect(fs.existsSync(path.join(defaultHome(), 'last-version-check.json'))).toBe(false);
     });
 
     it('does not migrate when the new dir already exists', async () => {
       delete process.env.NEMUS_CACHE_DIR;
       delete process.env.WORKSPACE_MANAGER_CACHE_DIR;
-      fs.mkdirSync(path.join(tempDir, '.nemus'), { recursive: true });
+      delete process.env.XDG_CONFIG_HOME;
+      fs.mkdirSync(defaultHome(), { recursive: true });
       fs.writeFileSync(path.join(tempDir, '.workspace-manager-cache', 'suites.json'), '{"x":1}');
       vi.resetModules();
       await loadModule();
-      expect(fs.existsSync(path.join(tempDir, '.nemus', 'suites.json'))).toBe(false);
+      expect(fs.existsSync(path.join(defaultHome(), 'suites.json'))).toBe(false);
+    });
+
+    it('keeps an existing ~/.nemus install even on Linux (no surprise XDG move)', async () => {
+      delete process.env.NEMUS_CACHE_DIR;
+      delete process.env.WORKSPACE_MANAGER_CACHE_DIR;
+      delete process.env.XDG_CONFIG_HOME;
+      const branded = path.join(tempDir, '.nemus');
+      fs.mkdirSync(branded, { recursive: true });
+      fs.writeFileSync(path.join(branded, 'config.json'), '{}'); // real prior state
+      vi.resetModules();
+      const { CACHE_DIR } = await loadModule();
+      expect(CACHE_DIR).toBe(branded);
+    });
+  });
+
+  describe('resolveNemusHome precedence', () => {
+    const home = '/home/u';
+    const branded = path.join(home, '.nemus');
+    // A readDir that reports the given entries for ~/.nemus and "absent" elsewhere.
+    const brandedHas = (...entries: string[]) => (p: string): string[] => {
+      if (p === branded) return entries;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    };
+    const empty = (): string[] => {
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    };
+
+    it('explicit NEMUS_CACHE_DIR / legacy override wins over everything', async () => {
+      const { resolveNemusHome } = await loadModule();
+      expect(
+        resolveNemusHome({ env: { NEMUS_CACHE_DIR: '/x', XDG_CONFIG_HOME: '/c' }, home, platform: 'linux', readDir: brandedHas('config.json') }),
+      ).toBe('/x');
+      expect(
+        resolveNemusHome({ env: { WORKSPACE_MANAGER_CACHE_DIR: '/y' }, home, platform: 'linux', readDir: brandedHas('config.json') }),
+      ).toBe('/y');
+    });
+
+    it('an existing ~/.nemus with durable state wins over XDG, on any platform', async () => {
+      const { resolveNemusHome } = await loadModule();
+      expect(resolveNemusHome({ env: { XDG_CONFIG_HOME: '/c' }, home, platform: 'linux', readDir: brandedHas('config.json') })).toBe(branded);
+    });
+
+    it('counts reflect/ (and any non-cache entry) as durable state — not just the classic 3', async () => {
+      const { resolveNemusHome } = await loadModule();
+      // a reflect-only user has no config.json/suites.json/history.jsonl
+      expect(resolveNemusHome({ env: {}, home, platform: 'linux', readDir: brandedHas('reflect') })).toBe(branded);
+    });
+
+    it('a ~/.nemus holding only regenerable caches / the shell artifact does NOT count', async () => {
+      const { resolveNemusHome } = await loadModule();
+      expect(
+        resolveNemusHome({
+          env: {},
+          home,
+          platform: 'linux',
+          readDir: brandedHas('shell-integration.sh', 'last-version-check.json', 'repos-cache.json', 'last-error.json', '.DS_Store'),
+        }),
+      ).toBe(path.join(home, '.config', 'nemus'));
+    });
+
+    it('honors an absolute XDG_CONFIG_HOME on a fresh install (any platform)', async () => {
+      const { resolveNemusHome } = await loadModule();
+      expect(resolveNemusHome({ env: { XDG_CONFIG_HOME: '/cfg' }, home, platform: 'linux', readDir: empty })).toBe('/cfg/nemus');
+      expect(resolveNemusHome({ env: { XDG_CONFIG_HOME: '/cfg' }, home, platform: 'darwin', readDir: empty })).toBe('/cfg/nemus');
+    });
+
+    it('ignores a relative XDG_CONFIG_HOME (per spec)', async () => {
+      const { resolveNemusHome } = await loadModule();
+      expect(resolveNemusHome({ env: { XDG_CONFIG_HOME: 'rel/path' }, home, platform: 'linux', readDir: empty })).toBe(
+        path.join(home, '.config', 'nemus'),
+      );
+    });
+
+    it('fresh-install default: Linux -> ~/.config/nemus, macOS/Windows -> ~/.nemus', async () => {
+      const { resolveNemusHome } = await loadModule();
+      expect(resolveNemusHome({ env: {}, home, platform: 'linux', readDir: empty })).toBe(path.join(home, '.config', 'nemus'));
+      expect(resolveNemusHome({ env: {}, home, platform: 'darwin', readDir: empty })).toBe(branded);
+      expect(resolveNemusHome({ env: {}, home, platform: 'win32', readDir: empty })).toBe(branded);
     });
   });
 });
