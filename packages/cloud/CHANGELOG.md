@@ -7,6 +7,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this package adheres to [Semantic Versioning](https://semver.org/) — while
 pre-1.0 (`0.x`), minor versions may include breaking changes.
 
+## [0.1.2] - 2026-09-03
+
+### Added
+
+- **`nemus-cloud run`/`fix-pr` gain `--env KEY=VAL|KEY` (repeatable)** to pass
+  extra environment into the agent container. `KEY=VAL` sets a literal; a bare
+  `KEY` forwards its value from your shell (so secrets stay out of argv/history).
+  This is how **model credentials/config** reach the agent on runners that don't
+  inject them ambiently (docker, kubernetes) — e.g. an Anthropic key, AWS creds
+  for Bedrock, or `NEMUS_AGENT_ARGS` to select the provider/model. The fixed
+  task contract (`NEMUS_REPOS`/`NEMUS_TASK`/forge auth/…) always wins over a
+  colliding `--env` key. Before this, the CLI forwarded only forge auth, so a
+  local/docker run had no way to authenticate the model — you had to drive the
+  runner API directly.
+
+### Verified
+
+- **Full happy path proven end-to-end**: `nemus-cloud` → docker runner → agent
+  image → clone a real GitHub repo → pi on Bedrock edits it → commit → push →
+  **opens a real PR** with the expected diff.
+
 ## [0.1.1] - 2026-09-03
 
 ### Changed
