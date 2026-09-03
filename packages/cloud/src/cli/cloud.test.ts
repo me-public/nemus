@@ -88,6 +88,14 @@ describe('buildRunTaskSpec', () => {
     expect(spec.env!.NEMUS_TASK).toBe('do it');
   });
 
+  it('accepts forge auth supplied via --env (no separate env var needed)', () => {
+    const spec = buildRunTaskSpec(
+      { ...flags, env: ['GITHUB_TOKEN=via-env'] },
+      {}, // nothing in the process environment
+    );
+    expect(spec.env!.GITHUB_TOKEN).toBe('via-env');
+  });
+
   it('requires image/repos/task and forge auth', () => {
     expect(() => buildRunTaskSpec({ repos: 'a', task: 't' }, { GITHUB_TOKEN: 't' })).toThrow(/--image/);
     expect(() => buildRunTaskSpec({ image: 'i', task: 't' }, { GITHUB_TOKEN: 't' })).toThrow(/--repos/);

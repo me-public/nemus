@@ -17,10 +17,11 @@ pre-1.0 (`0.x`), minor versions may include breaking changes.
   This is how **model credentials/config** reach the agent on runners that don't
   inject them ambiently (docker, kubernetes) — e.g. an Anthropic key, AWS creds
   for Bedrock, or `NEMUS_AGENT_ARGS` to select the provider/model. The fixed
-  task contract (`NEMUS_REPOS`/`NEMUS_TASK`/forge auth/…) always wins over a
-  colliding `--env` key. Before this, the CLI forwarded only forge auth, so a
-  local/docker run had no way to authenticate the model — you had to drive the
-  runner API directly.
+  task contract (`NEMUS_REPOS`/`NEMUS_TASK`/…) always wins over a colliding
+  `--env` key. Forge auth can also be supplied this way (`--env GITHUB_TOKEN`)
+  in addition to the ambient environment. Before this, the CLI forwarded only
+  forge auth, so a local/docker run had no way to authenticate the model — you
+  had to drive the runner API directly.
 
 ### Verified
 

@@ -246,7 +246,14 @@ export function buildFixPrTaskSpec(flags: Flags, env: NodeJS.ProcessEnv): TaskSp
 function injectForgeEnv(taskEnv: Record<string, string>, env: NodeJS.ProcessEnv, cmd: string): void {
   const token = env.GITHUB_TOKEN || env.GIT_TOKEN;
   const hasApp = !!(env.GITHUB_APP_ID && env.GITHUB_APP_PRIVATE_KEY && env.GITHUB_APP_INSTALLATION_ID);
-  if (!token && !hasApp) {
+  // Forge auth may already have been supplied via --env (spread into taskEnv
+  // before this runs) — accept that too, so `--env GITHUB_TOKEN=…` works and
+  // doesn't confusingly fail with "no forge auth".
+  const hasEnvForge = !!(
+    taskEnv.GITHUB_TOKEN ||
+    (taskEnv.GITHUB_APP_ID && taskEnv.GITHUB_APP_PRIVATE_KEY && taskEnv.GITHUB_APP_INSTALLATION_ID)
+  );
+  if (!token && !hasApp && !hasEnvForge) {
     throw new Error(`${cmd}: no forge auth — set GITHUB_TOKEN (or GITHUB_APP_ID/_PRIVATE_KEY/_INSTALLATION_ID)`);
   }
   if (token) taskEnv.GITHUB_TOKEN = token;
