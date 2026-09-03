@@ -4,7 +4,7 @@ import { createProvisioner, provisionerNames } from '../provision/registry';
 import { iacModuleDir, listIacModules } from '../provision/modules';
 import { createRunner, runnerNames } from '../runner/registry';
 import { registeredForges } from '../gitforge/registry';
-import { Capabilities, TargetDescriptor, TaskSpec } from '../runner/types';
+import { Capabilities, Handle, TargetDescriptor, TaskSpec } from '../runner/types';
 
 /**
  * `nemus-cloud` — the thin CLI that ties the P2 seams together:
@@ -290,7 +290,8 @@ async function launchSpec(spec: TaskSpec, flags: Flags, deps: CloudCliDeps): Pro
   const handle = await runner.launch(spec, target);
   deps.log(`launched ${handle.runner} task ${handle.id}`);
 
-  if (bool(flags, 'follow')) {
+  const following = bool(flags, 'follow');
+  if (following) {
     for await (const line of runner.logs(handle)) deps.log(line.line);
   }
   if (bool(flags, 'wait')) {
@@ -298,12 +299,67 @@ async function launchSpec(spec: TaskSpec, flags: Flags, deps: CloudCliDeps): Pro
       const st = await runner.status(handle);
       if (st.state === 'succeeded' || st.state === 'failed' || st.state === 'stopped') {
         deps.log(`task ${st.state}${st.exitCode !== undefined ? ` (exit ${st.exitCode})` : ''}`);
+        // On failure, surface WHY. When not already following, the reason (the
+        // agent's `[nemus-cloud-agent] result: …` summary / clone errors / a
+        // missing-model-creds message) is only in the task logs, so print their
+        // tail — otherwise the user is left with a bare "task failed (exit 1)".
+        if (st.state !== 'succeeded' && !following) {
+          await printLogTail(runner, handle, deps);
+        }
         return st.state === 'succeeded' ? 0 : 1;
       }
       await deps.sleep(5000);
     }
   }
   return 0;
+}
+
+/**
+ * Print the last ~40 lines of a task's logs (best-effort) to explain a failure.
+ *
+ * Deadline-bounded: some runners' log streams do NOT terminate after the task
+ * exits — the fargate runner shells `aws logs tail --follow`, which polls
+ * CloudWatch forever. Since this runs automatically on the failure path (not
+ * just under an explicit --follow), it must not hang: we collect whatever
+ * arrives within `timeoutMs`, then stop and release the iterator (whose `return`
+ * kills the underlying `logs -f`/`tail --follow` child, so its open pipe can't
+ * keep the CLI's event loop alive).
+ */
+export async function printLogTail(
+  runner: { logs: (h: Handle) => AsyncIterable<{ line: string }> },
+  handle: Handle,
+  deps: CloudCliDeps,
+  timeoutMs = 10_000,
+): Promise<void> {
+  const MAX = 40;
+  const tail: string[] = [];
+  const it = runner.logs(handle)[Symbol.asyncIterator]();
+  const deadline = Date.now() + timeoutMs;
+  try {
+    for (;;) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      const timer = new Promise<'timeout'>((resolve) => {
+        const t = setTimeout(() => resolve('timeout'), remaining);
+        // Don't let the timer itself keep the process alive.
+        (t as { unref?: () => void }).unref?.();
+      });
+      const res = await Promise.race([it.next(), timer]);
+      if (res === 'timeout') break;
+      const step = res as IteratorResult<{ line: string }>;
+      if (step.done) break;
+      tail.push(step.value.line);
+      if (tail.length > MAX) tail.shift();
+    }
+  } catch {
+    // logs are best-effort — a runner that can't replay them shouldn't crash the CLI
+  } finally {
+    // Release the stream even if we broke early, so the streamer's child is killed.
+    await it.return?.(undefined).catch(() => undefined);
+  }
+  if (tail.length === 0) return;
+  deps.log('--- task logs (tail) ---');
+  for (const line of tail) deps.log(line);
 }
 
 // ------------------------------------------------------------- runners/list

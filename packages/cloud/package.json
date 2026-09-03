@@ -1,6 +1,6 @@
 {
   "name": "@nemus-cli/cloud",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Optional cloud/IaC runners for Nemus — run a workspace + coding agent on your own infrastructure. Vendor-neutral and provider-pluggable. Not required for local Nemus.",
   "keywords": [
     "nemus",

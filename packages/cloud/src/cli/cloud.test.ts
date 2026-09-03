@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { parseArgs, parseVars, buildRunTaskSpec, buildFixPrTaskSpec, collectRegistry, main, CloudCliDeps } from './cloud';
+import { parseArgs, parseVars, buildRunTaskSpec, buildFixPrTaskSpec, collectRegistry, main, printLogTail, CloudCliDeps } from './cloud';
 import { createRunner, runnerNames } from '../runner/registry';
 import { provisionerNames } from '../provision/registry';
 import { iacModuleDir, listIacModules } from '../provision/modules';
@@ -272,6 +272,70 @@ describe('main dispatch', () => {
     files.set('.nemus-target.json', JSON.stringify({ version: 1, runner: 'fake' }));
     const code = await main(['run', '--image', 'i', '--repos', 'a', '--task', 't', '--wait'], deps);
     expect(code).toBe(1);
+  });
+
+  it('run: on failure without --follow, prints the log tail so the reason is visible', async () => {
+    const { deps, files, out } = harness({
+      createRunner: ((name: string) => ({
+        id: name, capabilities: {} as any,
+        launch: async () => ({ runner: name, id: 't' }),
+        status: async (): Promise<Status> => ({ state: 'failed', exitCode: 1 }),
+        logs: async function* (): AsyncIterable<LogLine> {
+          yield { stream: 'stdout', line: '[nemus-cloud-agent] agent run failed: No API key found' };
+        },
+        stop: async () => {},
+      })) as any,
+    });
+    files.set('.nemus-target.json', JSON.stringify({ version: 1, runner: 'fake' }));
+    const code = await main(['run', '--image', 'i', '--repos', 'a', '--task', 't', '--wait'], deps);
+    expect(code).toBe(1);
+    expect(out).toContain('--- task logs (tail) ---');
+    expect(out.some((l) => l.includes('No API key found'))).toBe(true);
+  });
+
+  it('run: with --follow does NOT re-print the tail on failure (no duplicate logs)', async () => {
+    const { deps, files, out } = harness({
+      createRunner: ((name: string) => ({
+        id: name, capabilities: {} as any,
+        launch: async () => ({ runner: name, id: 't' }),
+        status: async (): Promise<Status> => ({ state: 'failed', exitCode: 1 }),
+        logs: async function* (): AsyncIterable<LogLine> { yield { stream: 'stdout', line: 'boom' }; },
+        stop: async () => {},
+      })) as any,
+    });
+    files.set('.nemus-target.json', JSON.stringify({ version: 1, runner: 'fake' }));
+    const code = await main(['run', '--image', 'i', '--repos', 'a', '--task', 't', '--follow', '--wait'], deps);
+    expect(code).toBe(1);
+    expect(out).not.toContain('--- task logs (tail) ---');
+    expect(out.filter((l) => l.includes('boom')).length).toBe(1); // streamed once, not re-printed
+  });
+
+  it('printLogTail: bounded on a non-terminating stream, and releases the iterator', async () => {
+    // Model the fargate case: yields a little history, then never ends.
+    let released = false;
+    const runner = {
+      logs: () => ({
+        [Symbol.asyncIterator]() {
+          let n = 0;
+          return {
+            next: async () =>
+              n < 2 ? { value: { line: `hist-${n++}` }, done: false } : new Promise(() => {}), // hang forever
+            return: async () => {
+              released = true;
+              return { value: undefined, done: true };
+            },
+          };
+        },
+      }),
+    };
+    const out: string[] = [];
+    const deps = { log: (l: string) => out.push(l) } as unknown as CloudCliDeps;
+    const started = Date.now();
+    await printLogTail(runner as any, { runner: 'x', id: 't' } as any, deps, 60);
+    expect(Date.now() - started).toBeLessThan(2000); // returned promptly, did not hang
+    expect(released).toBe(true); // iterator released -> streamer child would be killed
+    expect(out).toContain('--- task logs (tail) ---');
+    expect(out.some((l) => l === 'hist-0')).toBe(true);
   });
 
   it('fix-pr: loads target and launches the fix-pr task', async () => {

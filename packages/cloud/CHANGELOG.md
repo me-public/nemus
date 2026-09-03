@@ -7,6 +7,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this package adheres to [Semantic Versioning](https://semver.org/) — while
 pre-1.0 (`0.x`), minor versions may include breaking changes.
 
+## [0.1.1] - 2026-09-03
+
+### Changed
+
+- **`nemus-cloud run`/`fix-pr` now surface *why* a task failed.** On a failed
+  `--wait` (without `--follow`), the CLI prints the tail of the task logs — the
+  agent's `[nemus-cloud-agent] result: …` summary, per-repo clone errors, or a
+  missing-model-creds message — instead of a bare `task failed (exit 1)`. The
+  tail read is deadline-bounded and releases the log stream when done, so it
+  can't hang on a runner whose stream never terminates (the fargate runner's
+  `aws logs tail --follow` polls CloudWatch forever).
+
+### Fixed
+
+- **Log streamers now kill their child process when the consumer stops early.**
+  Previously breaking out of a `logs()` stream left the `docker logs -f` /
+  `aws logs tail --follow` child running with an open pipe, which could keep the
+  CLI's event loop alive (hanging the process) and leak the child.
+
+### Verified
+
+- End-to-end live smokes re-run green on this release: `docker` runner
+  (launch→status→exec→logs→stop), `kubernetes` runner on a real kind cluster,
+  the agent image contract (env → `result.json` → exit code, secret redaction),
+  a real clone against live GitHub, and both shipped IaC modules validate under
+  OpenTofu.
+
 ## [0.1.0] - 2026-09-01
 
 First published release — **experimental**. Previously in-repo only.
