@@ -4,11 +4,51 @@ import * as fs from 'fs';
 
 const HOME_DIR = os.homedir();
 
-// Cache/config/state directory. Prefer the branded NEMUS_* env vars; fall back
-// to the legacy WORKSPACE_MANAGER_* names for backward compatibility; else the
-// default ~/.nemus home.
-const DEFAULT_CACHE_DIR = path.join(HOME_DIR, '.nemus');
 const LEGACY_CACHE_DIR = path.join(HOME_DIR, '.workspace-manager-cache');
+
+// Files that mark a directory as a real Nemus state dir (as opposed to a
+// ~/.nemus that only holds shell-integration.sh). Used to decide whether an
+// existing install keeps its current location rather than switching to XDG.
+const STATE_MARKER_FILES = ['config.json', 'suites.json', 'history.jsonl'];
+
+export interface NemusHomeEnv {
+  env: NodeJS.ProcessEnv;
+  home: string;
+  platform: NodeJS.Platform;
+  exists: (p: string) => boolean;
+}
+
+/**
+ * Resolve the directory that holds Nemus config + state. Precedence (first
+ * match wins), designed so existing users are never silently moved:
+ *
+ *   1. Explicit override — NEMUS_CACHE_DIR (or legacy WORKSPACE_MANAGER_CACHE_DIR).
+ *   2. An existing ~/.nemus that already holds Nemus state (config/suites/history)
+ *      — keep using it, on every platform.
+ *   3. XDG_CONFIG_HOME, when set to an absolute path — $XDG_CONFIG_HOME/nemus.
+ *   4. Linux with no prior install — the XDG default ~/.config/nemus.
+ *   5. Otherwise (macOS/Windows, fresh install) — ~/.nemus.
+ *
+ * Config + state are kept together in one dir (a later change may split cache
+ * out under XDG_CACHE_HOME). The dir is chosen under XDG_CONFIG_HOME, not
+ * XDG_CACHE_HOME, because it holds real config (config.json) — not disposable
+ * cache a cleaner may wipe. A relative XDG_CONFIG_HOME is ignored per the spec.
+ */
+export function resolveNemusHome({ env, home, platform, exists }: NemusHomeEnv): string {
+  const explicit = env.NEMUS_CACHE_DIR || env.WORKSPACE_MANAGER_CACHE_DIR;
+  if (explicit) return explicit;
+
+  const branded = path.join(home, '.nemus');
+  const hasState = STATE_MARKER_FILES.some((f) => exists(path.join(branded, f)));
+  if (hasState) return branded;
+
+  const xdg = env.XDG_CONFIG_HOME;
+  if (xdg && path.isAbsolute(xdg)) return path.join(xdg, 'nemus');
+
+  if (platform === 'linux') return path.join(home, '.config', 'nemus');
+
+  return branded;
+}
 
 /**
  * One-time, best-effort migration of state from the pre-0.2.2 cache location
@@ -21,11 +61,15 @@ const LEGACY_CACHE_DIR = path.join(HOME_DIR, '.workspace-manager-cache');
  * shared by another tool whose "latest version" is unrelated to nemus, and
  * copying it would make the update check report a wrong version until the entry
  * expires. Skipping it just forces one fresh lookup.
+ *
+ * Skipped when an explicit env override is in effect (don't copy into a path the
+ * user deliberately chose). Runs into whatever default location was resolved,
+ * including a new XDG dir on Linux.
  */
 const MIGRATION_SKIP = new Set(['last-version-check.json']);
-function migrateLegacyCacheDir(targetDir: string): void {
+function migrateLegacyCacheDir(targetDir: string, isExplicitOverride: boolean): void {
   try {
-    if (targetDir === DEFAULT_CACHE_DIR && !fs.existsSync(targetDir) && fs.existsSync(LEGACY_CACHE_DIR)) {
+    if (!isExplicitOverride && !fs.existsSync(targetDir) && fs.existsSync(LEGACY_CACHE_DIR)) {
       fs.cpSync(LEGACY_CACHE_DIR, targetDir, {
         recursive: true,
         filter: (src) => !MIGRATION_SKIP.has(path.basename(src)),
@@ -36,9 +80,14 @@ function migrateLegacyCacheDir(targetDir: string): void {
   }
 }
 
-const CACHE_DIR_RESOLVED =
-  process.env.NEMUS_CACHE_DIR || process.env.WORKSPACE_MANAGER_CACHE_DIR || DEFAULT_CACHE_DIR;
-migrateLegacyCacheDir(CACHE_DIR_RESOLVED);
+const EXPLICIT_OVERRIDE = !!(process.env.NEMUS_CACHE_DIR || process.env.WORKSPACE_MANAGER_CACHE_DIR);
+const CACHE_DIR_RESOLVED = resolveNemusHome({
+  env: process.env,
+  home: HOME_DIR,
+  platform: process.platform,
+  exists: fs.existsSync,
+});
+migrateLegacyCacheDir(CACHE_DIR_RESOLVED, EXPLICIT_OVERRIDE);
 
 // Config file lives inside the cache dir.
 const CONFIG_FILE = path.join(CACHE_DIR_RESOLVED, 'config.json');

@@ -284,7 +284,8 @@ Everything Nemus reads from the environment (all optional):
 | Variable | Effect |
 | --- | --- |
 | `NEMUS_DIR` | Override where workspaces are created (also `WORKSPACE_MANAGER_DIR`). |
-| `NEMUS_CACHE_DIR` | Override the cache/config/state dir, default `~/.nemus` (also `WORKSPACE_MANAGER_CACHE_DIR`). |
+| `NEMUS_CACHE_DIR` | Override the config/state dir. Default: `~/.nemus`, or `$XDG_CONFIG_HOME/nemus` (→ `~/.config/nemus`) on Linux. Also `WORKSPACE_MANAGER_CACHE_DIR`. |
+| `XDG_CONFIG_HOME` | On Linux (or when set explicitly), a fresh install stores config/state under `$XDG_CONFIG_HOME/nemus`. An existing `~/.nemus` is always kept as-is. |
 | `NEMUS_JUDGE_MODEL` | Model for the `reflect` judge (overrides `--model`'s default). |
 | `NEMUS_JUDGE_THINKING` | Thinking level for the `reflect` judge on pi (`off`…`max`). |
 | `NEMUS_JUDGE_TIMEOUT_MS` | Timeout for the `reflect` judge call. |
@@ -426,7 +427,17 @@ export NEMUS_CACHE_DIR="$HOME/.cache/nemus"   # default: ~/.nemus
 
 (The legacy `WORKSPACE_MANAGER_DIR` / `WORKSPACE_MANAGER_CACHE_DIR` names still
 work as fallbacks. On first run, state from the old `~/.workspace-manager-cache`
-location is migrated to `~/.nemus` automatically.)
+location is migrated to the resolved config dir automatically.)
+
+**Config/state location (XDG-aware).** Resolution order, first match wins —
+designed so existing installs are never silently moved:
+
+1. `NEMUS_CACHE_DIR` / `WORKSPACE_MANAGER_CACHE_DIR` (explicit override).
+2. An existing `~/.nemus` that already holds state (`config.json` / `suites.json`
+   / `history.jsonl`) — kept on every platform.
+3. `XDG_CONFIG_HOME/nemus`, when `XDG_CONFIG_HOME` is set to an absolute path.
+4. Linux with no prior install → `~/.config/nemus` (the XDG default).
+5. Otherwise (macOS/Windows, fresh install) → `~/.nemus`.
 
 Key settings: `githubOrg` (which org's repos to list — leave empty to list your
 own), `cloneProtocol` (`ssh`|`https`), `aiAgent`, `primaryAgent`, `installMcp`.
