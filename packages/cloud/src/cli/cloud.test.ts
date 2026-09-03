@@ -274,6 +274,42 @@ describe('main dispatch', () => {
     expect(code).toBe(1);
   });
 
+  it('run: on failure without --follow, prints the log tail so the reason is visible', async () => {
+    const { deps, files, out } = harness({
+      createRunner: ((name: string) => ({
+        id: name, capabilities: {} as any,
+        launch: async () => ({ runner: name, id: 't' }),
+        status: async (): Promise<Status> => ({ state: 'failed', exitCode: 1 }),
+        logs: async function* (): AsyncIterable<LogLine> {
+          yield { stream: 'stdout', line: '[nemus-cloud-agent] agent run failed: No API key found' };
+        },
+        stop: async () => {},
+      })) as any,
+    });
+    files.set('.nemus-target.json', JSON.stringify({ version: 1, runner: 'fake' }));
+    const code = await main(['run', '--image', 'i', '--repos', 'a', '--task', 't', '--wait'], deps);
+    expect(code).toBe(1);
+    expect(out).toContain('--- task logs (tail) ---');
+    expect(out.some((l) => l.includes('No API key found'))).toBe(true);
+  });
+
+  it('run: with --follow does NOT re-print the tail on failure (no duplicate logs)', async () => {
+    const { deps, files, out } = harness({
+      createRunner: ((name: string) => ({
+        id: name, capabilities: {} as any,
+        launch: async () => ({ runner: name, id: 't' }),
+        status: async (): Promise<Status> => ({ state: 'failed', exitCode: 1 }),
+        logs: async function* (): AsyncIterable<LogLine> { yield { stream: 'stdout', line: 'boom' }; },
+        stop: async () => {},
+      })) as any,
+    });
+    files.set('.nemus-target.json', JSON.stringify({ version: 1, runner: 'fake' }));
+    const code = await main(['run', '--image', 'i', '--repos', 'a', '--task', 't', '--follow', '--wait'], deps);
+    expect(code).toBe(1);
+    expect(out).not.toContain('--- task logs (tail) ---');
+    expect(out.filter((l) => l.includes('boom')).length).toBe(1); // streamed once, not re-printed
+  });
+
   it('fix-pr: loads target and launches the fix-pr task', async () => {
     const { deps, files, calls, out } = harness();
     files.set('.nemus-target.json', JSON.stringify({ version: 1, runner: 'fake' }));
