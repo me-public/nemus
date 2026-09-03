@@ -433,8 +433,10 @@ location is migrated to the resolved config dir automatically.)
 designed so existing installs are never silently moved:
 
 1. `NEMUS_CACHE_DIR` / `WORKSPACE_MANAGER_CACHE_DIR` (explicit override).
-2. An existing `~/.nemus` that already holds state (`config.json` / `suites.json`
-   / `history.jsonl`) — kept on every platform.
+2. An existing `~/.nemus` that holds durable state (anything beyond regenerable
+   caches like `repos-cache.json` / `last-version-check.json` and the
+   `shell-integration.sh` file — e.g. `config.json`, `suites.json`, the
+   `reflect/` reports) — kept on every platform, never moved.
 3. `XDG_CONFIG_HOME/nemus`, when `XDG_CONFIG_HOME` is set to an absolute path.
 4. Linux with no prior install → `~/.config/nemus` (the XDG default).
 5. Otherwise (macOS/Windows, fresh install) → `~/.nemus`.

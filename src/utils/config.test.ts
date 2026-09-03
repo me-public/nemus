@@ -286,50 +286,67 @@ describe('config', () => {
 
   describe('resolveNemusHome precedence', () => {
     const home = '/home/u';
-    const noState = () => false;
+    const branded = path.join(home, '.nemus');
+    // A readDir that reports the given entries for ~/.nemus and "absent" elsewhere.
+    const brandedHas = (...entries: string[]) => (p: string): string[] => {
+      if (p === branded) return entries;
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    };
+    const empty = (): string[] => {
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    };
 
     it('explicit NEMUS_CACHE_DIR / legacy override wins over everything', async () => {
       const { resolveNemusHome } = await loadModule();
       expect(
-        resolveNemusHome({ env: { NEMUS_CACHE_DIR: '/x', XDG_CONFIG_HOME: '/c' }, home, platform: 'linux', exists: () => true }),
+        resolveNemusHome({ env: { NEMUS_CACHE_DIR: '/x', XDG_CONFIG_HOME: '/c' }, home, platform: 'linux', readDir: brandedHas('config.json') }),
       ).toBe('/x');
       expect(
-        resolveNemusHome({ env: { WORKSPACE_MANAGER_CACHE_DIR: '/y' }, home, platform: 'linux', exists: () => true }),
+        resolveNemusHome({ env: { WORKSPACE_MANAGER_CACHE_DIR: '/y' }, home, platform: 'linux', readDir: brandedHas('config.json') }),
       ).toBe('/y');
     });
 
-    it('an existing ~/.nemus with state wins over XDG, on any platform', async () => {
+    it('an existing ~/.nemus with durable state wins over XDG, on any platform', async () => {
       const { resolveNemusHome } = await loadModule();
-      const exists = (p: string) => p === path.join(home, '.nemus', 'config.json');
-      expect(resolveNemusHome({ env: { XDG_CONFIG_HOME: '/c' }, home, platform: 'linux', exists })).toBe(
-        path.join(home, '.nemus'),
-      );
+      expect(resolveNemusHome({ env: { XDG_CONFIG_HOME: '/c' }, home, platform: 'linux', readDir: brandedHas('config.json') })).toBe(branded);
     });
 
-    it('a ~/.nemus holding only shell-integration.sh does NOT count as state', async () => {
+    it('counts reflect/ (and any non-cache entry) as durable state — not just the classic 3', async () => {
       const { resolveNemusHome } = await loadModule();
-      const exists = (p: string) => p === path.join(home, '.nemus', 'shell-integration.sh');
-      expect(resolveNemusHome({ env: {}, home, platform: 'linux', exists })).toBe(path.join(home, '.config', 'nemus'));
+      // a reflect-only user has no config.json/suites.json/history.jsonl
+      expect(resolveNemusHome({ env: {}, home, platform: 'linux', readDir: brandedHas('reflect') })).toBe(branded);
+    });
+
+    it('a ~/.nemus holding only regenerable caches / the shell artifact does NOT count', async () => {
+      const { resolveNemusHome } = await loadModule();
+      expect(
+        resolveNemusHome({
+          env: {},
+          home,
+          platform: 'linux',
+          readDir: brandedHas('shell-integration.sh', 'last-version-check.json', 'repos-cache.json', 'last-error.json', '.DS_Store'),
+        }),
+      ).toBe(path.join(home, '.config', 'nemus'));
     });
 
     it('honors an absolute XDG_CONFIG_HOME on a fresh install (any platform)', async () => {
       const { resolveNemusHome } = await loadModule();
-      expect(resolveNemusHome({ env: { XDG_CONFIG_HOME: '/cfg' }, home, platform: 'linux', exists: noState })).toBe('/cfg/nemus');
-      expect(resolveNemusHome({ env: { XDG_CONFIG_HOME: '/cfg' }, home, platform: 'darwin', exists: noState })).toBe('/cfg/nemus');
+      expect(resolveNemusHome({ env: { XDG_CONFIG_HOME: '/cfg' }, home, platform: 'linux', readDir: empty })).toBe('/cfg/nemus');
+      expect(resolveNemusHome({ env: { XDG_CONFIG_HOME: '/cfg' }, home, platform: 'darwin', readDir: empty })).toBe('/cfg/nemus');
     });
 
     it('ignores a relative XDG_CONFIG_HOME (per spec)', async () => {
       const { resolveNemusHome } = await loadModule();
-      expect(resolveNemusHome({ env: { XDG_CONFIG_HOME: 'rel/path' }, home, platform: 'linux', exists: noState })).toBe(
+      expect(resolveNemusHome({ env: { XDG_CONFIG_HOME: 'rel/path' }, home, platform: 'linux', readDir: empty })).toBe(
         path.join(home, '.config', 'nemus'),
       );
     });
 
     it('fresh-install default: Linux -> ~/.config/nemus, macOS/Windows -> ~/.nemus', async () => {
       const { resolveNemusHome } = await loadModule();
-      expect(resolveNemusHome({ env: {}, home, platform: 'linux', exists: noState })).toBe(path.join(home, '.config', 'nemus'));
-      expect(resolveNemusHome({ env: {}, home, platform: 'darwin', exists: noState })).toBe(path.join(home, '.nemus'));
-      expect(resolveNemusHome({ env: {}, home, platform: 'win32', exists: noState })).toBe(path.join(home, '.nemus'));
+      expect(resolveNemusHome({ env: {}, home, platform: 'linux', readDir: empty })).toBe(path.join(home, '.config', 'nemus'));
+      expect(resolveNemusHome({ env: {}, home, platform: 'darwin', readDir: empty })).toBe(branded);
+      expect(resolveNemusHome({ env: {}, home, platform: 'win32', readDir: empty })).toBe(branded);
     });
   });
 });

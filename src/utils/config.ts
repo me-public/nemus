@@ -6,16 +6,38 @@ const HOME_DIR = os.homedir();
 
 const LEGACY_CACHE_DIR = path.join(HOME_DIR, '.workspace-manager-cache');
 
-// Files that mark a directory as a real Nemus state dir (as opposed to a
-// ~/.nemus that only holds shell-integration.sh). Used to decide whether an
-// existing install keeps its current location rather than switching to XDG.
-const STATE_MARKER_FILES = ['config.json', 'suites.json', 'history.jsonl'];
+// Entries in ~/.nemus that do NOT make it a "real install": regenerable caches
+// and the shell-integration artifact. Anything else (config.json, suites.json,
+// history.jsonl, the reflect/ report dir, or any future state) marks the dir as
+// an existing install to keep in place. Denylisting the throwaways — a small,
+// stable set — is exhaustive for durable state by construction, which is safer
+// than allowlisting state files (that could miss e.g. reflect/ and wrongly
+// relocate a real install to XDG on upgrade).
+const REGENERABLE_ENTRIES = new Set([
+  'last-version-check.json', // update-check cache
+  'repos-cache.json', // GitHub repo-list cache
+  'last-error.json', // last error, for report-bug
+  'shell-integration.sh', // shell installer artifact — not Nemus state
+  '.DS_Store',
+]);
 
 export interface NemusHomeEnv {
   env: NodeJS.ProcessEnv;
   home: string;
   platform: NodeJS.Platform;
-  exists: (p: string) => boolean;
+  /** List a directory's entries; throw (or return []) when it doesn't exist. */
+  readDir: (p: string) => string[];
+}
+
+/** True if ~/.nemus holds anything beyond regenerable caches / the shell artifact. */
+function hasDurableState(dir: string, readDir: (p: string) => string[]): boolean {
+  let entries: string[];
+  try {
+    entries = readDir(dir);
+  } catch {
+    return false; // dir doesn't exist
+  }
+  return entries.some((e) => !REGENERABLE_ENTRIES.has(e));
 }
 
 /**
@@ -23,8 +45,8 @@ export interface NemusHomeEnv {
  * match wins), designed so existing users are never silently moved:
  *
  *   1. Explicit override — NEMUS_CACHE_DIR (or legacy WORKSPACE_MANAGER_CACHE_DIR).
- *   2. An existing ~/.nemus that already holds Nemus state (config/suites/history)
- *      — keep using it, on every platform.
+ *   2. An existing ~/.nemus that holds durable state (anything beyond
+ *      regenerable caches / the shell-integration file) — kept on every platform.
  *   3. XDG_CONFIG_HOME, when set to an absolute path — $XDG_CONFIG_HOME/nemus.
  *   4. Linux with no prior install — the XDG default ~/.config/nemus.
  *   5. Otherwise (macOS/Windows, fresh install) — ~/.nemus.
@@ -34,13 +56,12 @@ export interface NemusHomeEnv {
  * XDG_CACHE_HOME, because it holds real config (config.json) — not disposable
  * cache a cleaner may wipe. A relative XDG_CONFIG_HOME is ignored per the spec.
  */
-export function resolveNemusHome({ env, home, platform, exists }: NemusHomeEnv): string {
+export function resolveNemusHome({ env, home, platform, readDir }: NemusHomeEnv): string {
   const explicit = env.NEMUS_CACHE_DIR || env.WORKSPACE_MANAGER_CACHE_DIR;
   if (explicit) return explicit;
 
   const branded = path.join(home, '.nemus');
-  const hasState = STATE_MARKER_FILES.some((f) => exists(path.join(branded, f)));
-  if (hasState) return branded;
+  if (hasDurableState(branded, readDir)) return branded;
 
   const xdg = env.XDG_CONFIG_HOME;
   if (xdg && path.isAbsolute(xdg)) return path.join(xdg, 'nemus');
@@ -85,7 +106,7 @@ const CACHE_DIR_RESOLVED = resolveNemusHome({
   env: process.env,
   home: HOME_DIR,
   platform: process.platform,
-  exists: fs.existsSync,
+  readDir: (p) => fs.readdirSync(p),
 });
 migrateLegacyCacheDir(CACHE_DIR_RESOLVED, EXPLICIT_OVERRIDE);
 
