@@ -314,21 +314,48 @@ async function launchSpec(spec: TaskSpec, flags: Flags, deps: CloudCliDeps): Pro
   return 0;
 }
 
-/** Print the last ~40 lines of a task's logs (best-effort) to explain a failure. */
-async function printLogTail(
+/**
+ * Print the last ~40 lines of a task's logs (best-effort) to explain a failure.
+ *
+ * Deadline-bounded: some runners' log streams do NOT terminate after the task
+ * exits — the fargate runner shells `aws logs tail --follow`, which polls
+ * CloudWatch forever. Since this runs automatically on the failure path (not
+ * just under an explicit --follow), it must not hang: we collect whatever
+ * arrives within `timeoutMs`, then stop and release the iterator (whose `return`
+ * kills the underlying `logs -f`/`tail --follow` child, so its open pipe can't
+ * keep the CLI's event loop alive).
+ */
+export async function printLogTail(
   runner: { logs: (h: Handle) => AsyncIterable<{ line: string }> },
   handle: Handle,
   deps: CloudCliDeps,
+  timeoutMs = 10_000,
 ): Promise<void> {
   const MAX = 40;
   const tail: string[] = [];
+  const it = runner.logs(handle)[Symbol.asyncIterator]();
+  const deadline = Date.now() + timeoutMs;
   try {
-    for await (const { line } of runner.logs(handle)) {
-      tail.push(line);
+    for (;;) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      const timer = new Promise<'timeout'>((resolve) => {
+        const t = setTimeout(() => resolve('timeout'), remaining);
+        // Don't let the timer itself keep the process alive.
+        (t as { unref?: () => void }).unref?.();
+      });
+      const res = await Promise.race([it.next(), timer]);
+      if (res === 'timeout') break;
+      const step = res as IteratorResult<{ line: string }>;
+      if (step.done) break;
+      tail.push(step.value.line);
       if (tail.length > MAX) tail.shift();
     }
   } catch {
     // logs are best-effort — a runner that can't replay them shouldn't crash the CLI
+  } finally {
+    // Release the stream even if we broke early, so the streamer's child is killed.
+    await it.return?.(undefined).catch(() => undefined);
   }
   if (tail.length === 0) return;
   deps.log('--- task logs (tail) ---');

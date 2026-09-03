@@ -176,13 +176,19 @@ const defaultStream: LogStreamer = async function* (bin, args) {
     done = true;
     notify?.();
   });
-  while (!done || queue.length) {
-    if (queue.length) {
-      yield queue.shift()!;
-    } else {
-      await new Promise<void>((r) => (notify = r));
-      notify = null;
+  try {
+    while (!done || queue.length) {
+      if (queue.length) {
+        yield queue.shift()!;
+      } else {
+        await new Promise<void>((r) => (notify = r));
+        notify = null;
+      }
     }
+    if (failure) throw new Error(`docker logs stream failed: ${failure.message}`);
+  } finally {
+    // If the consumer breaks early (e.g. a bounded tail), kill the still-running
+    // `logs -f` child so its open stdout pipe can't keep the event loop alive.
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
   }
-  if (failure) throw new Error(`docker logs stream failed: ${failure.message}`);
 };

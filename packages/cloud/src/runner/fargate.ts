@@ -308,12 +308,20 @@ const defaultCloudWatchStream: LogStreamer = async function* (bin, args) {
     done = true;
     notify?.();
   });
-  while (!done || queue.length) {
-    if (queue.length) yield queue.shift()!;
-    else {
-      await new Promise<void>((r) => (notify = r));
-      notify = null;
+  try {
+    while (!done || queue.length) {
+      if (queue.length) yield queue.shift()!;
+      else {
+        await new Promise<void>((r) => (notify = r));
+        notify = null;
+      }
     }
+    if (failure) throw new Error(`aws logs tail stream failed: ${failure.message}`);
+  } finally {
+    // `aws logs tail --follow` never terminates on its own (it polls CloudWatch
+    // forever, even after the task exits). If the consumer breaks early (e.g. a
+    // bounded tail), kill the child so its open stdout pipe can't keep the CLI's
+    // event loop alive and hang the process.
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
   }
-  if (failure) throw new Error(`aws logs tail stream failed: ${failure.message}`);
 };
