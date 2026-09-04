@@ -20,15 +20,34 @@ const path = require('path');
 // Skip in CI environments
 if (process.env.CI) process.exit(0);
 
-// Only run first-run setup for a real GLOBAL install (`npm i -g`). A transient
-// `npx @nemus-cli/nemus …` (npm exec) or a local dependency install is not
-// global: the `nemus`/`nem` bins aren't persisted on PATH, so shell integration
-// is pointless — and worse, the interactive `configure` below reaches the
-// controlling terminal via /dev/tty and would HANG a non-interactive
-// `npx … --help`/`--version` invocation waiting for input. npm sets
-// npm_config_global="true" only for `-g`/`--global`; npx and local installs
-// leave it false/unset.
-if (String(process.env.npm_config_global).toLowerCase() !== 'true') process.exit(0);
+// Never hijack a transient one-off runner (`npx`, `pnpm dlx`, `yarn dlx`) with
+// first-run setup — the user asked to RUN a command, not install one. This is
+// the case that HUNG a non-interactive `npx @nemus-cli/nemus --help`/`--version`:
+// the interactive `configure` below reaches the controlling terminal via
+// /dev/tty and blocked waiting for input. npm sets npm_command="exec" for npx.
+const npmCommand = (process.env.npm_command || '').toLowerCase();
+if (npmCommand === 'exec' || npmCommand === 'dlx') process.exit(0);
+
+// Only do first-run setup (interactive `configure` + shell integration) for a
+// GLOBAL install — that's the only time the `nemus`/`nem` bins land on PATH, so
+// shell integration is meaningless for a local dependency install. Package
+// managers disagree on how they signal "global":
+//   • npm sets npm_config_global="true" for `-g` ("false" for a local install,
+//     and falsy under npx — which, with the exec guard above, is doubly skipped).
+//   • yarn and pnpm do NOT set npm_config_global, but each announces itself in
+//     npm_config_user_agent ("yarn/…", "pnpm/…"). They expose no reliable
+//     per-run local-vs-global flag, so we run setup for either: a local
+//     `yarn/pnpm add` of a CLI is vanishingly rare, setup is idempotent, and it
+//     can't hang (the interactive step only fires when a controlling terminal
+//     is present, and their `dlx` transient runners are skipped above).
+// Anything else (npm local install, unknown manager) is skipped — previously
+// this silently dropped shell integration for yarn/pnpm global users.
+function isGlobalInstall() {
+  if (String(process.env.npm_config_global).toLowerCase() === 'true') return true;
+  const manager = (process.env.npm_config_user_agent || '').toLowerCase().split('/')[0];
+  return manager === 'yarn' || manager === 'pnpm';
+}
+if (!isGlobalInstall()) process.exit(0);
 
 const PKG_ROOT = path.join(__dirname, '..');
 const SHELL_SCRIPT = path.join(PKG_ROOT, 'install-shell-integration.sh');
