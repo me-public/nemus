@@ -122,6 +122,33 @@ export function parseVars(list: string[]): Record<string, string> {
   return out;
 }
 
+/**
+ * Parse repeatable `--env` into extra container env. `KEY=VAL` sets a literal
+ * value; a bare `KEY` forwards `KEY`'s value from the caller's environment
+ * (handy for secrets you don't want in argv / shell history). A bare key that
+ * isn't set in the environment is skipped.
+ *
+ * This is how model credentials/config reach the agent on runners that don't
+ * inject them ambiently (docker, kubernetes) — e.g. an Anthropic key, AWS creds
+ * for Bedrock, or `NEMUS_AGENT_ARGS` to pick the provider/model:
+ *   --env ANTHROPIC_API_KEY
+ *   --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY --env AWS_SESSION_TOKEN --env AWS_REGION=us-east-1
+ *   --env 'NEMUS_AGENT_ARGS=-p {task} --provider amazon-bedrock --model us.anthropic.claude-haiku-4-5-20251001-v1:0'
+ */
+export function parseEnvPassthrough(list: string[], sourceEnv: NodeJS.ProcessEnv): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const item of list) {
+    const eq = item.indexOf('=');
+    if (eq !== -1) {
+      out[item.slice(0, eq)] = item.slice(eq + 1);
+    } else {
+      const v = sourceEnv[item];
+      if (v !== undefined) out[item] = v;
+    }
+  }
+  return out;
+}
+
 // -------------------------------------------------------------- run TaskSpec
 
 /** Build the agent TaskSpec (image + the runner-image env contract) from flags.
@@ -139,6 +166,8 @@ export function buildRunTaskSpec(flags: Flags, env: NodeJS.ProcessEnv): TaskSpec
   const report = str(flags, 'report') ?? 'pr';
 
   const taskEnv: Record<string, string> = {
+    // --env passthrough first, so the fixed contract below always wins.
+    ...parseEnvPassthrough(multi(flags, 'env'), env),
     NEMUS_REPOS: repos,
     NEMUS_TASK: task,
     NEMUS_AGENT: agent,
@@ -177,6 +206,8 @@ export function buildFixPrTaskSpec(flags: Flags, env: NodeJS.ProcessEnv): TaskSp
   const agent = str(flags, 'agent') ?? 'pi';
   const owner = str(flags, 'owner');
   const taskEnv: Record<string, string> = {
+    // --env passthrough first, so the fixed contract below always wins.
+    ...parseEnvPassthrough(multi(flags, 'env'), env),
     NEMUS_MODE: 'fix-pr',
     NEMUS_REPOS: repo,
     NEMUS_PR_NUMBER: pr,
@@ -215,7 +246,14 @@ export function buildFixPrTaskSpec(flags: Flags, env: NodeJS.ProcessEnv): TaskSp
 function injectForgeEnv(taskEnv: Record<string, string>, env: NodeJS.ProcessEnv, cmd: string): void {
   const token = env.GITHUB_TOKEN || env.GIT_TOKEN;
   const hasApp = !!(env.GITHUB_APP_ID && env.GITHUB_APP_PRIVATE_KEY && env.GITHUB_APP_INSTALLATION_ID);
-  if (!token && !hasApp) {
+  // Forge auth may already have been supplied via --env (spread into taskEnv
+  // before this runs) — accept that too, so `--env GITHUB_TOKEN=…` works and
+  // doesn't confusingly fail with "no forge auth".
+  const hasEnvForge = !!(
+    taskEnv.GITHUB_TOKEN ||
+    (taskEnv.GITHUB_APP_ID && taskEnv.GITHUB_APP_PRIVATE_KEY && taskEnv.GITHUB_APP_INSTALLATION_ID)
+  );
+  if (!token && !hasApp && !hasEnvForge) {
     throw new Error(`${cmd}: no forge auth — set GITHUB_TOKEN (or GITHUB_APP_ID/_PRIVATE_KEY/_INSTALLATION_ID)`);
   }
   if (token) taskEnv.GITHUB_TOKEN = token;
@@ -451,16 +489,24 @@ Usage:
   nemus-cloud down  [--target FILE] --module <name|--module-dir dir> [--var k=v]...
   nemus-cloud run   --image REF --repos a,b --task "..." [--target FILE]
                     [--agent pi] [--owner ORG] [--report pr|none] [--cpu N] [--memory MB]
-                    [--git-host HOST] [--follow] [--wait]
+                    [--git-host HOST] [--env KEY=VAL|KEY]... [--follow] [--wait]
   nemus-cloud fix-pr --image REF --repo owner/name --pr N --branch HEAD [--target FILE]
                     [--agent pi] [--owner ORG] [--task "..."] [--git-host HOST]
                     [--max-iterations N] [--poll-interval-ms N] [--max-polls N]
-                    [--cpu N] [--memory MB] [--follow] [--wait]
+                    [--cpu N] [--memory MB] [--env KEY=VAL|KEY]... [--follow] [--wait]
 
 Forge auth for \`run\`/\`fix-pr\` comes from the environment: GITHUB_TOKEN, or
 GITHUB_APP_ID/_PRIVATE_KEY/_INSTALLATION_ID. Target a different host with
 NEMUS_FORGE_HOST=gitlab (+ GITLAB_API_URL); report out-of-band with
-SLACK_WEBHOOK_URL / NEMUS_WEBHOOK_URL.`;
+SLACK_WEBHOOK_URL / NEMUS_WEBHOOK_URL.
+
+Model credentials/config reach the agent via --env (repeatable): KEY=VAL sets a
+literal; a bare KEY forwards its value from your shell (good for secrets).
+Runners that inject creds ambiently (e.g. a fargate task role) don't need it;
+docker/kubernetes do. Bedrock example:
+  --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY --env AWS_SESSION_TOKEN
+  --env AWS_REGION=us-east-1
+  --env 'NEMUS_AGENT_ARGS=-p {task} --provider amazon-bedrock --model us.anthropic.claude-haiku-4-5-20251001-v1:0'`;
 
 export async function main(argv: string[], deps: CloudCliDeps = defaultDeps): Promise<number> {
   const { cmd, flags } = parseArgs(argv);

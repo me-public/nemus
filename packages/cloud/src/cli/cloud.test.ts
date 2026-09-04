@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { parseArgs, parseVars, buildRunTaskSpec, buildFixPrTaskSpec, collectRegistry, main, printLogTail, CloudCliDeps } from './cloud';
+import { parseArgs, parseVars, parseEnvPassthrough, buildRunTaskSpec, buildFixPrTaskSpec, collectRegistry, main, printLogTail, CloudCliDeps } from './cloud';
 import { createRunner, runnerNames } from '../runner/registry';
 import { provisionerNames } from '../provision/registry';
 import { iacModuleDir, listIacModules } from '../provision/modules';
@@ -30,6 +30,22 @@ describe('parseVars', () => {
   });
 });
 
+describe('parseEnvPassthrough', () => {
+  const src = { AWS_ACCESS_KEY_ID: 'AKIA', EMPTY: '', NEMUS_AGENT_ARGS: '-p {task} --provider amazon-bedrock' };
+  it('sets KEY=VAL literally (keeping = in the value) and forwards bare KEY from the environment', () => {
+    expect(parseEnvPassthrough(['AWS_REGION=us-east-1', 'AWS_ACCESS_KEY_ID'], src)).toEqual({
+      AWS_REGION: 'us-east-1',
+      AWS_ACCESS_KEY_ID: 'AKIA',
+    });
+    // value may itself contain '='
+    expect(parseEnvPassthrough(['NEMUS_AGENT_ARGS=-m a=b'], src)).toEqual({ 'NEMUS_AGENT_ARGS': '-m a=b' });
+  });
+  it('skips a bare KEY that is not set (but forwards an explicitly-empty one)', () => {
+    expect(parseEnvPassthrough(['MISSING'], src)).toEqual({});
+    expect(parseEnvPassthrough(['EMPTY'], src)).toEqual({ EMPTY: '' });
+  });
+});
+
 describe('buildRunTaskSpec', () => {
   const flags = { image: 'img', repos: 'acme/api,acme/web', task: 'do it', owner: 'acme' };
 
@@ -56,6 +72,28 @@ describe('buildRunTaskSpec', () => {
     });
     expect(spec.env).toMatchObject({ GITHUB_APP_ID: '1', GITHUB_APP_INSTALLATION_ID: '2' });
     expect(spec.env!.GITHUB_TOKEN).toBeUndefined();
+  });
+
+  it('forwards --env model creds/config into the container, without overriding the contract', () => {
+    const spec = buildRunTaskSpec(
+      { ...flags, env: ['AWS_ACCESS_KEY_ID', 'AWS_REGION=us-east-1', 'NEMUS_AGENT_ARGS=-p {task} --provider amazon-bedrock', 'NEMUS_TASK=hijack'] },
+      { GITHUB_TOKEN: 't', AWS_ACCESS_KEY_ID: 'AKIA' },
+    );
+    expect(spec.env).toMatchObject({
+      AWS_ACCESS_KEY_ID: 'AKIA',
+      AWS_REGION: 'us-east-1',
+      NEMUS_AGENT_ARGS: '-p {task} --provider amazon-bedrock',
+    });
+    // the fixed contract wins over a colliding --env key
+    expect(spec.env!.NEMUS_TASK).toBe('do it');
+  });
+
+  it('accepts forge auth supplied via --env (no separate env var needed)', () => {
+    const spec = buildRunTaskSpec(
+      { ...flags, env: ['GITHUB_TOKEN=via-env'] },
+      {}, // nothing in the process environment
+    );
+    expect(spec.env!.GITHUB_TOKEN).toBe('via-env');
   });
 
   it('requires image/repos/task and forge auth', () => {
