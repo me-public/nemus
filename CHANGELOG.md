@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.2] - 2026-09-04
+
+### Fixed
+
+- **First-run setup now runs for global installs via yarn and pnpm too.** 0.15.1
+  gated postinstall setup on `npm_config_global`, which only npm sets — so
+  `yarn global add` / `pnpm add -g` silently skipped `configure` + shell
+  integration (the auto-cd / `nemgo` feature). The gate now also recognizes a
+  global install from `npm_config_user_agent` (`yarn/…`, `pnpm/…`), and skips
+  transient one-off runners explicitly via `npm_command` (`exec` for `npx`,
+  `dlx` for `pnpm dlx` / `yarn dlx`) so the npx-hang fix is unchanged. (#92)
+
 ## [0.15.1] - 2026-09-04
 
 ### Fixed
