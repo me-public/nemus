@@ -20,6 +20,16 @@ const path = require('path');
 // Skip in CI environments
 if (process.env.CI) process.exit(0);
 
+// Only run first-run setup for a real GLOBAL install (`npm i -g`). A transient
+// `npx @nemus-cli/nemus …` (npm exec) or a local dependency install is not
+// global: the `nemus`/`nem` bins aren't persisted on PATH, so shell integration
+// is pointless — and worse, the interactive `configure` below reaches the
+// controlling terminal via /dev/tty and would HANG a non-interactive
+// `npx … --help`/`--version` invocation waiting for input. npm sets
+// npm_config_global="true" only for `-g`/`--global`; npx and local installs
+// leave it false/unset.
+if (String(process.env.npm_config_global).toLowerCase() !== 'true') process.exit(0);
+
 const PKG_ROOT = path.join(__dirname, '..');
 const SHELL_SCRIPT = path.join(PKG_ROOT, 'install-shell-integration.sh');
 const CLI_BIN = path.join(PKG_ROOT, 'bin', 'workspace.js');

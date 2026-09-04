@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-09-04
+
+### Fixed
+
+- **`npx @nemus-cli/nemus …` no longer hangs.** The postinstall first-run setup
+  (interactive `nemus configure`, shell-integration install) now runs **only on
+  a global install** (`npm i -g`). A transient `npx` run or a local dependency
+  install is not global — the `nemus`/`nem` bins aren't persisted on PATH, so
+  shell integration is pointless, and the interactive `configure` reached the
+  controlling terminal via `/dev/tty` and hung a non-interactive
+  `npx … --help`/`--version`. Global installs are unchanged.
+
+### Added
+
+- **Zero-install usage** documented: `npx @nemus-cli/nemus <command>` runs any
+  command without installing or touching your shell.
+
 ## [0.15.0] - 2026-09-02
 
 ### Added

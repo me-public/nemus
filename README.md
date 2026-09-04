@@ -140,7 +140,20 @@ npm install -g @nemus-cli/nemus
 The postinstall step sets up optional shell integration (auto-cd into new
 workspaces + a quick-navigate helper). It keeps the generated functions in
 `~/.nemus/shell-integration.sh` and adds only a guarded source line to your
-shell RC file, so upgrades don't churn your `.zshrc`/`.bashrc`.
+shell RC file, so upgrades don't churn your `.zshrc`/`.bashrc`. First-time setup
+(`nemus configure`) runs automatically **only on a global install** — a
+throwaway `npx` run or a local dependency install leaves your shell untouched.
+
+### Try it without installing
+
+```bash
+npx @nemus-cli/nemus list          # run any command via npx
+npx @nemus-cli/nemus -- "…"         # or the AI prompt
+```
+
+Zero install, nothing added to your PATH or shell RC. (Shell integration and
+auto-cd only make sense once the `nemus`/`nem` bins are on your PATH, so install
+globally when you want those.)
 
 ### From source
 
