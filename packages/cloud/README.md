@@ -64,6 +64,83 @@ Standalone (no dependency on the core `@nemus-cli/nemus` CLI) and
 zero-runtime-dependency. Requires Node ≥ 22, plus whatever a given backend shells
 out to (`docker`, `kubectl`, `aws`, `tofu`/`terraform`, `git`, `gh`).
 
+## Quickstart (5 minutes)
+
+Prove the whole thing on your own machine with the **in-box `docker` runner** —
+no cloud account, no provisioning. You'll go from a task to a **real PR**:
+clone → agent edits → commit → push → open PR.
+
+**Prerequisites:** a running Docker daemon, `gh auth login` (for a token), and
+model credentials (see [Bring your own model](#bring-your-own-model) — the
+example below uses an Anthropic key).
+
+```bash
+# 1) Build the agent image (no prebuilt image is published yet — it builds from
+#    the repo so you can audit exactly what runs).
+git clone https://github.com/me-public/nemus.git && cd nemus
+npm ci && npm run build -w @nemus-cli/cloud
+docker build -f packages/cloud/image/Dockerfile -t nemus-cloud-agent .
+
+# 2) Point at the in-box docker runner (no IaC needed for local Docker).
+echo '{"version":1,"runner":"docker"}' > .nemus-target.json
+
+# 3) Hand it a task against a repo you can open a PR on. Forge auth comes from
+#    the environment; the model creds ride in via --env (bare KEY forwards the
+#    value from your shell, so it stays out of argv / history).
+export GITHUB_TOKEN=$(gh auth token)
+export ANTHROPIC_API_KEY=sk-ant-...
+
+npx nemus-cloud run \
+  --image nemus-cloud-agent \
+  --repos <you>/<repo> --owner <you> \
+  --task "Add a short 'Running tests' note to CONTRIBUTING.md" \
+  --report pr --follow --wait \
+  --env ANTHROPIC_API_KEY
+```
+
+You'll see the agent clone, edit, push, and print the PR URL:
+
+```
+[nemus-cloud-agent] result: ok
+  <you>/<repo>: PR https://github.com/<you>/<repo>/pull/1
+task succeeded (exit 0)
+```
+
+That's the full happy path on real infrastructure you control. To go bigger,
+swap the runner (`aws-fargate`, `kubernetes`) via an [IaC module](#the-provisioning-seam-iac-modules)
+and keep the exact same `run` command.
+
+## Bring your own model
+
+The agent image runs a coding-agent CLI (`pi` by default, `claude` via
+`--env NEMUS_AGENT=claude`) and hands it your task. **Model auth is the agent's
+job** — you supply it through `--env`, which forwards credentials/config into the
+container. Runners that inject credentials ambiently (e.g. a Fargate **task
+role**) don't need `--env` for them at all.
+
+`--env KEY=VAL` sets a literal; a bare `--env KEY` forwards `KEY`'s value from
+your shell (keeps secrets out of argv / shell history). Pick a provider:
+
+```bash
+# Anthropic (pi's default provider — just supply the key)
+--env ANTHROPIC_API_KEY
+
+# OpenAI
+--env OPENAI_API_KEY \
+--env 'NEMUS_AGENT_ARGS=-p {task} --provider openai --model gpt-4.1'
+
+# Amazon Bedrock (creds from your shell; select an inference-profile model)
+--env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY --env AWS_SESSION_TOKEN \
+--env AWS_REGION=us-east-1 \
+--env 'NEMUS_AGENT_ARGS=-p {task} --provider amazon-bedrock --model us.anthropic.claude-haiku-4-5-20251001-v1:0'
+```
+
+`NEMUS_AGENT_ARGS` is the escape hatch to the underlying agent: a space-split
+argument list where `{task}` is replaced with your task. Use it to pin the
+provider/model; omit it to take the agent's defaults (with `pi`, an
+`ANTHROPIC_API_KEY` in the environment is all you need). For `claude`, either an
+`ANTHROPIC_API_KEY` or `--env CLAUDE_CODE_USE_BEDROCK=1` (plus AWS creds) works.
+
 ## Why a separate package
 
 Nemus core is deliberately **local-first, vendor-neutral, zero-cloud** — and CI
@@ -173,10 +250,11 @@ kind delete cluster --name nemus-e2e
 `e2e:image` runs the **real agent image** (`nemus-cloud-agent`) through the real
 `DockerRunner` and asserts the image contract — entrypoint wiring, the env
 contract, a valid `result.json`, exit-code → runner `status`, and that the git
-token is never leaked into logs/`result.json`. The happy path (clone → agent →
-open PR) needs a live forge + model credentials and opens real PRs, so it stays
-**unit**-tested (`run.ts` / `agent.test.ts`); this covers the parts that need a
-real container on deterministic, no-network, no-secret, no-side-effect paths.
+token is never leaked into logs/`result.json`. The full happy path (clone → agent
+→ open PR) opens real PRs and needs a live forge + model credentials, so it isn't
+part of the scripted smoke tests — but it **is proven**: it's exactly the
+[Quickstart](#quickstart-5-minutes) (supply model creds via `--env`), and the
+deterministic, no-secret slices are unit-tested (`run.ts` / `agent.test.ts`).
 
 The kind test refuses to run without an explicit `NEMUS_E2E_CONTEXT` (so it can't
 touch a real cluster by accident); the docker test refuses if the daemon isn't
