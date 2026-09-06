@@ -35,17 +35,26 @@ const path = require('path');
  *   • yarn — classic `yarn global add` sets only "yarn/…" (no npm_command /
  *            npm_config_global); berry `yarn dlx` stages under a temp dir.
  * So a bare yarn/pnpm user-agent is treated as a GLOBAL install UNLESS the
- * install PATH shows a transient runner cache. Inferring "global" from the
- * user-agent alone would misclassify `pnpm dlx`/`yarn dlx` and re-introduce the
- * /dev/tty hang for the dlx analog of npx — the path signal is what makes the
- * transient skip robust when npm_command is absent.
+ * install PATH shows a transient runner cache. NOTE on failure mode: because
+ * the interactive `configure` (the step that can hang on /dev/tty) is separately
+ * gated to a confirmed npm `-g` install (see `certainNpmGlobal`), a misclassified
+ * `pnpm dlx`/`yarn dlx` lands in 'global-other' and can never hang — it skips
+ * `configure`. The path signal's real job is therefore to stop a throwaway dlx
+ * run from spuriously appending the source line to the user's shell RC, not to
+ * provide hang-safety.
  */
 function classifyInstall({ env, dirname, tmpDir }) {
   if (env.CI) return 'ci';
 
   const cmd = (env.npm_command || '').toLowerCase();
-  const dir = String(dirname || '').replace(/\\/g, '/');
-  const tmp = String(tmpDir || '').replace(/\\/g, '/');
+  // macOS surfaces the temp dir both as /var/folders/… (os.tmpdir(), a symlink)
+  // and /private/var/folders/… (the realpath a staged package resolves to). Strip
+  // the well-known /private symlink prefix from both sides so the temp-dir
+  // comparison survives it — done by string, not fs.realpathSync, to keep this
+  // function pure (and correct for paths that don't exist yet, e.g. in tests).
+  const norm = (p) => String(p || '').replace(/\\/g, '/').replace(/^\/private(?=\/)/, '');
+  const dir = norm(dirname);
+  const tmp = norm(tmpDir);
   const stagedInRunnerCache =
     /\/_npx\//.test(dir) ||                              // npm  npx
     /\/dlx\//.test(dir) ||                               // pnpm dlx (or any /dlx/ cache)
@@ -70,7 +79,17 @@ module.exports = { classifyInstall };
 // (CommonJS wraps modules in a function, so a top-level return is valid.)
 if (require.main !== module) return;
 
-const installDecision = classifyInstall({ env: process.env, dirname: __dirname, tmpDir: os.tmpdir() });
+// Canonicalize real paths before classifying (best-effort) so any OTHER symlink
+// on the temp/install path — beyond the macOS /private prefix the classifier
+// also normalizes — doesn't defeat the transient-runner detection.
+function canonical(p) {
+  try { return fs.realpathSync.native(p); } catch { return p; }
+}
+const installDecision = classifyInstall({
+  env: process.env,
+  dirname: canonical(__dirname),
+  tmpDir: canonical(os.tmpdir()),
+});
 // Only 'global-*' installs get first-run setup; ci/transient/local are no-ops.
 if (installDecision !== 'global-npm' && installDecision !== 'global-other') process.exit(0);
 // Interactive `configure` (reaches /dev/tty) fires ONLY when we're certain it's

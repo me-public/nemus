@@ -52,6 +52,18 @@ describe('classifyInstall', () => {
     const dir = `${TMP}/xfs-9f/node_modules/@nemus-cli/nemus/scripts`;
     expect(classifyInstall({ env: { npm_config_user_agent: YARN_UA }, dirname: dir, tmpDir: TMP })).toBe('transient');
   });
+
+  // The real macOS case: os.tmpdir() reports /var/folders/… (a symlink) while a
+  // package staged under it resolves to /private/var/folders/… . A raw
+  // startsWith would miss this and misclassify the dlx run as global-other
+  // (spurious shell-RC write). The classifier must normalize the /private prefix.
+  it('yarn/pnpm dlx staged under /private/var while tmpDir is /var → transient', () => {
+    const tmpDir = '/var/folders/xy/T';
+    const dir = '/private/var/folders/xy/T/xfs-9f/node_modules/@nemus-cli/nemus/scripts';
+    expect(classifyInstall({ env: { npm_config_user_agent: YARN_UA }, dirname: dir, tmpDir })).toBe('transient');
+    // symmetric: tmpDir realpath'd to /private while dir stays /var
+    expect(classifyInstall({ env: { npm_config_user_agent: PNPM_UA }, dirname: '/var/folders/xy/T/d/node_modules/x', tmpDir: '/private/var/folders/xy/T' })).toBe('transient');
+  });
 });
 
 /** Run the real postinstall.js in a sandbox HOME with a controlled environment.

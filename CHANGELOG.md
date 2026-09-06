@@ -18,12 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `nemgo` feature). The gate now classifies the install context: it recognizes a
   global yarn/pnpm install from `npm_config_user_agent`, but detects transient
   one-off runners (`npx`, `pnpm dlx`, `yarn dlx`) by the per-run cache path they
-  stage into (`.../_npx/...`, `.../dlx/...`, the OS temp dir) — because
-  `pnpm dlx`/`yarn dlx` set *neither* `npm_command` *nor* `npm_config_global`,
-  so a user-agent check alone would misclassify them as global and re-introduce
-  the `/dev/tty` hang. As a second guard, the interactive `configure` only fires
-  for a confirmed npm `-g` install; yarn/pnpm globals get the non-interactive
-  shell integration plus a hint, which can never hang. (#92)
+  stage into (`.../_npx/...`, `.../dlx/...`, the OS temp dir, with the macOS
+  `/private` symlink normalized) — because `pnpm dlx`/`yarn dlx` set *neither*
+  `npm_command` *nor* `npm_config_global`, so a user-agent check alone would
+  misclassify them as a global install. Hang-safety itself comes from a separate
+  guard — the interactive `configure` only fires for a confirmed npm `-g`
+  install, so yarn/pnpm globals get the non-interactive shell integration plus a
+  hint and can never hang; the transient path detection's job is to stop a
+  throwaway `dlx` run from spuriously writing the shell RC. (#92)
 
 ## [0.15.1] - 2026-09-04
 
