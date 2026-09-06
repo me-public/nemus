@@ -117,7 +117,11 @@ jobs:
         with:
           name: agent-image
           path: image.tar.gz
-          retention-days: 1
+          # Must comfortably exceed the manual `release`-approval window: retention
+          # counts from UPLOAD time, not from when `publish` runs, so an approval
+          # over a weekend/PTO must still find the artifact. 7d covers realistic
+          # latency without hoarding ~370MB image tarballs indefinitely.
+          retention-days: 7
           if-no-files-found: error
 
   # 3) Publish — runs ONLY after a maintainer approves the `release` environment.
