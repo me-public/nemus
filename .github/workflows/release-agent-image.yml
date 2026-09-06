@@ -6,17 +6,23 @@ name: Release agent image
 #
 # Trigger: a push to main that changes packages/cloud/package.json's version
 # (same signal as the npm cloud release), OR a manual workflow_dispatch (use this
-# to cut the FIRST image without a version bump). The push runs ONLY in the
+# to cut the FIRST image without a version bump). Publishing runs ONLY in the
 # `release` GitHub Environment (REQUIRED REVIEWERS), so nothing reaches the
 # registry until a maintainer approves — same gate as the npm releases.
 #
-# Uses only GitHub-owned actions (checkout, setup-node) + the `docker` CLI on the
-# runner (org policy: GitHub-owned actions only — no docker/* marketplace actions).
+# The image is built + smoke-tested ONCE (pre-approval) and persisted as an
+# artifact; the publish job loads and pushes THOSE EXACT BYTES, so the image that
+# passed the gate is the one that ships (the Dockerfile's floating base tag and
+# `npm i -g …@latest` agents can't cause the shipped image to differ from the
+# verified one).
+#
+# Uses only GitHub-owned actions + the `docker` CLI on the runner (org policy:
+# GitHub-owned actions only — no docker/* marketplace actions).
 #
 # ONE-TIME SETUP after the first successful publish: the new GHCR package is
 # created PRIVATE. Make it public (org → Packages → nemus-cloud-agent → Package
 # settings → Change visibility → Public) so the quickstart's anonymous
-# `docker pull` works. Anonymous pulls are what the docs promise.
+# `docker pull` works.
 
 on:
   push:
@@ -71,8 +77,9 @@ jobs:
             echo "should_release=false" >> "$GITHUB_OUTPUT"
           fi
 
-  # 2) Build the image (no push) as a gate before we ever ask for approval.
-  verify:
+  # 2) Build + smoke-test the image ONCE (pre-approval), then persist it so the
+  #    exact bytes that pass the gate are what the publish job ships.
+  build:
     needs: detect
     if: needs.detect.outputs.should_release == 'true'
     runs-on: ubuntu-latest
@@ -84,14 +91,43 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run -w @nemus-cli/cloud build
+
       # The Dockerfile copies packages/cloud/dist (built above); context = repo root.
-      - run: docker build -f packages/cloud/image/Dockerfile -t nemus-cloud-agent:verify .
-      # Smoke: the entrypoint resolves and reports its usage/exit contract.
-      - run: docker run --rm --entrypoint node nemus-cloud-agent:verify -e "require('/opt/nemus-cloud/dist/index.js')"
+      - name: Build image
+        env:
+          VERSION: ${{ needs.detect.outputs.version }}
+        run: |
+          docker build -f packages/cloud/image/Dockerfile \
+            --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            -t nemus-cloud-agent:ship .
+
+      # Smoke the REAL entry contract: run a bundled bin that exercises the
+      # registry and exits 0 (no daemon/secrets needed). `nemus-cloud-agent` is
+      # env-driven and would try to act, so we test `nemus-cloud runners` — same
+      # image, same install.
+      - name: Smoke test
+        run: docker run --rm --entrypoint nemus-cloud nemus-cloud-agent:ship runners
+
+      - name: Save image
+        run: docker save nemus-cloud-agent:ship | gzip > image.tar.gz
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: agent-image
+          path: image.tar.gz
+          # Must comfortably exceed the manual `release`-approval window: retention
+          # counts from UPLOAD time, not from when `publish` runs, so an approval
+          # over a weekend/PTO must still find the artifact. 7d covers realistic
+          # latency without hoarding ~370MB image tarballs indefinitely.
+          retention-days: 7
+          if-no-files-found: error
 
   # 3) Publish — runs ONLY after a maintainer approves the `release` environment.
+  #    Loads and pushes the exact image built + smoke-tested above.
   publish:
-    needs: [detect, verify]
+    needs: [detect, build]
     if: needs.detect.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     environment:
@@ -101,38 +137,37 @@ jobs:
       contents: read
       packages: write # push to GHCR
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run -w @nemus-cli/cloud build
+          name: agent-image
+      - run: docker load < image.tar.gz
 
-      - name: Build + push image to GHCR
+      - name: Push to GHCR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.detect.outputs.version }}
         run: |
           set -euo pipefail
-          # GHCR requires a lowercase image path.
-          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]') # GHCR path must be lowercase
           IMG="ghcr.io/$OWNER/nemus-cloud-agent"
-
-          # Idempotent: a re-run / re-approval (workflow_dispatch always sets
-          # should_release=true) must not clobber an already-published version tag.
           echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+          # The :<version> tag is immutable — publish it only if absent, so a
+          # re-run/re-approval never clobbers a shipped version.
           if docker manifest inspect "$IMG:$VERSION" >/dev/null 2>&1; then
-            echo "$IMG:$VERSION already published — skipping."
-            exit 0
+            echo "$IMG:$VERSION already published — not overwriting the version tag."
+            # Reconcile :latest to the ALREADY-PUBLISHED version bytes (not this
+            # run's rebuild), so :latest can't drift from the version it claims —
+            # and a prior run that pushed :<version> but died before :latest
+            # self-heals here.
+            docker pull "$IMG:$VERSION"
+            docker tag "$IMG:$VERSION" "$IMG:latest"
+          else
+            docker tag nemus-cloud-agent:ship "$IMG:$VERSION"
+            docker push "$IMG:$VERSION"
+            docker tag nemus-cloud-agent:ship "$IMG:latest"
           fi
 
-          docker build -f packages/cloud/image/Dockerfile \
-            --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
-            --label "org.opencontainers.image.version=$VERSION" \
-            --label "org.opencontainers.image.revision=${{ github.sha }}" \
-            -t "$IMG:$VERSION" -t "$IMG:latest" .
-
-          docker push "$IMG:$VERSION"
+          # Always (re)push :latest so it points at the current release.
           docker push "$IMG:latest"
-          echo "Published $IMG:$VERSION and $IMG:latest"
+          echo "Published $IMG:$VERSION (+ :latest)"
