@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.2] - 2026-09-04
+
+### Fixed
+
+- **First-run setup now runs for global installs via yarn and pnpm too — without
+  re-introducing the hang for their transient runners.** 0.15.1 gated postinstall
+  setup on `npm_config_global`, which only npm sets, so `yarn global add` /
+  `pnpm add -g` silently skipped `configure` + shell integration (the auto-cd /
+  `nemgo` feature). The gate now classifies the install context: it recognizes a
+  global yarn/pnpm install from `npm_config_user_agent`, but detects transient
+  one-off runners (`npx`, `pnpm dlx`, `yarn dlx`) by the per-run cache path they
+  stage into (`.../_npx/...`, `.../dlx/...`, the OS temp dir, with the macOS
+  `/private` symlink normalized) — because `pnpm dlx`/`yarn dlx` set *neither*
+  `npm_command` *nor* `npm_config_global`, so a user-agent check alone would
+  misclassify them as a global install. Hang-safety itself comes from a separate
+  guard — the interactive `configure` only fires for a confirmed npm `-g`
+  install, so yarn/pnpm globals get the non-interactive shell integration plus a
+  hint and can never hang; the transient path detection's job is to stop a
+  throwaway `dlx` run from spuriously writing the shell RC. (#92)
+
 ## [0.15.1] - 2026-09-04
 
 ### Fixed

@@ -17,18 +17,88 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-// Skip in CI environments
-if (process.env.CI) process.exit(0);
+/**
+ * Classify the install context, so first-run setup (interactive `configure` +
+ * shell integration) runs only when it makes sense — and NEVER on a transient
+ * one-off runner (npx / dlx), where an interactive prompt on the controlling
+ * terminal would HANG. Pure (all inputs injected) so it's unit-tested.
+ *
+ * Returns: 'ci' | 'transient' | 'local' | 'global-npm' | 'global-other'.
+ *
+ * Detection is empirical (env dumped from real runners), because the managers
+ * disagree on what they set:
+ *   • npm  — npx sets npm_command="exec"; `-g` sets npm_config_global="true"; a
+ *            local install sets it "false". Reliable.
+ *   • pnpm — `pnpm dlx` sets NEITHER npm_command NOR npm_config_global, only
+ *            npm_config_user_agent="pnpm/…". It DOES stage the package under a
+ *            per-run cache path ("…/pnpm/dlx/<hash>/…"), which we key on.
+ *   • yarn — classic `yarn global add` sets only "yarn/…" (no npm_command /
+ *            npm_config_global); berry `yarn dlx` stages under a temp dir.
+ * So a bare yarn/pnpm user-agent is treated as a GLOBAL install UNLESS the
+ * install PATH shows a transient runner cache. The path is matched RAW (only the
+ * macOS /private symlink prefix is string-normalized, below) — deliberately NOT
+ * fs.realpathSync'd: realpath resolves a pnpm/yarn staging dir through its
+ * symlinks into a content-addressed store path that no longer contains /dlx/,
+ * which would defeat the marker. String-normalizing just the /private prefix
+ * fixes the macOS /var↔/private/var temp-dir case without touching the markers.
+ *
+ * NOTE on failure mode: because the interactive `configure` (the step that can
+ * hang on /dev/tty) is separately gated to a confirmed npm `-g` install (see
+ * `certainNpmGlobal`), a misclassified `pnpm dlx`/`yarn dlx` lands in
+ * 'global-other' and can never hang — it skips `configure`. The path signal's
+ * real job is therefore to stop a throwaway dlx run from spuriously appending
+ * the source line to the user's shell RC, not to provide hang-safety.
+ */
+function classifyInstall({ env, dirname, tmpDir }) {
+  if (env.CI) return 'ci';
 
-// Only run first-run setup for a real GLOBAL install (`npm i -g`). A transient
-// `npx @nemus-cli/nemus …` (npm exec) or a local dependency install is not
-// global: the `nemus`/`nem` bins aren't persisted on PATH, so shell integration
-// is pointless — and worse, the interactive `configure` below reaches the
-// controlling terminal via /dev/tty and would HANG a non-interactive
-// `npx … --help`/`--version` invocation waiting for input. npm sets
-// npm_config_global="true" only for `-g`/`--global`; npx and local installs
-// leave it false/unset.
-if (String(process.env.npm_config_global).toLowerCase() !== 'true') process.exit(0);
+  const cmd = (env.npm_command || '').toLowerCase();
+  // macOS surfaces the temp dir both as /var/folders/… (os.tmpdir(), a symlink)
+  // and /private/var/folders/… (the realpath a staged package resolves to). Strip
+  // the well-known /private symlink prefix from both sides so the temp-dir
+  // comparison survives it — done by string, not fs.realpathSync, to keep this
+  // function pure (and correct for paths that don't exist yet, e.g. in tests).
+  const norm = (p) => String(p || '').replace(/\\/g, '/').replace(/^\/private(?=\/)/, '');
+  const dir = norm(dirname);
+  const tmp = norm(tmpDir);
+  const stagedInRunnerCache =
+    /\/_npx\//.test(dir) ||                              // npm  npx
+    /\/dlx\//.test(dir) ||                               // pnpm dlx (or any /dlx/ cache)
+    (tmp !== '' && (dir === tmp || dir.startsWith(tmp + '/'))); // yarn berry dlx et al.
+  if (cmd === 'exec' || cmd === 'dlx' || stagedInRunnerCache) return 'transient';
+
+  const global = String(env.npm_config_global).toLowerCase();
+  if (global === 'true') return 'global-npm';
+  if (global === 'false') return 'local';
+
+  // No npm_config_global (yarn/pnpm): a bare manager user-agent means a global
+  // install here (their transient runners were caught above).
+  const manager = (env.npm_config_user_agent || '').toLowerCase().split('/')[0];
+  if (manager === 'yarn' || manager === 'pnpm') return 'global-other';
+  return 'local';
+}
+
+module.exports = { classifyInstall };
+
+// When imported (unit tests) rather than run as the postinstall script, stop
+// here — export the classifier without executing any install side effects.
+// (CommonJS wraps modules in a function, so a top-level return is valid.)
+if (require.main !== module) return;
+
+// Pass the RAW __dirname (not realpath'd): the transient-runner markers below
+// (/_npx/, /dlx/) live in the path the runner *constructs*, and fs.realpathSync
+// would resolve a pnpm/yarn staging dir through its symlinks into a
+// content-addressed store path that no longer contains the marker — defeating
+// the very check. The macOS /var↔/private/var temp symlink is instead handled
+// deterministically by string normalization inside classifyInstall.
+const installDecision = classifyInstall({ env: process.env, dirname: __dirname, tmpDir: os.tmpdir() });
+// Only 'global-*' installs get first-run setup; ci/transient/local are no-ops.
+if (installDecision !== 'global-npm' && installDecision !== 'global-other') process.exit(0);
+// Interactive `configure` (reaches /dev/tty) fires ONLY when we're certain it's
+// an npm `-g` install. yarn/pnpm can't be told apart from their dlx runners by
+// env alone, so they get the NON-interactive shell integration below + a hint —
+// which can never hang.
+const certainNpmGlobal = installDecision === 'global-npm';
 
 const PKG_ROOT = path.join(__dirname, '..');
 const SHELL_SCRIPT = path.join(PKG_ROOT, 'install-shell-integration.sh');
@@ -79,7 +149,7 @@ function openControllingTty() {
   }
 }
 
-if (!optedOut() && fs.existsSync(CLI_BIN) && !alreadyConfigured()) {
+if (certainNpmGlobal && !optedOut() && fs.existsSync(CLI_BIN) && !alreadyConfigured()) {
   const tty = openControllingTty();
   if (tty !== null) {
     try {
@@ -156,6 +226,12 @@ console.log('');
 console.log('  Or open a new terminal tab. Until then, auto-CD into a new');
 console.log('  workspace won\'t work (the CLI itself still runs fine).');
 console.log('');
+if (!certainNpmGlobal) {
+  // yarn/pnpm global: we installed shell integration but deliberately did NOT
+  // launch the interactive configure — point the user at it explicitly.
+  console.log('  \x1b[90m(yarn/pnpm install — run \x1b[36mnemus configure\x1b[90m to finish first-time setup.)\x1b[0m');
+  console.log('');
+}
 console.log('  Tip: \x1b[36mnemus\x1b[0m works immediately (\x1b[36mgv\x1b[0m is a short alias):');
 console.log('       \x1b[36mnemus configure\x1b[0m   \x1b[90m# first-time setup\x1b[0m');
 console.log('       \x1b[36mnemus list\x1b[0m        \x1b[90m# list workspaces\x1b[0m');
