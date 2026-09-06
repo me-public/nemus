@@ -17,37 +17,67 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-// Skip in CI environments
-if (process.env.CI) process.exit(0);
+/**
+ * Classify the install context, so first-run setup (interactive `configure` +
+ * shell integration) runs only when it makes sense — and NEVER on a transient
+ * one-off runner (npx / dlx), where an interactive prompt on the controlling
+ * terminal would HANG. Pure (all inputs injected) so it's unit-tested.
+ *
+ * Returns: 'ci' | 'transient' | 'local' | 'global-npm' | 'global-other'.
+ *
+ * Detection is empirical (env dumped from real runners), because the managers
+ * disagree on what they set:
+ *   • npm  — npx sets npm_command="exec"; `-g` sets npm_config_global="true"; a
+ *            local install sets it "false". Reliable.
+ *   • pnpm — `pnpm dlx` sets NEITHER npm_command NOR npm_config_global, only
+ *            npm_config_user_agent="pnpm/…". It DOES stage the package under a
+ *            per-run cache path ("…/pnpm/dlx/<hash>/…"), which we key on.
+ *   • yarn — classic `yarn global add` sets only "yarn/…" (no npm_command /
+ *            npm_config_global); berry `yarn dlx` stages under a temp dir.
+ * So a bare yarn/pnpm user-agent is treated as a GLOBAL install UNLESS the
+ * install PATH shows a transient runner cache. Inferring "global" from the
+ * user-agent alone would misclassify `pnpm dlx`/`yarn dlx` and re-introduce the
+ * /dev/tty hang for the dlx analog of npx — the path signal is what makes the
+ * transient skip robust when npm_command is absent.
+ */
+function classifyInstall({ env, dirname, tmpDir }) {
+  if (env.CI) return 'ci';
 
-// Never hijack a transient one-off runner (`npx`, `pnpm dlx`, `yarn dlx`) with
-// first-run setup — the user asked to RUN a command, not install one. This is
-// the case that HUNG a non-interactive `npx @nemus-cli/nemus --help`/`--version`:
-// the interactive `configure` below reaches the controlling terminal via
-// /dev/tty and blocked waiting for input. npm sets npm_command="exec" for npx.
-const npmCommand = (process.env.npm_command || '').toLowerCase();
-if (npmCommand === 'exec' || npmCommand === 'dlx') process.exit(0);
+  const cmd = (env.npm_command || '').toLowerCase();
+  const dir = String(dirname || '').replace(/\\/g, '/');
+  const tmp = String(tmpDir || '').replace(/\\/g, '/');
+  const stagedInRunnerCache =
+    /\/_npx\//.test(dir) ||                              // npm  npx
+    /\/dlx\//.test(dir) ||                               // pnpm dlx (or any /dlx/ cache)
+    (tmp !== '' && (dir === tmp || dir.startsWith(tmp + '/'))); // yarn berry dlx et al.
+  if (cmd === 'exec' || cmd === 'dlx' || stagedInRunnerCache) return 'transient';
 
-// Only do first-run setup (interactive `configure` + shell integration) for a
-// GLOBAL install — that's the only time the `nemus`/`nem` bins land on PATH, so
-// shell integration is meaningless for a local dependency install. Package
-// managers disagree on how they signal "global":
-//   • npm sets npm_config_global="true" for `-g` ("false" for a local install,
-//     and falsy under npx — which, with the exec guard above, is doubly skipped).
-//   • yarn and pnpm do NOT set npm_config_global, but each announces itself in
-//     npm_config_user_agent ("yarn/…", "pnpm/…"). They expose no reliable
-//     per-run local-vs-global flag, so we run setup for either: a local
-//     `yarn/pnpm add` of a CLI is vanishingly rare, setup is idempotent, and it
-//     can't hang (the interactive step only fires when a controlling terminal
-//     is present, and their `dlx` transient runners are skipped above).
-// Anything else (npm local install, unknown manager) is skipped — previously
-// this silently dropped shell integration for yarn/pnpm global users.
-function isGlobalInstall() {
-  if (String(process.env.npm_config_global).toLowerCase() === 'true') return true;
-  const manager = (process.env.npm_config_user_agent || '').toLowerCase().split('/')[0];
-  return manager === 'yarn' || manager === 'pnpm';
+  const global = String(env.npm_config_global).toLowerCase();
+  if (global === 'true') return 'global-npm';
+  if (global === 'false') return 'local';
+
+  // No npm_config_global (yarn/pnpm): a bare manager user-agent means a global
+  // install here (their transient runners were caught above).
+  const manager = (env.npm_config_user_agent || '').toLowerCase().split('/')[0];
+  if (manager === 'yarn' || manager === 'pnpm') return 'global-other';
+  return 'local';
 }
-if (!isGlobalInstall()) process.exit(0);
+
+module.exports = { classifyInstall };
+
+// When imported (unit tests) rather than run as the postinstall script, stop
+// here — export the classifier without executing any install side effects.
+// (CommonJS wraps modules in a function, so a top-level return is valid.)
+if (require.main !== module) return;
+
+const installDecision = classifyInstall({ env: process.env, dirname: __dirname, tmpDir: os.tmpdir() });
+// Only 'global-*' installs get first-run setup; ci/transient/local are no-ops.
+if (installDecision !== 'global-npm' && installDecision !== 'global-other') process.exit(0);
+// Interactive `configure` (reaches /dev/tty) fires ONLY when we're certain it's
+// an npm `-g` install. yarn/pnpm can't be told apart from their dlx runners by
+// env alone, so they get the NON-interactive shell integration below + a hint —
+// which can never hang.
+const certainNpmGlobal = installDecision === 'global-npm';
 
 const PKG_ROOT = path.join(__dirname, '..');
 const SHELL_SCRIPT = path.join(PKG_ROOT, 'install-shell-integration.sh');
@@ -98,7 +128,7 @@ function openControllingTty() {
   }
 }
 
-if (!optedOut() && fs.existsSync(CLI_BIN) && !alreadyConfigured()) {
+if (certainNpmGlobal && !optedOut() && fs.existsSync(CLI_BIN) && !alreadyConfigured()) {
   const tty = openControllingTty();
   if (tty !== null) {
     try {
@@ -175,6 +205,12 @@ console.log('');
 console.log('  Or open a new terminal tab. Until then, auto-CD into a new');
 console.log('  workspace won\'t work (the CLI itself still runs fine).');
 console.log('');
+if (!certainNpmGlobal) {
+  // yarn/pnpm global: we installed shell integration but deliberately did NOT
+  // launch the interactive configure — point the user at it explicitly.
+  console.log('  \x1b[90m(yarn/pnpm install — run \x1b[36mnemus configure\x1b[90m to finish first-time setup.)\x1b[0m');
+  console.log('');
+}
 console.log('  Tip: \x1b[36mnemus\x1b[0m works immediately (\x1b[36mgv\x1b[0m is a short alias):');
 console.log('       \x1b[36mnemus configure\x1b[0m   \x1b[90m# first-time setup\x1b[0m');
 console.log('       \x1b[36mnemus list\x1b[0m        \x1b[90m# list workspaces\x1b[0m');

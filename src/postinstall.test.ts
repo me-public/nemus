@@ -1,17 +1,63 @@
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const SCRIPT = join(__dirname, '..', 'scripts', 'postinstall.js');
+// postinstall.js guards its side effects with `require.main !== module`, so
+// importing it just exposes the pure classifier.
+const { classifyInstall } = createRequire(__filename)(SCRIPT) as {
+  classifyInstall: (i: { env: Record<string, string | undefined>; dirname: string; tmpDir: string }) => string;
+};
+
 const NPM_UA = 'npm/10.9.0 node/v22.13.0 darwin arm64 workspaces/false';
 const YARN_UA = 'yarn/1.22.22 npm/? node/v22.13.0 darwin arm64';
-const PNPM_UA = 'pnpm/9.12.0 npm/? node/v22.13.0';
+const PNPM_UA = 'pnpm/10.34.5 npm/? node/v22.13.0';
+const TMP = '/var/folders/xy/T';
 
-/** Run postinstall.js in a sandbox HOME with a controlled install environment.
- *  stdio is ignored and there's no controlling tty, so the interactive
- *  `configure` step can't fire — we exercise the gate + shell-integration path. */
+describe('classifyInstall', () => {
+  it('CI → ci', () => {
+    expect(classifyInstall({ env: { CI: 'true' }, dirname: '/anywhere', tmpDir: TMP })).toBe('ci');
+  });
+
+  it('npm -g → global-npm; npm local → local', () => {
+    expect(classifyInstall({ env: { npm_config_global: 'true', npm_config_user_agent: NPM_UA }, dirname: '/usr/local/lib/node_modules/@nemus-cli/nemus/scripts', tmpDir: TMP })).toBe('global-npm');
+    expect(classifyInstall({ env: { npm_config_global: 'false', npm_config_user_agent: NPM_UA }, dirname: '/proj/node_modules/@nemus-cli/nemus/scripts', tmpDir: TMP })).toBe('local');
+  });
+
+  it('npx (npm_command=exec) → transient', () => {
+    expect(classifyInstall({ env: { npm_command: 'exec', npm_config_user_agent: NPM_UA }, dirname: '/home/u/.npm/_npx/abc123/node_modules/@nemus-cli/nemus/scripts', tmpDir: TMP })).toBe('transient');
+  });
+
+  it('yarn global add (bare yarn UA, no npm_command/global) → global-other', () => {
+    expect(classifyInstall({ env: { npm_config_user_agent: YARN_UA }, dirname: '/home/u/.config/yarn/global/node_modules/@nemus-cli/nemus/scripts', tmpDir: TMP })).toBe('global-other');
+  });
+
+  it('pnpm add -g (bare pnpm UA) → global-other', () => {
+    expect(classifyInstall({ env: { npm_config_user_agent: PNPM_UA }, dirname: '/home/u/Library/pnpm/global/5/node_modules/@nemus-cli/nemus/scripts', tmpDir: TMP })).toBe('global-other');
+  });
+
+  // The reviewer's case: `pnpm dlx` sets NEITHER npm_command NOR
+  // npm_config_global — only the pnpm user-agent. UA-only logic would call this
+  // "global-other" and re-introduce the /dev/tty hang. The install PATH
+  // (".../pnpm/dlx/<hash>/...") is the signal that saves us.
+  it('pnpm dlx (only pnpm UA, staged under .../pnpm/dlx/...) → transient', () => {
+    const dir = '/home/u/Library/Caches/pnpm/dlx/ed050d93/1a07/node_modules/@nemus-cli/nemus/scripts';
+    expect(classifyInstall({ env: { npm_config_user_agent: PNPM_UA }, dirname: dir, tmpDir: TMP })).toBe('transient');
+  });
+
+  it('yarn berry dlx (only yarn UA, staged under the OS temp dir) → transient', () => {
+    const dir = `${TMP}/xfs-9f/node_modules/@nemus-cli/nemus/scripts`;
+    expect(classifyInstall({ env: { npm_config_user_agent: YARN_UA }, dirname: dir, tmpDir: TMP })).toBe('transient');
+  });
+});
+
+/** Run the real postinstall.js in a sandbox HOME with a controlled environment.
+ *  stdio is ignored and there's no tty, and NEMUS_SKIP_CONFIGURE guards a
+ *  tty-bearing host, so we exercise the gate + non-interactive shell-integration
+ *  path end-to-end (dirname is the real repo path — never transient). */
 function runPostinstall(rcName: string, extraEnv: Record<string, string | undefined>) {
   const home = mkdtempSync(join(tmpdir(), 'nemus-postinstall-'));
   const rc = join(home, rcName);
@@ -20,10 +66,9 @@ function runPostinstall(rcName: string, extraEnv: Record<string, string | undefi
     ...(process.env as Record<string, string>),
     HOME: home,
     NEMUS_CACHE_DIR: join(home, '.nemus'),
-    // Belt: opt out of the interactive step so a test host WITH a tty can't hang.
     NEMUS_SKIP_CONFIGURE: '1',
   };
-  delete env.CI; // ensure the gate under test — not the CI early-exit — decides
+  delete env.CI;
   for (const [k, v] of Object.entries(extraEnv)) {
     if (v === undefined) delete env[k];
     else env[k] = v;
@@ -34,40 +79,24 @@ function runPostinstall(rcName: string, extraEnv: Record<string, string | undefi
   return rcAfter;
 }
 
-describe('postinstall.js install-context gate', () => {
-  // Regression: a transient `npx @nemus-cli/nemus …` (npm exec) must not launch
-  // the interactive `configure` (which reaches /dev/tty and hung `npx … --help`)
-  // nor mutate the shell RC. npm sets npm_command="exec" for npx.
+describe('postinstall.js (end-to-end)', () => {
   it('npx / npm exec → no-op, RC untouched', () => {
-    const rc = runPostinstall('.zshrc', { npm_command: 'exec', npm_config_user_agent: NPM_UA, npm_config_global: undefined, SHELL: '/bin/zsh' });
-    expect(rc).toBe('# user rc\n');
+    expect(runPostinstall('.zshrc', { npm_command: 'exec', npm_config_user_agent: NPM_UA, npm_config_global: undefined, SHELL: '/bin/zsh' })).toBe('# user rc\n');
   });
 
   it('npm local dependency install (global="false") → no-op, RC untouched', () => {
-    const rc = runPostinstall('.zshrc', { npm_command: 'install', npm_config_user_agent: NPM_UA, npm_config_global: 'false', SHELL: '/bin/zsh' });
-    expect(rc).toBe('# user rc\n');
+    expect(runPostinstall('.zshrc', { npm_command: 'install', npm_config_user_agent: NPM_UA, npm_config_global: 'false', SHELL: '/bin/zsh' })).toBe('# user rc\n');
   });
 
-  it('npm global install (global="true") → runs shell integration (RC gets the source line)', () => {
-    const rc = runPostinstall('.zshrc', { npm_command: 'install', npm_config_user_agent: NPM_UA, npm_config_global: 'true', SHELL: '/bin/zsh' });
-    expect(rc).toContain('.nemus/shell-integration.sh');
+  it('npm global install → runs shell integration (RC gets the source line)', () => {
+    expect(runPostinstall('.zshrc', { npm_command: 'install', npm_config_user_agent: NPM_UA, npm_config_global: 'true', SHELL: '/bin/zsh' })).toContain('.nemus/shell-integration.sh');
   });
 
-  // The review point: yarn/pnpm don't set npm_config_global, so a global install
-  // via them must still be recognised (advertised in npm_config_user_agent) and
-  // get shell integration — not silently skipped.
   it('yarn global add (no npm_config_global) → runs shell integration', () => {
-    const rc = runPostinstall('.bashrc', { npm_command: undefined, npm_config_user_agent: YARN_UA, npm_config_global: undefined, SHELL: '/bin/bash' });
-    expect(rc).toContain('.nemus/shell-integration.sh');
+    expect(runPostinstall('.bashrc', { npm_command: undefined, npm_config_user_agent: YARN_UA, npm_config_global: undefined, SHELL: '/bin/bash' })).toContain('.nemus/shell-integration.sh');
   });
 
   it('pnpm add -g (no npm_config_global) → runs shell integration', () => {
-    const rc = runPostinstall('.bashrc', { npm_command: undefined, npm_config_user_agent: PNPM_UA, npm_config_global: undefined, SHELL: '/bin/bash' });
-    expect(rc).toContain('.nemus/shell-integration.sh');
-  });
-
-  it('yarn/pnpm dlx (transient) → no-op, RC untouched', () => {
-    const rc = runPostinstall('.bashrc', { npm_command: 'dlx', npm_config_user_agent: PNPM_UA, npm_config_global: undefined, SHELL: '/bin/bash' });
-    expect(rc).toBe('# user rc\n');
+    expect(runPostinstall('.bashrc', { npm_command: undefined, npm_config_user_agent: PNPM_UA, npm_config_global: undefined, SHELL: '/bin/bash' })).toContain('.nemus/shell-integration.sh');
   });
 });
