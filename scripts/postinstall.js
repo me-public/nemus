@@ -35,13 +35,19 @@ const path = require('path');
  *   • yarn — classic `yarn global add` sets only "yarn/…" (no npm_command /
  *            npm_config_global); berry `yarn dlx` stages under a temp dir.
  * So a bare yarn/pnpm user-agent is treated as a GLOBAL install UNLESS the
- * install PATH shows a transient runner cache. NOTE on failure mode: because
- * the interactive `configure` (the step that can hang on /dev/tty) is separately
- * gated to a confirmed npm `-g` install (see `certainNpmGlobal`), a misclassified
- * `pnpm dlx`/`yarn dlx` lands in 'global-other' and can never hang — it skips
- * `configure`. The path signal's real job is therefore to stop a throwaway dlx
- * run from spuriously appending the source line to the user's shell RC, not to
- * provide hang-safety.
+ * install PATH shows a transient runner cache. The path is matched RAW (only the
+ * macOS /private symlink prefix is string-normalized, below) — deliberately NOT
+ * fs.realpathSync'd: realpath resolves a pnpm/yarn staging dir through its
+ * symlinks into a content-addressed store path that no longer contains /dlx/,
+ * which would defeat the marker. String-normalizing just the /private prefix
+ * fixes the macOS /var↔/private/var temp-dir case without touching the markers.
+ *
+ * NOTE on failure mode: because the interactive `configure` (the step that can
+ * hang on /dev/tty) is separately gated to a confirmed npm `-g` install (see
+ * `certainNpmGlobal`), a misclassified `pnpm dlx`/`yarn dlx` lands in
+ * 'global-other' and can never hang — it skips `configure`. The path signal's
+ * real job is therefore to stop a throwaway dlx run from spuriously appending
+ * the source line to the user's shell RC, not to provide hang-safety.
  */
 function classifyInstall({ env, dirname, tmpDir }) {
   if (env.CI) return 'ci';
@@ -79,17 +85,13 @@ module.exports = { classifyInstall };
 // (CommonJS wraps modules in a function, so a top-level return is valid.)
 if (require.main !== module) return;
 
-// Canonicalize real paths before classifying (best-effort) so any OTHER symlink
-// on the temp/install path — beyond the macOS /private prefix the classifier
-// also normalizes — doesn't defeat the transient-runner detection.
-function canonical(p) {
-  try { return fs.realpathSync.native(p); } catch { return p; }
-}
-const installDecision = classifyInstall({
-  env: process.env,
-  dirname: canonical(__dirname),
-  tmpDir: canonical(os.tmpdir()),
-});
+// Pass the RAW __dirname (not realpath'd): the transient-runner markers below
+// (/_npx/, /dlx/) live in the path the runner *constructs*, and fs.realpathSync
+// would resolve a pnpm/yarn staging dir through its symlinks into a
+// content-addressed store path that no longer contains the marker — defeating
+// the very check. The macOS /var↔/private/var temp symlink is instead handled
+// deterministically by string normalization inside classifyInstall.
+const installDecision = classifyInstall({ env: process.env, dirname: __dirname, tmpDir: os.tmpdir() });
 // Only 'global-*' installs get first-run setup; ci/transient/local are no-ops.
 if (installDecision !== 'global-npm' && installDecision !== 'global-other') process.exit(0);
 // Interactive `configure` (reaches /dev/tty) fires ONLY when we're certain it's

@@ -48,6 +48,17 @@ describe('classifyInstall', () => {
     expect(classifyInstall({ env: { npm_config_user_agent: PNPM_UA }, dirname: dir, tmpDir: TMP })).toBe('transient');
   });
 
+  // A realistic pnpm dlx __dirname (verified by dumping a real run): the /dlx/
+  // marker sits BEFORE the symlinky `.pnpm` store segments. postinstall.js
+  // passes the RAW __dirname (never fs.realpathSync'd) precisely so the marker
+  // isn't resolved away into a content-addressed store path — this asserts the
+  // deep, real-shaped path still classifies transient.
+  it('pnpm dlx deep real path (marker before the .pnpm store segments) → transient', () => {
+    const dir =
+      '/Users/u/Library/Caches/pnpm/dlx/9622a716fa/1a0757951f6-12d63/node_modules/.pnpm/nemus@file+..+..+tmp/node_modules/@nemus-cli/nemus/scripts';
+    expect(classifyInstall({ env: { npm_config_user_agent: PNPM_UA }, dirname: dir, tmpDir: TMP })).toBe('transient');
+  });
+
   it('yarn berry dlx (only yarn UA, staged under the OS temp dir) → transient', () => {
     const dir = `${TMP}/xfs-9f/node_modules/@nemus-cli/nemus/scripts`;
     expect(classifyInstall({ env: { npm_config_user_agent: YARN_UA }, dirname: dir, tmpDir: TMP })).toBe('transient');
