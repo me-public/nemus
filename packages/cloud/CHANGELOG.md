@@ -7,6 +7,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this package adheres to [Semantic Versioning](https://semver.org/) — while
 pre-1.0 (`0.x`), minor versions may include breaking changes.
 
+## [0.1.3] - 2026-09-06
+
+### Added
+
+- **Prebuilt agent images on GitHub Container Registry.** The
+  `nemus-cloud-agent` OCI image is now published to
+  `ghcr.io/me-public/nemus-cloud-agent` (`:latest` + `:<version>`) on each cloud
+  release, so the Quickstart and real pipelines can pull a ready image instead of
+  `docker build`-ing from source. Building your own remains fully supported (to
+  audit, run offline, or customize). Published by a new
+  `.github/workflows/release-agent-image.yml`, gated on the same manual `release`
+  approval as the npm packages and using only the `docker` CLI (no third-party
+  actions).
+
 ## [0.1.2] - 2026-09-03
 
 ### Added

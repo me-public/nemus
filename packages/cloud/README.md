@@ -75,28 +75,35 @@ model credentials (see [Bring your own model](#bring-your-own-model) — the
 example below uses an Anthropic key).
 
 ```bash
-# 1) Build the agent image (no prebuilt image is published yet — it builds from
-#    the repo so you can audit exactly what runs).
-git clone https://github.com/me-public/nemus.git && cd nemus
-npm ci && npm run build -w @nemus-cli/cloud
-docker build -f packages/cloud/image/Dockerfile -t nemus-cloud-agent .
-
-# 2) Point at the in-box docker runner (no IaC needed for local Docker).
+# 1) Point at the in-box docker runner (no IaC needed for local Docker).
 echo '{"version":1,"runner":"docker"}' > .nemus-target.json
 
-# 3) Hand it a task against a repo you can open a PR on. Forge auth comes from
-#    the environment; the model creds ride in via --env (bare KEY forwards the
-#    value from your shell, so it stays out of argv / history).
+# 2) Hand it a task against a repo you can open a PR on, using the prebuilt agent
+#    image from GHCR. Forge auth comes from the environment; the model creds ride
+#    in via --env (bare KEY forwards the value from your shell, so it stays out of
+#    argv / history).
 export GITHUB_TOKEN=$(gh auth token)
 export ANTHROPIC_API_KEY=sk-ant-...
 
 npx nemus-cloud run \
-  --image nemus-cloud-agent \
+  --image ghcr.io/me-public/nemus-cloud-agent:latest \
   --repos <you>/<repo> --owner <you> \
   --task "Add a short 'Running tests' note to CONTRIBUTING.md" \
   --report pr --follow --wait \
   --env ANTHROPIC_API_KEY
 ```
+
+<details>
+<summary>Prefer to build the image yourself (audit / offline / customize)?</summary>
+
+```bash
+git clone https://github.com/me-public/nemus.git && cd nemus
+npm ci && npm run build -w @nemus-cli/cloud
+docker build -f packages/cloud/image/Dockerfile -t nemus-cloud-agent .
+# …then pass --image nemus-cloud-agent instead of the ghcr.io reference above.
+```
+
+</details>
 
 You'll see the agent clone, edit, push, and print the PR URL:
 
@@ -140,6 +147,32 @@ argument list where `{task}` is replaced with your task. Use it to pin the
 provider/model; omit it to take the agent's defaults (with `pi`, an
 `ANTHROPIC_API_KEY` in the environment is all you need). For `claude`, either an
 `ANTHROPIC_API_KEY` or `--env CLAUDE_CODE_USE_BEDROCK=1` (plus AWS creds) works.
+
+## The agent container image
+
+The agent is a single provider-agnostic OCI image (`nemus-cloud-agent`): it takes
+only env (the [runner-image contract](#the-execution-seam-runners)) and does
+clone → run agent → open PR → write `result.json` → exit. Any runner
+(`docker`/`aws-fargate`/`kubernetes`) launches this same image.
+
+Prebuilt images are published to **GitHub Container Registry** on each cloud
+release:
+
+```
+ghcr.io/me-public/nemus-cloud-agent:latest      # newest release
+ghcr.io/me-public/nemus-cloud-agent:<version>   # pinned, e.g. :0.1.2
+```
+
+Pass one to `--image` (as in the [Quickstart](#quickstart-5-minutes)). Pin the
+`:<version>` tag for reproducibility in real pipelines; `:latest` is convenient
+for trying it out.
+
+**Build your own** instead — to audit it, run offline, or add tools/agents — from
+the repo (`docker build -f packages/cloud/image/Dockerfile -t nemus-cloud-agent .`
+after `npm ci && npm run build -w @nemus-cli/cloud`), then point `--image` at your
+tag. Nothing in the image is registry-specific, so a private registry works the
+same way. The image is published by `.github/workflows/release-agent-image.yml`,
+gated on the same manual `release` approval as the npm packages.
 
 ## Why a separate package
 
