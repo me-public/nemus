@@ -102,12 +102,15 @@
   <text x="370" y="526" class="lbl">bring your own backend, no fork.</text>
 
   <!-- ================= connectors core -> backends ================= -->
-  <g stroke="#3FB950" stroke-width="2" fill="none" opacity="0.75">
-    <path d="M646 214 H684" marker-end="url(#arrow)"/>
-    <path d="M646 274 H684" marker-end="url(#arrow)"/>
-    <path d="M646 334 H684" marker-end="url(#arrow)"/>
-    <path d="M646 394 H684" marker-end="url(#arrow)"/>
-    <path d="M646 454 H684" marker-end="url(#arrow)"/>
+  <!-- Span the whole gap: from each seam box's right edge (622), across the
+       core border, to the first backend column (694) so the arrows clearly
+       connect seam -> backend instead of floating mid-gap. -->
+  <g stroke="#3FB950" stroke-width="2" fill="none" opacity="0.9">
+    <path d="M624 214 H690" marker-end="url(#arrow)"/>
+    <path d="M624 274 H690" marker-end="url(#arrow)"/>
+    <path d="M624 334 H690" marker-end="url(#arrow)"/>
+    <path d="M624 394 H690" marker-end="url(#arrow)"/>
+    <path d="M624 454 H690" marker-end="url(#arrow)"/>
   </g>
 
   <!-- ================= RIGHT: swappable backends ================= -->
