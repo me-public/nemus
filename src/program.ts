@@ -66,6 +66,7 @@ import { registerCompletionCommand } from './commands/completion';
 import { registerReflectCommand } from './commands/reflect';
 import { registerLockCommand } from './commands/lock';
 import { registerRestoreCommand } from './commands/restore';
+import { registerDevCommand } from './commands/dev';
 
 registerCreateCommand(program);
 registerListCommand(program);
@@ -96,6 +97,7 @@ registerCompletionCommand(program);
 registerReflectCommand(program);
 registerLockCommand(program);
 registerRestoreCommand(program);
+registerDevCommand(program);
 
 // Register TUI (delegates to existing Ink/React implementation)
 program

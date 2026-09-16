@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-09-09
+
+### Added
+
+- **`nemus dev` — multi-repo dev orchestrator.** Start every repo's dev server in
+  a workspace at once and stream their output into one terminal with a
+  color-coded, aligned per-repo prefix; a single Ctrl-C tears them all down
+  cleanly. Each service runs in its own process group and shutdown SIGTERMs the
+  group then SIGKILLs stragglers after `--kill-timeout` (default 5s), so child
+  process trees (a dev server's own subprocesses) are never orphaned. For each
+  repo it runs `--command "<cmd>"` if given, else the first `package.json` script
+  that exists (`--script` → `dev` → `develop` → `start` → `serve`) using the
+  repo's own package manager (pnpm/yarn/npm from its lockfile); repos with no
+  runnable script are skipped with a notice. Flags: `--only <repos>`,
+  `--script`, `--command`, `--exit-on-failure`, `--kill-timeout`.
+
 ## [0.16.0] - 2026-09-09
 
 ### Added
