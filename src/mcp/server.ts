@@ -41,6 +41,8 @@ import {
   handleSuiteImport,
   handleSuiteUse,
   handleSaveContext,
+  handleLockWorkspace,
+  handleRestoreWorkspace,
 } from './tools';
 
 import { getPackageVersion } from '../utils/config';
@@ -559,6 +561,44 @@ server.tool(
   async ({ workspace, content, append }) => {
     try {
       const result = await handleSaveContext(workspace, content, append);
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      return { content: [{ type: 'text', text: `Error: ${msg}` }], isError: true };
+    }
+  }
+);
+
+server.tool(
+  'lock-workspace',
+  'Snapshot a workspace into a committable nemus.lock manifest (repos + owner + the branch each repo is on + its HEAD commit) so it can be shared and recreated elsewhere with restore-workspace. Writes nemus.lock to the workspace root by default and returns the manifest.',
+  {
+    workspace: wsName.describe('Name of the workspace to lock'),
+    output: z.string().optional().describe('Optional path to write the lockfile to instead of <workspace>/nemus.lock'),
+  },
+  async ({ workspace, output }) => {
+    try {
+      const result = await handleLockWorkspace(workspace, output);
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      return { content: [{ type: 'text', text: `Error: ${msg}` }], isError: true };
+    }
+  }
+);
+
+server.tool(
+  'restore-workspace',
+  'Recreate a workspace from a nemus.lock manifest: clone every repo and check out the recorded branch (or the exact commit with pin). Provide the manifest inline via lockContent, or a path via lockfile (defaults to ./nemus.lock).',
+  {
+    lockContent: z.string().optional().describe('The nemus.lock manifest JSON, inline (preferred for agents)'),
+    lockfile: z.string().optional().describe('Path to a nemus.lock file (used when lockContent is not given; defaults to ./nemus.lock)'),
+    workspace: wsName.optional().describe('Override the workspace name baked into the lockfile'),
+    pin: z.boolean().optional().describe('Check out the exact recorded commit instead of the branch tip'),
+  },
+  async ({ lockContent, lockfile, workspace, pin }) => {
+    try {
+      const result = await handleRestoreWorkspace({ lockContent, lockfile, workspace, pin });
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';

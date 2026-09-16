@@ -14,6 +14,13 @@ import { validateWorkspaceName, checkWorkspaceExists, sanitizeWorkspaceName, res
 import { logError, logInfo, logSuccess, logStep, logWarning } from '../utils/logger';
 import { colorize } from '../utils/colors';
 import { printBanner } from '../utils/banner';
+import type { CloneResult } from '../types';
+
+export interface RestoreResult {
+  workspaceName: string;
+  workspacePath: string;
+  results: CloneResult[];
+}
 
 const execFileAsync = promisify(execFile);
 const GIT_TIMEOUT = 30000;
@@ -63,6 +70,90 @@ async function checkoutCommit(repoPath: string, commit: string): Promise<boolean
   }
 }
 
+/**
+ * Core restore: clone every repo in a (already-validated) lock and check out the
+ * recorded branch (or the exact commit with `pin`), then write metadata + agent
+ * context — exactly like `create`. Throws on fatal errors (no process.exit) and
+ * logs progress via the logger (stderr), so both the CLI and the MCP tool can
+ * call it. Callers own presentation (final message, shell-CD hook).
+ */
+export async function restoreWorkspace(
+  lock: WorkspaceLock,
+  opts: { workspace?: string; pin?: boolean } = {}
+): Promise<RestoreResult> {
+  if (lock.repositories.length === 0) {
+    throw new Error('Lockfile has no repositories to restore');
+  }
+
+  // Resolve the target workspace name
+  let workspaceName = sanitizeWorkspaceName(opts.workspace || lock.workspace);
+  const nameError = validateWorkspaceName(workspaceName);
+  if (nameError !== true) {
+    throw new Error(typeof nameError === 'string' ? nameError : 'Invalid workspace name');
+  }
+  if (await checkWorkspaceExists(workspaceName)) {
+    const resolved = await resolveWorkspaceNameConflict(
+      workspaceName,
+      lock.repositories.map(r => r.directoryName)
+    );
+    logInfo(`Workspace "${workspaceName}" already exists — using "${colorize(resolved, 'cyan')}" instead.`);
+    workspaceName = resolved;
+  }
+
+  const workspacePath = path.join(WORKSPACES_DIR, workspaceName);
+  logInfo(`Restoring ${colorize(String(lock.repositories.length), 'cyan')} repos into workspace "${colorize(workspaceName, 'cyan')}"`);
+
+  // Clone every repo (reuses the create pipeline: ghq, concurrency, dedup)
+  logStep(1, 3, 'Cloning repositories...');
+  const { mkdir } = await import('fs/promises');
+  await mkdir(workspacePath, { recursive: true });
+  await warnIfGhqMissing();
+
+  const entries = lock.repositories.map(r => ({
+    repo: reconstructRepo(r),
+    directoryName: r.directoryName,
+  }));
+  const results = await cloneRepositories(entries, workspacePath);
+  reportCloneResults(results);
+
+  // Check out the recorded branch (or pinned commit) per repo
+  logStep(2, 3, opts.pin ? 'Checking out pinned commits...' : 'Checking out recorded branches...');
+  const byDir = new Map<string, LockRepo>(lock.repositories.map(r => [r.directoryName, r]));
+  for (const result of results) {
+    if (result.status !== 'success') continue;
+    const entry = byDir.get(result.directoryName);
+    if (!entry) continue;
+    const repoPath = path.join(workspacePath, result.directoryName);
+    const display = colorize(result.directoryName, 'cyan');
+
+    if (opts.pin && entry.commit) {
+      if (!(await checkoutCommit(repoPath, entry.commit))) {
+        logWarning(`${display}: could not check out pinned commit ${entry.commit} — left on the default branch`);
+      }
+    } else if (entry.branch) {
+      if (await checkoutBranch(repoPath, entry.branch)) {
+        logInfo(`${display} → ${entry.branch}`);
+      } else if (entry.commit && (await checkoutCommit(repoPath, entry.commit))) {
+        logWarning(`${display}: branch "${entry.branch}" not found — checked out commit ${entry.commit} instead`);
+      } else {
+        logWarning(`${display}: could not check out "${entry.branch}" — left on the default branch`);
+      }
+    }
+  }
+
+  // Metadata + agent context (same as create)
+  logStep(3, 3, 'Saving workspace metadata...');
+  const metadata = createMetadata(workspaceName, results, { prompt: `Restored from ${LOCK_FILENAME}` });
+  await saveMetadata(workspacePath, metadata);
+
+  const successfulRepos = results.filter(r => r.status === 'success').map(r => r.repo);
+  if (successfulRepos.length > 0) {
+    await generateClaudeContext(workspacePath, workspaceName, successfulRepos, metadata);
+  }
+
+  return { workspaceName, workspacePath, results };
+}
+
 async function handleRestore(opts: {
   lockfile?: string;
   workspace?: string;
@@ -93,77 +184,15 @@ async function handleRestore(opts: {
       process.exit(1);
     }
 
-    // Step 2: gh auth (soft — private repos need it, public/other creds may not)
+    // gh auth (soft — private repos need it, public/other creds may not)
     if (!(await verifyGhAuth())) {
       logWarning('GitHub CLI not authenticated — private repositories may fail to clone.');
     }
 
-    // Step 3: Resolve the target workspace name
-    let workspaceName = sanitizeWorkspaceName(opts.workspace || lock.workspace);
-    const nameError = validateWorkspaceName(workspaceName);
-    if (nameError !== true) {
-      logError(typeof nameError === 'string' ? nameError : 'Invalid workspace name');
-      process.exit(1);
-    }
-    if (await checkWorkspaceExists(workspaceName)) {
-      const resolved = await resolveWorkspaceNameConflict(
-        workspaceName,
-        lock.repositories.map(r => r.directoryName)
-      );
-      logInfo(`Workspace "${workspaceName}" already exists — using "${colorize(resolved, 'cyan')}" instead.`);
-      workspaceName = resolved;
-    }
-
-    const workspacePath = path.join(WORKSPACES_DIR, workspaceName);
-    logInfo(`Restoring ${colorize(String(lock.repositories.length), 'cyan')} repos into workspace "${colorize(workspaceName, 'cyan')}"`);
-
-    // Step 4: Clone every repo (reuses the create pipeline: ghq, concurrency, dedup)
-    logStep(1, 3, 'Cloning repositories...');
-    const { mkdir } = await import('fs/promises');
-    await mkdir(workspacePath, { recursive: true });
-    await warnIfGhqMissing();
-
-    const entries = lock.repositories.map(r => ({
-      repo: reconstructRepo(r),
-      directoryName: r.directoryName,
-    }));
-    const results = await cloneRepositories(entries, workspacePath);
-    reportCloneResults(results);
-
-    // Step 5: Check out the recorded branch (or pinned commit) per repo
-    logStep(2, 3, opts.pin ? 'Checking out pinned commits...' : 'Checking out recorded branches...');
-    const byDir = new Map<string, LockRepo>(lock.repositories.map(r => [r.directoryName, r]));
-    for (const result of results) {
-      if (result.status !== 'success') continue;
-      const entry = byDir.get(result.directoryName);
-      if (!entry) continue;
-      const repoPath = path.join(workspacePath, result.directoryName);
-      const display = colorize(result.directoryName, 'cyan');
-
-      if (opts.pin && entry.commit) {
-        if (!(await checkoutCommit(repoPath, entry.commit))) {
-          logWarning(`${display}: could not check out pinned commit ${entry.commit} — left on the default branch`);
-        }
-      } else if (entry.branch) {
-        if (await checkoutBranch(repoPath, entry.branch)) {
-          logInfo(`${display} → ${entry.branch}`);
-        } else if (entry.commit && (await checkoutCommit(repoPath, entry.commit))) {
-          logWarning(`${display}: branch "${entry.branch}" not found — checked out commit ${entry.commit} instead`);
-        } else {
-          logWarning(`${display}: could not check out "${entry.branch}" — left on the default branch`);
-        }
-      }
-    }
-
-    // Step 6: Metadata + agent context (same as create)
-    logStep(3, 3, 'Saving workspace metadata...');
-    const metadata = createMetadata(workspaceName, results, { prompt: `Restored from ${LOCK_FILENAME}` });
-    await saveMetadata(workspacePath, metadata);
-
-    const successfulRepos = results.filter(r => r.status === 'success').map(r => r.repo);
-    if (successfulRepos.length > 0) {
-      await generateClaudeContext(workspacePath, workspaceName, successfulRepos, metadata);
-    }
+    const { workspaceName, workspacePath } = await restoreWorkspace(lock, {
+      workspace: opts.workspace,
+      pin: opts.pin,
+    });
 
     logSuccess(`Workspace "${colorize(workspaceName, 'cyan')}" restored!`);
 

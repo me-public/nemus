@@ -28,4 +28,6 @@ nemus mcp status
 
 When installed, Claude Code gains access to Nemus tools:
 - `create-workspace`, `list-workspaces`, `workspace-status`, etc.
+- `lock-workspace` / `restore-workspace` — snapshot a workspace to a portable
+  `nemus.lock` and recreate it elsewhere (accepts the manifest inline).
 - Enables natural language workspace management via `nemus -- <prompt>`

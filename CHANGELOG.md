@@ -22,7 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   name baked into the lockfile. `nemus lock --all` drops a lockfile into every
   workspace at once (skipping existing ones unless `--force`) — the explicit way
   to make a whole machine portable, rather than a hidden side effect in
-  `migrate`. Restore rebuilds https/ssh URLs for the
+  `migrate`. The MCP server gains matching `lock-workspace` / `restore-workspace`
+  tools (restore accepts the manifest inline via `lockContent`) so agents have
+  the same portability as `create`/`update`/`delete`. Restore rebuilds https/ssh URLs for the
   restorer's `cloneProtocol` from the locked host+owner+name (falling back to the
   stored URL), so an ssh-locked workspace restores fine for an https user. The
   lockfile holds only what `git remote -v` already exposes — no secrets — so it's
