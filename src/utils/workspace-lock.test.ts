@@ -10,6 +10,9 @@ import {
   parseGitHost,
   reconstructRepo,
   buildLock,
+  isSafeSegment,
+  isAllowedCloneUrl,
+  isSafeGitRef,
   LOCK_VERSION,
   type WorkspaceLock,
   type LockRepo,
@@ -58,8 +61,45 @@ describe('parseLock', () => {
   });
 
   it('accepts entries without optional branch/commit', () => {
-    const minimal = { ...validLock, repositories: [{ name: 'web', owner: 'acme', directoryName: 'web', cloneUrl: 'x' }] };
+    const minimal = { ...validLock, repositories: [{ name: 'web', owner: 'acme', directoryName: 'web', cloneUrl: 'https://github.com/acme/web.git' }] };
     expect(() => parseLock(JSON.stringify(minimal))).not.toThrow();
+  });
+
+  // Untrusted-input hardening: fields that reach git / path.join are validated.
+  it('rejects a directoryName that escapes the workspace', () => {
+    for (const directoryName of ['../evil', 'a/b', '..', 'a\\b']) {
+      const bad = { ...validLock, repositories: [{ name: 'web', owner: 'acme', directoryName, cloneUrl: 'https://h/o/r.git' }] };
+      expect(() => parseLock(JSON.stringify(bad)), directoryName).toThrow(/path segment/);
+    }
+  });
+
+  it('rejects a cloneUrl with no recognized transport (option-injection)', () => {
+    for (const cloneUrl of ['--upload-pack=/x', '-oProxyCommand=x', '/local/path.git', 'file:///x']) {
+      const bad = { ...validLock, repositories: [{ name: 'web', owner: 'acme', directoryName: 'web', cloneUrl }] };
+      expect(() => parseLock(JSON.stringify(bad)), cloneUrl).toThrow(/transport/);
+    }
+  });
+
+  it('rejects a branch/commit that could smuggle git flags', () => {
+    const badBranch = { ...validLock, repositories: [{ name: 'web', owner: 'acme', directoryName: 'web', cloneUrl: 'https://h/o/r.git', branch: '--upload-pack=x' }] };
+    expect(() => parseLock(JSON.stringify(badBranch))).toThrow(/branch/);
+    const badCommit = { ...validLock, repositories: [{ name: 'web', owner: 'acme', directoryName: 'web', cloneUrl: 'https://h/o/r.git', commit: '-x' }] };
+    expect(() => parseLock(JSON.stringify(badCommit))).toThrow(/commit/);
+  });
+});
+
+describe('field validators', () => {
+  it('isSafeSegment accepts plain names, rejects traversal/separators', () => {
+    for (const ok of ['web', 'my-repo', 'repo.git', 'a..b']) expect(isSafeSegment(ok), ok).toBe(true);
+    for (const no of ['', '.', '..', 'a/b', 'a\\b', '../x']) expect(isSafeSegment(no), no).toBe(false);
+  });
+  it('isAllowedCloneUrl accepts real remotes, rejects options/paths', () => {
+    for (const ok of ['https://github.com/a/b.git', 'ssh://git@h/a/b', 'git@github.com:a/b.git', 'git://h/a/b']) expect(isAllowedCloneUrl(ok), ok).toBe(true);
+    for (const no of ['--upload-pack=x', '/local/path', 'file:///x', 'ext::sh -c x']) expect(isAllowedCloneUrl(no), no).toBe(false);
+  });
+  it('isSafeGitRef accepts real refs, rejects flags/metachars', () => {
+    for (const ok of ['main', 'feat/x', 'release-1.2', 'abc1234']) expect(isSafeGitRef(ok), ok).toBe(true);
+    for (const no of ['-x', '--flag', 'a b', 'a..b', 'a~1', 'a^', 'a:b', '']) expect(isSafeGitRef(no), no).toBe(false);
   });
 });
 

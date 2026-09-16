@@ -124,6 +124,9 @@ export function parseLock(content: string): WorkspaceLock {
   if (!Array.isArray(lock.repositories)) {
     throw new Error('Lockfile is missing a "repositories" array');
   }
+  // A lockfile is untrusted shared input — people commit it and hand it around,
+  // then `restore` feeds these fields to git + path.join. Validate every field
+  // that reaches a side effect, not just that it's a non-empty string.
   for (const [i, r] of lock.repositories.entries()) {
     if (!r || typeof r !== 'object') throw new Error(`repositories[${i}] is not an object`);
     const entry = r as Partial<LockRepo>;
@@ -132,8 +135,62 @@ export function parseLock(content: string): WorkspaceLock {
         throw new Error(`repositories[${i}] is missing "${field}"`);
       }
     }
+    if (!isSafeSegment(entry.directoryName!)) {
+      throw new Error(`repositories[${i}].directoryName "${entry.directoryName}" is not a single path segment`);
+    }
+    if (!isAllowedCloneUrl(entry.cloneUrl!)) {
+      throw new Error(`repositories[${i}].cloneUrl "${entry.cloneUrl}" has no recognized git transport (expected https/ssh/git:// or user@host:path)`);
+    }
+    if (entry.branch !== undefined && (typeof entry.branch !== 'string' || !isSafeGitRef(entry.branch))) {
+      throw new Error(`repositories[${i}].branch "${entry.branch}" is not a valid git ref`);
+    }
+    if (entry.commit !== undefined && (typeof entry.commit !== 'string' || !isSafeGitRef(entry.commit))) {
+      throw new Error(`repositories[${i}].commit "${entry.commit}" is not a valid git ref`);
+    }
   }
   return lock as WorkspaceLock;
+}
+
+/**
+ * A `directoryName` from a lockfile flows into `path.join(workspacePath, …)`, so
+ * it must be a single, non-traversing path segment — no separators, and not `.`
+ * or `..` — or a crafted lockfile could write repos outside the workspace.
+ */
+export function isSafeSegment(name: string): boolean {
+  return (
+    name.length > 0 &&
+    !name.includes('/') &&
+    !name.includes('\\') &&
+    !name.includes('\0') &&
+    name !== '.' &&
+    name !== '..'
+  );
+}
+
+/**
+ * A `cloneUrl` is passed to `git clone`; without a recognized transport scheme a
+ * value like `--upload-pack=…` would be parsed as a git option. Allow only
+ * https/http/ssh/git URLs and scp-style `user@host:path` remotes.
+ */
+export function isAllowedCloneUrl(url: string): boolean {
+  if (/^(https?|ssh|git):\/\//i.test(url)) return true;
+  if (/^[^\s@/]+@[^\s@:/]+:/.test(url)) return true;
+  return false;
+}
+
+/**
+ * A `branch`/`commit` from a lockfile is handed to `git checkout`. Reject refs
+ * that could smuggle git options (leading `-`) or aren't valid refs
+ * (whitespace/control chars, the metacharacters git itself forbids, or `..`).
+ */
+export function isSafeGitRef(ref: string): boolean {
+  return (
+    ref.length > 0 &&
+    !ref.startsWith('-') &&
+    // eslint-disable-next-line no-control-regex
+    !/[\s\x00-\x1f\x7f~^:?*[\\]/.test(ref) &&
+    !ref.includes('..')
+  );
 }
 
 export async function readLockFile(filePath: string): Promise<WorkspaceLock> {

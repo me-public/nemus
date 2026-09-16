@@ -36,14 +36,17 @@ async function readStdin(): Promise<string> {
   return Buffer.concat(chunks).toString('utf-8');
 }
 
+// `branch`/`commit` come from an untrusted lockfile (already ref-validated in
+// parseLock); the `--end-of-options` guard is defense-in-depth so a ref can
+// never be reparsed as a git option even if validation is bypassed.
 /** Check out `branch` in a freshly-cloned repo, creating a tracking branch if needed. */
 async function checkoutBranch(repoPath: string, branch: string): Promise<boolean> {
   try {
-    await execFileAsync('git', ['checkout', branch], { cwd: repoPath, timeout: GIT_TIMEOUT });
+    await execFileAsync('git', ['checkout', '--end-of-options', branch], { cwd: repoPath, timeout: GIT_TIMEOUT });
     return true;
   } catch {
     try {
-      await execFileAsync('git', ['checkout', '-b', branch, `origin/${branch}`], { cwd: repoPath, timeout: GIT_TIMEOUT });
+      await execFileAsync('git', ['checkout', '-b', branch, '--end-of-options', `origin/${branch}`], { cwd: repoPath, timeout: GIT_TIMEOUT });
       return true;
     } catch {
       return false;
@@ -53,7 +56,7 @@ async function checkoutBranch(repoPath: string, branch: string): Promise<boolean
 
 async function checkoutCommit(repoPath: string, commit: string): Promise<boolean> {
   try {
-    await execFileAsync('git', ['checkout', commit], { cwd: repoPath, timeout: GIT_TIMEOUT });
+    await execFileAsync('git', ['checkout', '--end-of-options', commit], { cwd: repoPath, timeout: GIT_TIMEOUT });
     return true;
   } catch {
     return false;
