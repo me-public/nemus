@@ -271,6 +271,11 @@ repo's own package manager (pnpm/yarn/npm from its lockfile). Repos with no
 runnable script are skipped with a notice, so a library in the workspace won't
 block the services.
 
+> On **macOS/Linux** each service runs in its own process group, so shutdown
+> reliably takes down the whole child tree. On **Windows** there are no POSIX
+> process groups; teardown falls back to `taskkill /T /F` (force-kill the tree,
+> no graceful SIGTERM phase).
+
 ```
 Repo             Branch       Status        Ahead/Behind   Modified
 ─────────────────────────────────────────────────────────────────────

@@ -41,3 +41,6 @@ nemus dev payments --exit-on-failure
   you Ctrl-C. Not for scripting — use `nemus run` for one-shot commands.
 - Each service runs in its own process group; shutdown SIGTERMs the group, then
   SIGKILLs stragglers after `--kill-timeout`, so nothing is orphaned.
+- **Platform:** clean process-group teardown is POSIX (macOS/Linux). On Windows
+  it falls back to `taskkill /T /F` (force-kill the tree, no graceful phase).
+- `--kill-timeout 0` is honored (immediate SIGKILL after the SIGTERM).

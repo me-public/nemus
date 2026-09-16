@@ -176,6 +176,12 @@ export function runDev(services: DevService[], opts: RunDevOptions = {}): Promis
     // living members (e.g. a grandchild that ignores SIGTERM) — gating on the
     // leader having exited is exactly what leaks orphans. kill(-pid) on an empty
     // group is a harmless ESRCH.
+    //
+    // Deliberate scope: the sweep only runs as part of shutdown (Ctrl-C, or
+    // --exit-on-failure). A single service that exits on its own while others
+    // keep running is NOT swept — its stray detached grandchildren (if any) are
+    // reaped at the eventual overall shutdown, not immediately. Sweeping a live
+    // run per-exit would risk killing an unrelated process that reused the pgid.
     const sigkillSweep = () => {
       for (const r of running) kill(r.child, 'SIGKILL');
     };
@@ -239,6 +245,7 @@ export function runDev(services: DevService[], opts: RunDevOptions = {}): Promis
       });
 
       child.on('error', (e) => {
+        if (rec.exited) return; // 'exit' already handled this service
         writePrefixed(err, service.label, colorize(`failed to start: ${e.message}`, 'red'));
         rec.exited = true;
         rec.exitCode = 1;
@@ -247,6 +254,7 @@ export function runDev(services: DevService[], opts: RunDevOptions = {}): Promis
       });
 
       child.on('exit', (code, signal) => {
+        if (rec.exited) return; // 'error' already handled this service
         for (const line of [outSplitter.flush(), errSplitter.flush()]) {
           if (line) writePrefixed(out, service.label, line);
         }
@@ -267,9 +275,30 @@ export function runDev(services: DevService[], opts: RunDevOptions = {}): Promis
   });
 }
 
-/** Kill a detached child's whole process group, falling back to the pid. */
+/**
+ * Kill a detached child's whole process tree.
+ *
+ * POSIX: the child is its own process-group leader (spawned detached), so
+ * `kill(-pid)` signals the entire group — the reliable way to take down
+ * shell→pm→server→… trees. Windows has no process groups or POSIX signals, so
+ * `kill(-pid)` throws; we fall back to `taskkill /T /F` to force-kill the tree
+ * (graceful SIGTERM isn't meaningful for a Windows console child tree). If even
+ * that isn't available we degrade to a single `child.kill()` (leaf only).
+ */
 function killGroup(child: ChildProcess, signal: NodeJS.Signals): void {
   if (child.pid == null) return;
+  if (process.platform === 'win32') {
+    try {
+      spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    } catch {
+      try {
+        child.kill();
+      } catch {
+        // already gone
+      }
+    }
+    return;
+  }
   try {
     process.kill(-child.pid, signal);
   } catch {

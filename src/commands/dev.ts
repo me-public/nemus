@@ -81,7 +81,10 @@ async function handleDev(opts: {
     }
     console.log(colorize('  Ctrl-C to stop all.\n', 'gray'));
 
-    const killTimeoutMs = Math.max(0, Number(opts.killTimeout) || 5) * 1000;
+    // NaN check (not `|| 5`) so an explicit --kill-timeout 0 (immediate SIGKILL)
+    // is honored rather than coerced back to the default.
+    const parsedTimeout = Number(opts.killTimeout);
+    const killTimeoutMs = Math.max(0, Number.isFinite(parsedTimeout) ? parsedTimeout : 5) * 1000;
     const code = await runDev(services, {
       exitOnFailure: opts.exitOnFailure,
       killTimeoutMs,
