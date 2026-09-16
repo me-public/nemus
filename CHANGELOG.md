@@ -19,7 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   machine — it clones every repo and checks out the recorded branch, then writes
   metadata + agent context exactly like `create`. `--pin` checks out the exact
   recorded commit instead of the branch tip, and `-w/--workspace` overrides the
-  name baked into the lockfile. Restore rebuilds https/ssh URLs for the
+  name baked into the lockfile. `nemus lock --all` drops a lockfile into every
+  workspace at once (skipping existing ones unless `--force`) — the explicit way
+  to make a whole machine portable, rather than a hidden side effect in
+  `migrate`. Restore rebuilds https/ssh URLs for the
   restorer's `cloneProtocol` from the locked host+owner+name (falling back to the
   stored URL), so an ssh-locked workspace restores fine for an https user. The
   lockfile holds only what `git remote -v` already exposes — no secrets — so it's

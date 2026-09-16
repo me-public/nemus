@@ -365,6 +365,7 @@ every repo and checks out the recorded branch.
 nemus lock                    # write ./nemus.lock for the current workspace
 nemus lock my-ws -o my-ws.lock   # or a named workspace, to a file
 nemus lock my-ws -o -            # print the lockfile to stdout (pipe it anywhere)
+nemus lock --all [--force]     # drop a nemus.lock into every workspace at once
 
 nemus restore                 # recreate from ./nemus.lock
 nemus restore my-ws.lock       # from a specific file (or `-` to read stdin)
