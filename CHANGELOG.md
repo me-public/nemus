@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-09-09
+
+### Added
+
+- **`nemus review` — AI code review of a workspace's changes.** Reviews the
+  uncommitted changes across every repo in a workspace at once, using your **own**
+  configured agent + model (Claude / pi / opencode …) — local-first, no external
+  service. It diffs each repo (working tree vs `HEAD` by default, or `--staged` /
+  `--base <ref>` for a pre-PR branch review), skips clean repos, sends one prompt,
+  and prints findings grouped by severity with file/line, a rationale, and a
+  suggested fix. Flags: `--only`, `--staged`, `--base`, `--severity`, `--model`,
+  `--thinking`, `--json`, `--dry-run`; env overrides `NEMUS_JUDGE_MODEL` /
+  `NEMUS_JUDGE_THINKING` / `NEMUS_JUDGE_TIMEOUT_MS`. Reuses the same agent-runner
+  as `reflect`.
+
 ## [0.17.0] - 2026-09-09
 
 ### Added

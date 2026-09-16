@@ -276,6 +276,35 @@ block the services.
 > process groups; teardown falls back to `taskkill /T /F` (force-kill the tree,
 > no graceful SIGTERM phase).
 
+### `nemus review` — AI review of your changes across repos
+
+Review the uncommitted changes in a whole workspace at once, using **your**
+configured agent (Claude / pi / opencode …) and model — local-first, no service.
+Findings come back grouped by severity with file/line, a short rationale, and a
+suggested fix.
+
+```bash
+nemus review                  # review uncommitted changes across the workspace
+nemus review payments --only api,web
+nemus review payments --base main       # review the whole branch vs main (pre-PR)
+nemus review payments --staged           # only staged changes
+nemus review payments --severity high    # only high+ findings
+nemus review payments --json             # machine-readable findings
+nemus review payments --dry-run          # print the prompt, don't call the agent
+```
+
+```
+CRITICAL api/math.js:1
+  add() now subtracts instead of adds
+  The function add(a,b) was changed to `return a - b`, breaking its contract.
+  ↳ Revert to `return a + b;`
+```
+
+It diffs each repo (working tree vs `HEAD` by default, or `--staged` / `--base
+<ref>`), skips clean repos, and sends one prompt to your agent. Model/timeout are
+overridable via `--model` / `--thinking` or `NEMUS_JUDGE_MODEL` /
+`NEMUS_JUDGE_TIMEOUT_MS`.
+
 ```
 Repo             Branch       Status        Ahead/Behind   Modified
 ─────────────────────────────────────────────────────────────────────
