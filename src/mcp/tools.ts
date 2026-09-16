@@ -21,6 +21,8 @@ import { removeNodeModules, removeBuildArtifacts } from '../utils/cleanup-operat
 import { runPostCloneHooks } from '../utils/hooks';
 import { SuiteEntry, WorkspaceSuite, SuitesStore } from '../types';
 import { resolveWorkspaceNameConflict, sanitizeWorkspaceName, safeWorkspacePath } from '../utils/validation';
+import { buildLock, writeLock, readLockFile, parseLock, LOCK_FILENAME } from '../utils/workspace-lock';
+import { restoreWorkspace } from '../commands/restore';
 
 /**
  * Redirects stdout to stderr for the duration of a function call.
@@ -1014,6 +1016,73 @@ export async function handleSaveContext(workspace: string, content: string, appe
       workspace,
       append: append ?? false,
       timestamp,
+    };
+  });
+}
+
+// ── Portable workspaces: lock / restore ─────────────────────────────────────
+
+/**
+ * Snapshot a workspace into a nemus.lock manifest (repos + branch + commit).
+ * Writes it to the workspace root by default and also returns the manifest so
+ * an agent can share/commit it.
+ */
+export async function handleLockWorkspace(workspace: string, output?: string) {
+  return withStdoutProtection(async () => {
+    if (!workspace || workspace.trim().length === 0) {
+      throw new Error('Workspace name is required');
+    }
+    const workspacePath = safeWorkspacePath(sanitizeWorkspaceName(workspace));
+    const metadata = await loadMetadata(workspacePath);
+    if (!metadata) {
+      throw new Error(`Workspace not found: ${workspace}`);
+    }
+    const lock = await buildLock(workspacePath, metadata);
+    const outPath = output ? path.resolve(output) : path.join(workspacePath, LOCK_FILENAME);
+    await writeLock(outPath, lock);
+    return {
+      workspace: metadata.workspaceName,
+      lockfilePath: outPath,
+      repoCount: lock.repositories.length,
+      lock,
+    };
+  });
+}
+
+/**
+ * Recreate a workspace from a nemus.lock. Accepts either inline `lockContent`
+ * (the manifest JSON) or a `lockfile` path (defaults to ./nemus.lock). Clones
+ * every repo and checks out the recorded branch (or exact commit with `pin`).
+ */
+export async function handleRestoreWorkspace(opts: {
+  workspace?: string;
+  lockfile?: string;
+  lockContent?: string;
+  pin?: boolean;
+}) {
+  return withStdoutProtection(async () => {
+    const lock = opts.lockContent
+      ? parseLock(opts.lockContent)
+      : await readLockFile(path.resolve(opts.lockfile || LOCK_FILENAME));
+
+    const { workspaceName, workspacePath, results } = await restoreWorkspace(lock, {
+      workspace: opts.workspace,
+      pin: opts.pin,
+    });
+
+    const cloned = results.filter(r => r.status === 'success');
+    const failed = results.filter(r => r.status === 'failed');
+    return {
+      workspace: workspaceName,
+      path: workspacePath,
+      cloned: cloned.length,
+      failed: failed.length,
+      repositories: results.map(r => ({
+        name: r.repo.name,
+        directoryName: r.directoryName,
+        status: r.status,
+        ...(r.error ? { error: r.error } : {}),
+      })),
     };
   });
 }

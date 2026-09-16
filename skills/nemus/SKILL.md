@@ -72,6 +72,18 @@ Global flags: `-f/--force-refresh` (skip repo cache), `-y/--yes` (skip prompts),
 | Import suite(s) from JSON | [suite-import](references/suite-import.md) | `nemus suite import <file>` |
 | Create workspace from suite | [suite-use](references/suite-use.md) | `nemus suite use` |
 
+### Portable Workspaces (lock / restore)
+
+| Intent | Reference | CLI |
+|---|---|---|
+| Snapshot a workspace to a committable `nemus.lock` | [lock](references/lock.md) | `nemus lock [ws] [-o file\|-]` |
+| Recreate a workspace from a `nemus.lock` | [restore](references/restore.md) | `nemus restore [file\|-] [-w name] [--pin]` |
+
+`lock`/`restore` is portable and recreates repos from scratch (vs. `snapshot`,
+which is local time-travel within an existing workspace; vs. `suite`, a reusable
+repo *template*). The lockfile records repos + owner + each repo's branch + HEAD
+commit; it holds no secrets (only what `git remote -v` exposes).
+
 ### Cache & Repo Discovery
 
 | Intent | Reference | CLI |

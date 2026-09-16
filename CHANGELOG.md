@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-09-09
+
+### Added
+
+- **Portable workspaces: `nemus lock` & `nemus restore`.** `nemus lock` writes a
+  small, committable `nemus.lock` capturing every repo (owner, directory, clone
+  URL), the branch each repo is currently on, and its HEAD commit; `-o <file>`
+  writes elsewhere and `-o -` prints it to stdout. `nemus restore` recreates the
+  workspace from a lockfile (defaults to `./nemus.lock`, or `-` for stdin) on any
+  machine — it clones every repo and checks out the recorded branch, then writes
+  metadata + agent context exactly like `create`. `--pin` checks out the exact
+  recorded commit instead of the branch tip, and `-w/--workspace` overrides the
+  name baked into the lockfile. `nemus lock --all` drops a lockfile into every
+  workspace at once (skipping existing ones unless `--force`) — the explicit way
+  to make a whole machine portable, rather than a hidden side effect in
+  `migrate`. The MCP server gains matching `lock-workspace` / `restore-workspace`
+  tools (restore accepts the manifest inline via `lockContent`) so agents have
+  the same portability as `create`/`update`/`delete`. Restore rebuilds https/ssh URLs for the
+  restorer's `cloneProtocol` from the locked host+owner+name (falling back to the
+  stored URL), so an ssh-locked workspace restores fine for an https user. The
+  lockfile holds only what `git remote -v` already exposes — no secrets — so it's
+  safe to commit. Unlike a local `snapshot` (time-travel within an existing
+  workspace) or a `suite` (reusable repo template), a lockfile pins one
+  workspace's exact repos + branch state and recreates it from nothing.
+
 ## [0.15.2] - 2026-09-04
 
 ### Fixed

@@ -354,6 +354,34 @@ nemus snapshot save ws        # (ss) capture exact branches/commits/dirty state
 nemus snapshot restore <id>   # (sr)
 ```
 
+### Portable workspaces — `lock` & `restore`
+
+Share the *exact* workspace you're in. `nemus lock` writes a small, committable
+`nemus.lock` (repos + owner + the branch each repo is on + its HEAD commit);
+`nemus restore` recreates that workspace from scratch on any machine — clones
+every repo and checks out the recorded branch.
+
+```bash
+nemus lock                    # write ./nemus.lock for the current workspace
+nemus lock my-ws -o my-ws.lock   # or a named workspace, to a file
+nemus lock my-ws -o -            # print the lockfile to stdout (pipe it anywhere)
+nemus lock --all [--force]     # drop a nemus.lock into every workspace at once
+
+nemus restore                 # recreate from ./nemus.lock
+nemus restore my-ws.lock       # from a specific file (or `-` to read stdin)
+nemus restore my-ws.lock -w exp --pin   # new name; pin exact commits, not branch tips
+```
+
+Commit `nemus.lock` next to a design doc or drop it in a ticket, and a teammate
+runs `nemus restore` to land in the identical multi-repo setup. It contains only
+what `git remote -v` already exposes — no secrets — so it's safe to commit.
+
+> **`lock`/`restore` vs. `snapshot`:** a *snapshot* is local time-travel for a
+> workspace that already exists on your machine; `lock`/`restore` is portable —
+> it recreates the workspace (repos and all) from nothing, on any machine.
+> **vs. `suite`:** a *suite* is a reusable repo *template*; a lockfile pins one
+> workspace's *exact* repos and branch state.
+
 ### Reflect — improve your setup over time
 
 ```bash
