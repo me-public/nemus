@@ -2,7 +2,6 @@ import { Command } from 'commander';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
-import { WORKSPACES_DIR } from '../utils/config';
 import { getGlobalOpts } from '../utils/command-helpers';
 import { readLockFile, parseLock, reconstructRepo, LOCK_FILENAME, type WorkspaceLock, type LockRepo } from '../utils/workspace-lock';
 import { cloneRepositories, reportCloneResults } from '../utils/git-operations';
@@ -10,7 +9,7 @@ import { warnIfGhqMissing } from '../utils/ghq-integration';
 import { createMetadata, saveMetadata } from '../utils/workspace-meta';
 import { generateClaudeContext } from '../utils/claude-integration';
 import { verifyGhAuth } from '../utils/github';
-import { validateWorkspaceName, checkWorkspaceExists, sanitizeWorkspaceName, resolveWorkspaceNameConflict } from '../utils/validation';
+import { validateWorkspaceName, checkWorkspaceExists, sanitizeWorkspaceName, resolveWorkspaceNameConflict, safeWorkspacePath } from '../utils/validation';
 import { logError, logInfo, logSuccess, logStep, logWarning } from '../utils/logger';
 import { colorize } from '../utils/colors';
 import { printBanner } from '../utils/banner';
@@ -100,7 +99,7 @@ export async function restoreWorkspace(
     workspaceName = resolved;
   }
 
-  const workspacePath = path.join(WORKSPACES_DIR, workspaceName);
+  const workspacePath = safeWorkspacePath(workspaceName);
   logInfo(`Restoring ${colorize(String(lock.repositories.length), 'cyan')} repos into workspace "${colorize(workspaceName, 'cyan')}"`);
 
   // Clone every repo (reuses the create pipeline: ghq, concurrency, dedup)
@@ -137,6 +136,14 @@ export async function restoreWorkspace(
         logWarning(`${display}: branch "${entry.branch}" not found — checked out commit ${entry.commit} instead`);
       } else {
         logWarning(`${display}: could not check out "${entry.branch}" — left on the default branch`);
+      }
+    } else if (entry.commit) {
+      // No branch was recorded (detached HEAD at lock time) — restore the commit
+      // so that state isn't silently lost even without --pin.
+      if (await checkoutCommit(repoPath, entry.commit)) {
+        logInfo(`${display} → ${entry.commit} (detached)`);
+      } else {
+        logWarning(`${display}: could not check out commit ${entry.commit} — left on the default branch`);
       }
     }
   }

@@ -138,6 +138,14 @@ export function parseLock(content: string): WorkspaceLock {
     if (!isSafeSegment(entry.directoryName!)) {
       throw new Error(`repositories[${i}].directoryName "${entry.directoryName}" is not a single path segment`);
     }
+    // owner/name are what `reconstructRepo` rebuilds the clone URL from, so they
+    // must be safe segments too — not merely non-empty.
+    if (!isSafeSegment(entry.owner!)) {
+      throw new Error(`repositories[${i}].owner "${entry.owner}" is not a valid path segment`);
+    }
+    if (!isSafeSegment(entry.name!)) {
+      throw new Error(`repositories[${i}].name "${entry.name}" is not a valid path segment`);
+    }
     if (!isAllowedCloneUrl(entry.cloneUrl!)) {
       throw new Error(`repositories[${i}].cloneUrl "${entry.cloneUrl}" has no recognized git transport (expected https/ssh/git:// or user@host:path)`);
     }

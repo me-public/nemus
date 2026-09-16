@@ -33,7 +33,6 @@ async function fileExists(p: string): Promise<boolean> {
 async function handleLock(opts: {
   workspace?: string;
   output?: string;
-  json?: boolean;
   all?: boolean;
   force?: boolean;
 }) {
@@ -54,8 +53,8 @@ async function handleLock(opts: {
 
     const lock = await buildLock(workspacePath, metadata);
 
-    // stdout: emit only the lockfile JSON so it can be piped/redirected cleanly.
-    if (opts.output === '-' || opts.json) {
+    // `-o -`: emit only the lockfile JSON so it can be piped/redirected cleanly.
+    if (opts.output === '-') {
       process.stdout.write(serializeLock(lock));
       return;
     }

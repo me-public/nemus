@@ -73,6 +73,13 @@ describe('parseLock', () => {
     }
   });
 
+  it('rejects an owner/name that is not a safe path segment (reconstructRepo builds URLs from them)', () => {
+    const badOwner = { ...validLock, repositories: [{ name: 'web', owner: '../x', directoryName: 'web', cloneUrl: 'https://h/o/r.git' }] };
+    expect(() => parseLock(JSON.stringify(badOwner))).toThrow(/owner/);
+    const badName = { ...validLock, repositories: [{ name: 'a/b', owner: 'acme', directoryName: 'web', cloneUrl: 'https://h/o/r.git' }] };
+    expect(() => parseLock(JSON.stringify(badName))).toThrow(/name/);
+  });
+
   it('rejects a cloneUrl with no recognized transport (option-injection)', () => {
     for (const cloneUrl of ['--upload-pack=/x', '-oProxyCommand=x', '/local/path.git', 'file:///x']) {
       const bad = { ...validLock, repositories: [{ name: 'web', owner: 'acme', directoryName: 'web', cloneUrl }] };
