@@ -288,15 +288,18 @@ export function runDev(services: DevService[], opts: RunDevOptions = {}): Promis
 function killGroup(child: ChildProcess, signal: NodeJS.Signals): void {
   if (child.pid == null) return;
   if (process.platform === 'win32') {
-    try {
-      spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
-    } catch {
+    // spawn() reports failures (e.g. taskkill missing → ENOENT) via an async
+    // 'error' event, not a synchronous throw, so a try/catch can't catch it — and
+    // an unhandled 'error' event would crash the process. Attach a handler that
+    // degrades to a leaf-only kill.
+    const tk = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    tk.on('error', () => {
       try {
         child.kill();
       } catch {
         // already gone
       }
-    }
+    });
     return;
   }
   try {
