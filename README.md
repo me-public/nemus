@@ -240,8 +240,36 @@ nemus status my-workspace     # (st) git status for every repo
 nemus sync my-workspace       # (s) git pull every repo (auto-retries on flaky network)
 nemus diff my-workspace       # (d) combined diff summary  (--full for raw diffs)
 nemus run my-workspace "npm install"   # (r) run a command in every repo
+nemus dev my-workspace        # start every repo's dev server together (one Ctrl-C stops all)
 nemus doctor my-workspace     # (doc) health checks + score
 ```
+
+### `nemus dev` — run all your services together
+
+A workspace is usually a set of services you run *together*. `nemus dev` starts
+each repo's dev server at once and streams their output into one terminal with a
+color-coded, aligned per-repo prefix; a single Ctrl-C tears them all down cleanly
+(process-group kill, so child trees die too).
+
+```bash
+nemus dev                     # start every runnable repo in the current workspace
+nemus dev payments --only web,api      # just a subset
+nemus dev payments --script start       # prefer a specific npm script
+nemus dev payments --command "make run"  # run an exact command in every repo
+nemus dev payments --exit-on-failure     # stop everything if any service crashes
+```
+
+```
+web      | VITE ready in 412 ms
+api      | listening on :4000
+worker   | [queue] connected
+```
+
+For each repo it runs `--command` if given, else the first `package.json` script
+that exists (`--script` → `dev` → `develop` → `start` → `serve`), using the
+repo's own package manager (pnpm/yarn/npm from its lockfile). Repos with no
+runnable script are skipped with a notice, so a library in the workspace won't
+block the services.
 
 ```
 Repo             Branch       Status        Ahead/Behind   Modified
