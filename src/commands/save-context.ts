@@ -26,7 +26,6 @@ export function registerSaveContextCommand(parent: Command) {
 }
 
 async function resolveWorkspacePath(workspaceName?: string): Promise<{ name: string; path: string } | null> {
-  // Try the workspace containing the current directory first (any depth).
   if (!workspaceName) {
     const current = resolveWorkspaceFromPath(process.cwd());
     if (current) return current;

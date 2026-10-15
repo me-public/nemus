@@ -105,16 +105,10 @@ function main() {
     }
 
     // New session — infer workspace from cwd
-    // `cwd` comes from the agent's hook payload (untrusted JSON). It is persisted
-    // and later handed to `tmux -c`, so only accept an absolute, NUL-free string;
-    // anything else (number/object/array/relative) falls back to our own cwd.
     const cwd =
       typeof input.cwd === 'string' && path.isAbsolute(input.cwd) && !input.cwd.includes('\0')
         ? input.cwd
         : process.cwd();
-    // Symlink-safe, any-depth resolution (a plain startsWith() against an
-    // un-realpath'd WORKSPACES_DIR tagged every session 'unknown' when the
-    // workspaces dir was reached through a symlink).
     const resolved = resolveWorkspaceFromPath(cwd, WORKSPACES_DIR);
     const workspace = resolved?.name ?? 'unknown';
     const workspacePath = resolved?.path ?? cwd;

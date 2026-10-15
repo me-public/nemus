@@ -203,7 +203,6 @@ describe('resolveWorkspaceFromPath', () => {
     const dir = await makeWorkspace('payments');
     const link = path.join(tmp, 'ws-link');
     await fs.symlink(wsRoot, link);
-    // Configured dir is the symlink; cwd is reported physically (or vice versa).
     const viaLink = resolveWorkspaceFromPath(path.join(dir, 'api', 'src'), link);
     expect(viaLink).toEqual({ name: 'payments', path: path.join(link, 'payments') });
     expect(resolveWorkspaceFromPath(path.join(link, 'payments', 'api'), wsRoot)?.name).toBe('payments');
@@ -213,8 +212,7 @@ describe('resolveWorkspaceFromPath', () => {
     const dir = await makeWorkspace('payments');
     const upper = path.join(tmp, 'WORKSPACES');
     const caseInsensitive = await fs.access(upper).then(() => true, () => false);
-    if (!caseInsensitive) return; // case-sensitive FS (e.g. Linux): not applicable
-    // The OS reports cwd in canonical case; the configured dir uses another case.
+    if (!caseInsensitive) return;
     expect(resolveWorkspaceFromPath(path.join(dir, 'api'), upper)?.name).toBe('payments');
   });
 
