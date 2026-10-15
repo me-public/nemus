@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-09-09
+
+### Fixed
+
+- **Current-workspace detection works from any depth and through symlinks.**
+  `nemus save-context` only looked at the current directory and its immediate
+  parent, so running it from `<workspace>/<repo>/src` (or deeper) failed to find
+  the workspace; it also trusted the name stored in the metadata (which can
+  drift) and accepted any directory with a stray `.workspace-meta.json`. The
+  dashboard's agent-session hook compared paths without resolving symlinks, so
+  with a symlinked workspaces directory every session was tagged `unknown`. Both
+  now use one shared resolver (`resolveWorkspaceFromPath`) that walks up to the
+  workspaces directory at any depth, realpaths both sides, uses the real
+  directory name, and requires the workspace to live under the workspaces dir.
+- **`nemus save-context -w <name>` rejects path-traversal names** (e.g.
+  `-w ../../x`) instead of writing `CONTEXT.md` outside the workspaces dir.
+- **A failed shell-integration install during `npm install` is now loud**, with
+  the consequence spelled out (no auto-cd / agent launch) and the exact manual
+  fix command, instead of a one-line note that was easy to miss.
+
+### Internal
+
+- New packaging test asserts every file the installer / uninstaller scripts load
+  from their own directory is actually in the published npm tarball, so an
+  installer can't ship depending on an unpublished helper.
+
 ## [0.17.0] - 2026-09-09
 
 ### Added

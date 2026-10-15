@@ -7,6 +7,7 @@ import { colorize } from '../utils/colors';
 import { loadMetadata, saveMetadata, listWorkspaces } from '../utils/workspace-meta';
 import { formatContextFile, appendToContextFile } from '../utils/context-file';
 import { select } from '../utils/prompt';
+import { resolveWorkspaceFromPath, safeWorkspacePath } from '../utils/validation';
 
 const CONTEXT_FILENAME = 'CONTEXT.md';
 
@@ -25,31 +26,21 @@ export function registerSaveContextCommand(parent: Command) {
 }
 
 async function resolveWorkspacePath(workspaceName?: string): Promise<{ name: string; path: string } | null> {
-  // Try current directory first
+  // Try the workspace containing the current directory first (any depth).
   if (!workspaceName) {
-    const cwd = process.cwd();
-    const metaPath = path.join(cwd, META_FILENAME);
-    try {
-      await fs.access(metaPath);
-      const meta = JSON.parse(await fs.readFile(metaPath, 'utf-8'));
-      return { name: meta.workspaceName || path.basename(cwd), path: cwd };
-    } catch {
-      // Not in a workspace directory — check if we're inside a workspace subdirectory
-      const parentDir = path.dirname(cwd);
-      const parentMeta = path.join(parentDir, META_FILENAME);
-      try {
-        await fs.access(parentMeta);
-        const meta = JSON.parse(await fs.readFile(parentMeta, 'utf-8'));
-        return { name: meta.workspaceName || path.basename(parentDir), path: parentDir };
-      } catch {
-        // Not in any workspace
-      }
-    }
+    const current = resolveWorkspaceFromPath(process.cwd());
+    if (current) return current;
   }
 
   // Use provided workspace name
   if (workspaceName) {
-    const wsPath = path.join(WORKSPACES_DIR, workspaceName);
+    let wsPath: string;
+    try {
+      wsPath = safeWorkspacePath(workspaceName);
+    } catch (err) {
+      logError(err instanceof Error ? err.message : `Invalid workspace name: ${workspaceName}`);
+      return null;
+    }
     try {
       await fs.access(path.join(wsPath, META_FILENAME));
       return { name: workspaceName, path: wsPath };

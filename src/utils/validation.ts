@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
-import { WORKSPACES_DIR } from './config';
+import { existsSync, realpathSync } from 'fs';
+import { WORKSPACES_DIR, META_FILENAME } from './config';
 import * as path from 'path';
 
 const WORKSPACE_NAME_REGEX = /^[a-zA-Z0-9_-]+$/;
@@ -48,6 +49,49 @@ export const safeWorkspacePath = (name: string): string => {
     throw new Error(`Refusing to use a workspace path outside the workspaces directory: "${name}"`);
   }
   return resolved;
+};
+
+/**
+ * Resolve the managed workspace that contains `cwd` (the workspace dir itself,
+ * or ANY depth inside one of its repos), or null if `cwd` is not inside one.
+ *
+ * - Walks up to the ancestor sitting directly under the workspaces dir, so
+ *   `<ws>/<repo>/src/components` resolves, not just `<ws>` and `<ws>/<repo>`.
+ * - realpaths both sides, so a symlinked workspaces dir (or a symlinked home it
+ *   lives under) still matches a cwd that the OS reports with symlinks resolved.
+ * - The name is the directory's real basename (never `metadata.workspaceName`,
+ *   which can drift), and it must be a safe segment with a metadata file, so a
+ *   stray `.workspace-meta.json` elsewhere on disk is never mistaken for a
+ *   workspace.
+ *
+ * Synchronous and never throws: the dashboard hook handler calls it on every
+ * agent tool call.
+ */
+export const resolveWorkspaceFromPath = (
+  cwd: string,
+  workspacesDir: string = WORKSPACES_DIR,
+): { name: string; path: string } | null => {
+  let root: string;
+  let dir: string;
+  try {
+    root = realpathSync(workspacesDir);
+    dir = realpathSync(cwd);
+  } catch {
+    return null;
+  }
+  while (true) {
+    const parent = path.dirname(dir);
+    if (parent === root) {
+      const name = path.basename(dir);
+      if (!isSafePathSegment(name)) return null;
+      if (!existsSync(path.join(dir, META_FILENAME))) return null;
+      // Address it through the configured (logical) workspaces dir, like every
+      // other caller of safeWorkspacePath does.
+      return { name, path: path.join(path.resolve(workspacesDir), name) };
+    }
+    if (parent === dir) return null; // hit the filesystem root
+    dir = parent;
+  }
 };
 
 export const validateWorkspaceName = (name: string): boolean | string => {

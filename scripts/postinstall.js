@@ -194,8 +194,17 @@ if (!fs.existsSync(SHELL_SCRIPT)) {
 try {
   execSync(`bash "${SHELL_SCRIPT}" ${shellType}`, { stdio: 'inherit' });
 } catch {
-  console.log(`\nNote: Shell integration install failed.`);
-  console.log(`      You can install it manually: bash "${SHELL_SCRIPT}" ${shellType}\n`);
+  // Stay exit 0 (never fail the npm install over this), but be LOUD: without the
+  // shell integration, `nemus create` / `nemus go` / `nemus -- ...` silently never
+  // cd into the workspace or launch the agent, which looks like a broken tool.
+  // A quiet one-line "Note" is exactly how a broken installer goes unnoticed.
+  console.log('');
+  console.log('  \x1b[31m\u2716 Shell integration install FAILED.\x1b[0m');
+  console.log('    Without it, `nemus create` / `nemus go` / `nemus -- ...` will NOT cd into the');
+  console.log('    workspace or launch your agent. Install it manually, then reload your shell:');
+  console.log('');
+  console.log(`      \x1b[36mbash "${SHELL_SCRIPT}" ${shellType} && source ${rcFile}\x1b[0m`);
+  console.log('');
   process.exit(0);
 }
 
