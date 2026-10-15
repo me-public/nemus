@@ -25,6 +25,7 @@
  */
 
 import * as fs from 'fs';
+import * as path from 'path';
 import { AgentState, AgentStatus } from '../../types/dashboard';
 import { readAgentState, writeAgentState, ensureStateDir } from '../../utils/agent-state';
 import { WORKSPACES_DIR } from '../../utils/config';
@@ -104,7 +105,13 @@ function main() {
     }
 
     // New session — infer workspace from cwd
-    const cwd = input.cwd || process.cwd();
+    // `cwd` comes from the agent's hook payload (untrusted JSON). It is persisted
+    // and later handed to `tmux -c`, so only accept an absolute, NUL-free string;
+    // anything else (number/object/array/relative) falls back to our own cwd.
+    const cwd =
+      typeof input.cwd === 'string' && path.isAbsolute(input.cwd) && !input.cwd.includes('\0')
+        ? input.cwd
+        : process.cwd();
     // Symlink-safe, any-depth resolution (a plain startsWith() against an
     // un-realpath'd WORKSPACES_DIR tagged every session 'unknown' when the
     // workspaces dir was reached through a symlink).

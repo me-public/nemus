@@ -71,6 +71,8 @@ export const resolveWorkspaceFromPath = (
   cwd: string,
   workspacesDir: string = WORKSPACES_DIR,
 ): { name: string; path: string } | null => {
+  // Defense in depth: callers may pass values parsed from untrusted JSON.
+  if (typeof cwd !== 'string' || typeof workspacesDir !== 'string') return null;
   let root: string;
   let dir: string;
   try {

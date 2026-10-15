@@ -218,6 +218,23 @@ describe('resolveWorkspaceFromPath', () => {
     expect(resolveWorkspaceFromPath(path.join(dir, 'api'), upper)?.name).toBe('payments');
   });
 
+  it('does not resolve a symlinked entry that points outside the workspaces dir', async () => {
+    const outside = path.join(tmp, 'outside', 'victim');
+    await fs.mkdir(outside, { recursive: true });
+    await fs.writeFile(path.join(outside, '.workspace-meta.json'), '{}');
+    await fs.symlink(outside, path.join(wsRoot, 'planted'));
+    expect(resolveWorkspaceFromPath(path.join(wsRoot, 'planted'), wsRoot)).toBeNull();
+    expect(resolveWorkspaceFromPath(outside, wsRoot)).toBeNull();
+  });
+
+  it('returns null (never throws) for non-string input from untrusted JSON', () => {
+    for (const bad of [123, { x: 1 }, ['/tmp'], null, undefined]) {
+      expect(resolveWorkspaceFromPath(bad as any, wsRoot)).toBeNull();
+      expect(resolveWorkspaceFromPath(wsRoot, bad as any)).toBeNull();
+    }
+    expect(resolveWorkspaceFromPath('/tmp/a\0b', wsRoot)).toBeNull();
+  });
+
   it('never throws for nonexistent paths', () => {
     expect(resolveWorkspaceFromPath('/definitely/not/here', wsRoot)).toBeNull();
     expect(resolveWorkspaceFromPath(wsRoot, '/definitely/not/here')).toBeNull();
