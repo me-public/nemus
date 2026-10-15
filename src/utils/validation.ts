@@ -74,8 +74,11 @@ export const resolveWorkspaceFromPath = (
   let root: string;
   let dir: string;
   try {
-    root = realpathSync(workspacesDir);
-    dir = realpathSync(cwd);
+    // .native (realpath(3)) also canonicalizes CASE on case-insensitive
+    // filesystems (macOS, Windows); the JS realpathSync keeps the caller's
+    // case, so `~/work` configured vs a real `~/Work` would never match.
+    root = realpathSync.native(workspacesDir);
+    dir = realpathSync.native(cwd);
   } catch {
     return null;
   }

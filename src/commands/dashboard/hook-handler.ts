@@ -25,7 +25,6 @@
  */
 
 import * as fs from 'fs';
-import * as path from 'path';
 import { AgentState, AgentStatus } from '../../types/dashboard';
 import { readAgentState, writeAgentState, ensureStateDir } from '../../utils/agent-state';
 import { WORKSPACES_DIR } from '../../utils/config';

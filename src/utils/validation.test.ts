@@ -209,6 +209,15 @@ describe('resolveWorkspaceFromPath', () => {
     expect(resolveWorkspaceFromPath(path.join(link, 'payments', 'api'), wsRoot)?.name).toBe('payments');
   });
 
+  it('matches when the configured dir differs only in case (case-insensitive FS)', async () => {
+    const dir = await makeWorkspace('payments');
+    const upper = path.join(tmp, 'WORKSPACES');
+    const caseInsensitive = await fs.access(upper).then(() => true, () => false);
+    if (!caseInsensitive) return; // case-sensitive FS (e.g. Linux): not applicable
+    // The OS reports cwd in canonical case; the configured dir uses another case.
+    expect(resolveWorkspaceFromPath(path.join(dir, 'api'), upper)?.name).toBe('payments');
+  });
+
   it('never throws for nonexistent paths', () => {
     expect(resolveWorkspaceFromPath('/definitely/not/here', wsRoot)).toBeNull();
     expect(resolveWorkspaceFromPath(wsRoot, '/definitely/not/here')).toBeNull();
