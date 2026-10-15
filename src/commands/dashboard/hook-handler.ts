@@ -29,6 +29,7 @@ import * as path from 'path';
 import { AgentState, AgentStatus } from '../../types/dashboard';
 import { readAgentState, writeAgentState, ensureStateDir } from '../../utils/agent-state';
 import { WORKSPACES_DIR } from '../../utils/config';
+import { resolveWorkspaceFromPath } from '../../utils/validation';
 
 function main() {
   try {
@@ -104,19 +105,13 @@ function main() {
     }
 
     // New session — infer workspace from cwd
-    const cwd = input.cwd || process.cwd();
-    let workspace = 'unknown';
-    let workspacePath = cwd;
-
-    const workspacesDir = WORKSPACES_DIR;
-    if (cwd.startsWith(workspacesDir + path.sep) || cwd === workspacesDir) {
-      const relative = cwd.slice(workspacesDir.length + 1);
-      const parts = relative.split(path.sep);
-      if (parts[0]) {
-        workspace = parts[0];
-        workspacePath = path.join(workspacesDir, workspace);
-      }
-    }
+    const cwd =
+      typeof input.cwd === 'string' && path.isAbsolute(input.cwd) && !input.cwd.includes('\0')
+        ? input.cwd
+        : process.cwd();
+    const resolved = resolveWorkspaceFromPath(cwd, WORKSPACES_DIR);
+    const workspace = resolved?.name ?? 'unknown';
+    const workspacePath = resolved?.path ?? cwd;
 
     const state: AgentState = {
       sessionId,

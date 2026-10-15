@@ -194,8 +194,13 @@ if (!fs.existsSync(SHELL_SCRIPT)) {
 try {
   execSync(`bash "${SHELL_SCRIPT}" ${shellType}`, { stdio: 'inherit' });
 } catch {
-  console.log(`\nNote: Shell integration install failed.`);
-  console.log(`      You can install it manually: bash "${SHELL_SCRIPT}" ${shellType}\n`);
+  console.log('');
+  console.log('  \x1b[31m\u2716 Shell integration install FAILED.\x1b[0m');
+  console.log('    Without it, `nemus create` / `nemus go` / `nemus -- ...` will NOT cd into the');
+  console.log('    workspace or launch your agent. Install it manually, then reload your shell:');
+  console.log('');
+  console.log(`      \x1b[36mbash "${SHELL_SCRIPT}" ${shellType} && source ${rcFile}\x1b[0m`);
+  console.log('');
   process.exit(0);
 }
 

@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
-import { WORKSPACES_DIR } from './config';
+import { existsSync, realpathSync } from 'fs';
+import { WORKSPACES_DIR, META_FILENAME } from './config';
 import * as path from 'path';
 
 const WORKSPACE_NAME_REGEX = /^[a-zA-Z0-9_-]+$/;
@@ -48,6 +49,32 @@ export const safeWorkspacePath = (name: string): string => {
     throw new Error(`Refusing to use a workspace path outside the workspaces directory: "${name}"`);
   }
   return resolved;
+};
+
+export const resolveWorkspaceFromPath = (
+  cwd: string,
+  workspacesDir: string = WORKSPACES_DIR,
+): { name: string; path: string } | null => {
+  if (typeof cwd !== 'string' || typeof workspacesDir !== 'string') return null;
+  let root: string;
+  let dir: string;
+  try {
+    root = realpathSync.native(workspacesDir);
+    dir = realpathSync.native(cwd);
+  } catch {
+    return null;
+  }
+  while (true) {
+    const parent = path.dirname(dir);
+    if (parent === root) {
+      const name = path.basename(dir);
+      if (!isSafePathSegment(name)) return null;
+      if (!existsSync(path.join(dir, META_FILENAME))) return null;
+      return { name, path: path.join(path.resolve(workspacesDir), name) };
+    }
+    if (parent === dir) return null;
+    dir = parent;
+  }
 };
 
 export const validateWorkspaceName = (name: string): boolean | string => {
