@@ -47,6 +47,7 @@ Global flags: `-f/--force-refresh` (skip repo cache), `-y/--yes` (skip prompts),
 | Show diff summary | [workspace-diff](references/workspace-diff.md) | `nemus diff [name]` | `di` |
 | Run shell command across repos | [run-command](references/run-command.md) | `nemus run [name] <cmd>` | `r` |
 | Start all repos' dev servers together | [dev](references/dev.md) | `nemus dev [name]` | — |
+| AI review of uncommitted changes across repos | [review](references/review.md) | `nemus review [name]` | — |
 | Health check | [workspace-doctor](references/workspace-doctor.md) | `nemus doctor [name]` | `doc` |
 | Clean node_modules / artifacts | [workspace-cleanup](references/workspace-cleanup.md) | `nemus cleanup <name>` | `cl` |
 | Remove repo from workspace | [remove-repo](references/remove-repo.md) | `nemus remove-repo` | `rr` |
